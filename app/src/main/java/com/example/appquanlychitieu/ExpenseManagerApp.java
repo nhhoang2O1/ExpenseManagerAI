@@ -2,7 +2,6 @@ package com.example.appquanlychitieu;
 
 import android.app.Application;
 
-import com.example.appquanlychitieu.data.database.AppDatabase;
 import com.example.appquanlychitieu.util.ThemeManager;
 
 public class ExpenseManagerApp extends Application {
@@ -11,6 +10,5 @@ public class ExpenseManagerApp extends Application {
         super.onCreate();
         ThemeManager.applySavedTheme(this);
         
-        AppDatabase.getDatabase(this);
     }
 }

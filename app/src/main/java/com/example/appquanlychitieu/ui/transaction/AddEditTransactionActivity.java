@@ -2,340 +2,327 @@ package com.example.appquanlychitieu.ui.transaction;
 
 import android.app.DatePickerDialog;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.GridView;
-import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.Observer;
 
 import com.example.appquanlychitieu.R;
-import com.example.appquanlychitieu.data.database.AppDatabase;
 import com.example.appquanlychitieu.data.model.Category;
-import com.example.appquanlychitieu.data.model.Transaction;
 import com.example.appquanlychitieu.data.model.TransactionType;
+import com.example.appquanlychitieu.data.remote.ApiError;
+import com.example.appquanlychitieu.data.remote.RemoteCallback;
+import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
+import com.example.appquanlychitieu.data.remote.dto.TransactionDto;
+import com.example.appquanlychitieu.data.remote.dto.TransactionRequestDto;
+import com.example.appquanlychitieu.data.repository.RemoteCategoryRepository;
+import com.example.appquanlychitieu.data.repository.RemoteTransactionRepository;
+import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.example.appquanlychitieu.util.DateUtils;
+import com.example.appquanlychitieu.util.NumberTextWatcher;
 import com.example.appquanlychitieu.util.SessionManager;
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AddEditTransactionActivity extends AppCompatActivity {
+    private static final int CATEGORY_COLUMNS = 3;
+    private static final int CATEGORY_ITEM_HEIGHT_DP = 76;
+    private static final int CATEGORY_VERTICAL_SPACING_DP = 8;
+    private static final String STATE_DATE = "state_date";
+    private static final String STATE_TYPE = "state_type";
+    private static final String STATE_CATEGORY = "state_category";
+
     public static final String EXTRA_TRANSACTION_TYPE = "transaction_type";
+    public static final String EXTRA_PREFILL_AMOUNT = "prefill_amount";
+    public static final String EXTRA_PREFILL_NOTE = "prefill_note";
+    public static final String EXTRA_PREFILL_DATE = "prefill_date";
+    public static final String EXTRA_REMOTE_TRANSACTION_ID = "remote_transaction_id";
+    public static final String EXTRA_REMOTE_CATEGORY_ID = "remote_category_id";
+    public static final String EXTRA_REMOTE_STORE_NAME = "remote_store_name";
 
-    private TextInputEditText etAmount, etNote, etDate;
+    private TextInputEditText etAmount;
+    private TextInputEditText etNote;
+    private TextInputEditText etDate;
+    private TextInputLayout layoutAmount;
+    private TextInputLayout layoutDate;
     private MaterialButtonToggleGroup toggleType;
-    private GridView gvCategories;
+    private GridView categoriesView;
     private MaterialButton btnSave;
-    private AppDatabase db;
-    private ImageButton btnBack;
-    private TextView tvTitle;
+    private View progressSaving;
+    private TextView categoryError;
 
+    private final Map<Long, CategoryDto> categoryMap = new HashMap<>();
+    private final List<Category> displayedCategories = new ArrayList<>();
+    private CategoryGridViewAdapter categoryAdapter;
+    private RemoteTransactionRepository transactionRepository;
+    private RemoteCategoryRepository categoryRepository;
     private TransactionType selectedType = TransactionType.EXPENSE;
     private long selectedDate = System.currentTimeMillis();
-    private long selectedCategoryId = -1;
-    private long editTransactionId = -1;
-    private long userId;
-    private CategoryGridViewAdapter categoryAdapter;
-    private LiveData<List<Category>> categoryLiveData;
-    private Observer<List<Category>> categoryObserver;
+    private long selectedCategoryId = -1L;
+    private CategoryDto selectedCategory;
+    private String remoteTransactionId;
+    private String remoteCategoryId;
+    private String remoteStoreName;
+    private boolean isSubmitting;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_edit_transaction);
+        EdgeToEdgeHelper.applySystemBars(findViewById(R.id.root_transaction_form));
 
-        db = AppDatabase.getDatabase(this);
         SessionManager session = new SessionManager(this);
-        userId = session.getUserId();
-
-        etAmount = findViewById(R.id.et_amount);
-        etNote = findViewById(R.id.et_note);
-        etDate = findViewById(R.id.et_date);
-        toggleType = findViewById(R.id.toggle_type);
-        gvCategories = findViewById(R.id.rv_categories);
-        btnSave = findViewById(R.id.btn_save);
-        btnBack = findViewById(R.id.btn_back);
-        tvTitle = findViewById(R.id.tv_title);
-
-        etAmount.setKeyListener(android.text.method.DigitsKeyListener.getInstance("0123456789.,"));
-        etAmount.addTextChangedListener(new com.example.appquanlychitieu.util.NumberTextWatcher(etAmount));
-
-        etDate.setText(DateUtils.formatDate(selectedDate));
-
-        categoryAdapter = new CategoryGridViewAdapter(this);
-        gvCategories.setAdapter(categoryAdapter);
-
-        categoryAdapter.setOnCategoryClickListener((category, position) -> {
-            if ("Khác".equalsIgnoreCase(category.getName())) {
-                showCustomCategoryDialog();
-            } else {
-                selectedCategoryId = category.getId();
-                categoryAdapter.setSelectedPosition(position);
-            }
-        });
-
-        String requestedType = getIntent().getStringExtra(EXTRA_TRANSACTION_TYPE);
-        if (requestedType != null) {
-            try {
-                selectedType = TransactionType.valueOf(requestedType);
-            } catch (IllegalArgumentException ignored) {
-                selectedType = TransactionType.EXPENSE;
-            }
+        if (!session.hasAuthToken()) {
+            finish();
+            return;
         }
+        transactionRepository = new RemoteTransactionRepository(this);
+        categoryRepository = new RemoteCategoryRepository(this);
+        remoteTransactionId = getIntent().getStringExtra(EXTRA_REMOTE_TRANSACTION_ID);
+        remoteCategoryId = getIntent().getStringExtra(EXTRA_REMOTE_CATEGORY_ID);
+        remoteStoreName = getIntent().getStringExtra(EXTRA_REMOTE_STORE_NAME);
 
-        editTransactionId = getIntent().getLongExtra("transaction_id", -1);
-        if (editTransactionId != -1) {
-            tvTitle.setText(R.string.edit_transaction);
-            loadTransaction();
-        }
-
-        toggleType.check(selectedType == TransactionType.INCOME ? R.id.btn_income : R.id.btn_expense);
-        toggleType.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
-            if (isChecked) {
-                selectedType = checkedId == R.id.btn_income ? TransactionType.INCOME : TransactionType.EXPENSE;
-                loadCategories();
-            }
-        });
-
-        etDate.setOnClickListener(v -> showDatePicker());
-        btnBack.setOnClickListener(v -> finish());
-        btnSave.setOnClickListener(v -> saveTransaction());
-
+        bindViews();
+        restoreSelection(savedInstanceState);
+        applyPrefill(savedInstanceState == null);
+        setupActions();
         loadCategories();
     }
 
-    private void loadCategories() {
-        
-        if (categoryLiveData != null && categoryObserver != null) {
-            categoryLiveData.removeObserver(categoryObserver);
-        }
+    private void bindViews() {
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> finish());
+        toolbar.setTitle(remoteTransactionId == null
+                ? R.string.add_transaction : R.string.edit_transaction);
+        etAmount = findViewById(R.id.et_amount);
+        etNote = findViewById(R.id.et_note);
+        etDate = findViewById(R.id.et_date);
+        layoutAmount = findViewById(R.id.layout_amount);
+        layoutDate = findViewById(R.id.layout_date);
+        toggleType = findViewById(R.id.toggle_type);
+        categoriesView = findViewById(R.id.rv_categories);
+        btnSave = findViewById(R.id.btn_save);
+        progressSaving = findViewById(R.id.progress_saving);
+        categoryError = findViewById(R.id.tv_category_error);
 
-        categoryLiveData = db.categoryDao().getCategoriesByType(selectedType);
-        categoryObserver = categories -> {
-            if (categories != null && !categories.isEmpty()) {
-                
-                java.util.Collections.sort(categories, (c1, c2) -> {
-                    int weight1 = getCategoryWeight(c1.getName());
-                    int weight2 = getCategoryWeight(c2.getName());
-                    if (weight1 != weight2) {
-                        return Integer.compare(weight1, weight2);
-                    }
-                    return c1.getName().compareToIgnoreCase(c2.getName());
-                });
-
-                categoryAdapter.setCategories(categories);
-                if (selectedCategoryId != -1) {
-                    categoryAdapter.setSelectedCategoryId(selectedCategoryId);
-                }
-            } else {
-                
-                Toast.makeText(this, "Đang khởi tạo danh mục...", Toast.LENGTH_SHORT).show();
-                initializeDefaultCategories();
-            }
-        };
-        categoryLiveData.observe(this, categoryObserver);
+        etAmount.setKeyListener(android.text.method.DigitsKeyListener.getInstance("0123456789.,"));
+        etAmount.addTextChangedListener(new NumberTextWatcher(etAmount));
+        etDate.setText(DateUtils.formatDate(selectedDate));
+        categoryAdapter = new CategoryGridViewAdapter(this);
+        categoriesView.setAdapter(categoryAdapter);
     }
 
-    private int getCategoryWeight(String name) {
-        if (name == null) return 100;
-        switch (name) {
-            
-            case "Ăn uống": return 1;
-            case "Di chuyển": return 2;
-            case "Hóa đơn": return 3;
-            case "Mua sắm": return 4;
-            case "Nhà ở": return 5;
-            case "Sức khỏe": return 6;
-            case "Giáo dục": return 7;
-            case "Giải trí": return 8;
-            
-            case "Lương": return 1;
-            case "Làm thêm": return 2;
-            case "Đầu tư": return 3;
-            case "Quà tặng": return 4;
-            
-            case "Khác": return 999;
-            default: return 100; 
+    private void restoreSelection(Bundle state) {
+        String requested = state == null
+                ? getIntent().getStringExtra(EXTRA_TRANSACTION_TYPE)
+                : state.getString(STATE_TYPE);
+        if (requested != null) {
+            try { selectedType = TransactionType.valueOf(requested); }
+            catch (IllegalArgumentException ignored) { selectedType = TransactionType.EXPENSE; }
+        }
+        if (state != null) {
+            selectedDate = state.getLong(STATE_DATE, selectedDate);
+            remoteCategoryId = state.getString(STATE_CATEGORY, remoteCategoryId);
+        }
+        toggleType.check(selectedType == TransactionType.INCOME ? R.id.btn_income : R.id.btn_expense);
+        etDate.setText(DateUtils.formatDate(selectedDate));
+    }
+
+    private void applyPrefill(boolean firstCreation) {
+        if (!firstCreation) return;
+        String amount = getIntent().getStringExtra(EXTRA_PREFILL_AMOUNT);
+        String note = getIntent().getStringExtra(EXTRA_PREFILL_NOTE);
+        String isoDate = getIntent().getStringExtra(EXTRA_PREFILL_DATE);
+        if (amount != null) etAmount.setText(amount);
+        if (note != null) etNote.setText(note);
+        if (isoDate != null && !isoDate.trim().isEmpty()) {
+            try {
+                selectedDate = LocalDate.parse(isoDate).atStartOfDay(ZoneId.of("Asia/Ho_Chi_Minh"))
+                        .toInstant().toEpochMilli();
+                etDate.setText(DateUtils.formatDate(selectedDate));
+            } catch (RuntimeException ignored) {
+                selectedDate = System.currentTimeMillis();
+            }
         }
     }
 
-    private void initializeDefaultCategories() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            int count = db.categoryDao().getCategoryCount();
-            if (count == 0) {
-                
-                java.util.List<Category> defaultCategories = new java.util.ArrayList<>();
-                
-                defaultCategories.add(new Category("Ăn uống", "ic_food", "#FF5722", TransactionType.EXPENSE, true));
-                defaultCategories.add(new Category("Di chuyển", "ic_transport", "#2196F3", TransactionType.EXPENSE, true));
-                defaultCategories.add(new Category("Mua sắm", "ic_shopping", "#E91E63", TransactionType.EXPENSE, true));
-                defaultCategories.add(new Category("Nhà ở", "ic_house", "#795548", TransactionType.EXPENSE, true));
-                defaultCategories.add(new Category("Giải trí", "ic_entertainment", "#9C27B0", TransactionType.EXPENSE, true));
-                defaultCategories.add(new Category("Sức khỏe", "ic_health", "#F44336", TransactionType.EXPENSE, true));
-                defaultCategories.add(new Category("Giáo dục", "ic_education", "#3F51B5", TransactionType.EXPENSE, true));
-                defaultCategories.add(new Category("Hóa đơn", "ic_bill", "#FF9800", TransactionType.EXPENSE, true));
-                defaultCategories.add(new Category("Khác", "ic_other", "#607D8B", TransactionType.EXPENSE, true));
-
-                defaultCategories.add(new Category("Lương", "ic_salary", "#4CAF50", TransactionType.INCOME, true));
-                defaultCategories.add(new Category("Quà tặng", "ic_gift", "#E91E63", TransactionType.INCOME, true));
-                defaultCategories.add(new Category("Đầu tư", "ic_invest", "#00BCD4", TransactionType.INCOME, true));
-                defaultCategories.add(new Category("Làm thêm", "ic_freelance", "#8BC34A", TransactionType.INCOME, true));
-                defaultCategories.add(new Category("Khác", "ic_other", "#607D8B", TransactionType.INCOME, true));
-
-                db.categoryDao().insertAll(defaultCategories);
-                
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Đã khởi tạo danh mục!", Toast.LENGTH_SHORT).show();
-                    loadCategories();
-                });
-            }
+    private void setupActions() {
+        categoriesView.setOnItemClickListener((parent, view, position, id) -> {
+            Category category = categoryAdapter.getItem(position);
+            selectedCategoryId = category.getId();
+            selectedCategory = categoryMap.get(selectedCategoryId);
+            remoteCategoryId = selectedCategory == null ? null : selectedCategory.id;
+            categoryAdapter.setSelectedPosition(position);
+            categoryError.setVisibility(View.GONE);
         });
+        toggleType.addOnButtonCheckedListener((group, checkedId, checked) -> {
+            if (!checked) return;
+            TransactionType next = checkedId == R.id.btn_income
+                    ? TransactionType.INCOME : TransactionType.EXPENSE;
+            if (next == selectedType && !displayedCategories.isEmpty()) return;
+            selectedType = next;
+            selectedCategoryId = -1L;
+            selectedCategory = null;
+            remoteCategoryId = null;
+            loadCategories();
+        });
+        etDate.setOnClickListener(v -> showDatePicker());
+        btnSave.setOnClickListener(v -> saveTransaction());
     }
 
-    private void loadTransaction() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            Transaction transaction = db.transactionDao().getTransactionById(editTransactionId);
-            if (transaction != null) {
-                runOnUiThread(() -> {
-                    etAmount.setText(String.valueOf((long) transaction.getAmount()));
-                    etNote.setText(transaction.getNote());
-                    selectedDate = transaction.getDate();
-                    etDate.setText(DateUtils.formatDate(selectedDate));
-                    selectedType = transaction.getType();
-                    selectedCategoryId = transaction.getCategoryId() != null ? transaction.getCategoryId() : -1;
-
-                    if (selectedType == TransactionType.INCOME) {
-                        toggleType.check(R.id.btn_income);
-                    } else {
-                        toggleType.check(R.id.btn_expense);
+    private void loadCategories() {
+        setSubmitting(true, false);
+        categoryRepository.getCategories(selectedType.name(), new RemoteCallback<List<CategoryDto>>() {
+            @Override
+            public void onSuccess(List<CategoryDto> values) {
+                displayedCategories.clear();
+                categoryMap.clear();
+                int index = 1;
+                if (values != null) {
+                    for (CategoryDto dto : values) {
+                        long localId = -index++;
+                        Category category = new Category(dto.name,
+                                empty(dto.icon) ? "ic_other" : dto.icon,
+                                empty(dto.color) ? "#607D8B" : dto.color,
+                                selectedType, true);
+                        category.setId(localId);
+                        displayedCategories.add(category);
+                        categoryMap.put(localId, dto);
+                        if (dto.id != null && dto.id.equals(remoteCategoryId)) {
+                            selectedCategoryId = localId;
+                            selectedCategory = dto;
+                        }
                     }
-                });
+                }
+                categoryAdapter.setCategories(displayedCategories);
+                updateCategoryGridHeight(displayedCategories.size());
+                if (selectedCategoryId != -1L) categoryAdapter.setSelectedCategoryId(selectedCategoryId);
+                setSubmitting(false, false);
+                btnSave.setEnabled(!displayedCategories.isEmpty());
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                setSubmitting(false, false);
+                btnSave.setEnabled(false);
+                categoryError.setText(R.string.category_load_failed);
+                categoryError.setVisibility(View.VISIBLE);
+                Snackbar.make(findViewById(R.id.root_transaction_form), error.getMessage(),
+                        Snackbar.LENGTH_INDEFINITE)
+                        .setAction(R.string.retry, v -> loadCategories()).show();
             }
         });
     }
 
     private void showDatePicker() {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(selectedDate);
-        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(selectedDate);
+        new DatePickerDialog(this, (view, year, month, day) -> {
             Calendar selected = Calendar.getInstance();
-            selected.set(year, month, dayOfMonth);
+            selected.set(year, month, day, 12, 0, 0);
             selectedDate = selected.getTimeInMillis();
             etDate.setText(DateUtils.formatDate(selectedDate));
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+            layoutDate.setError(null);
+        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     private void saveTransaction() {
-        String amountStr = etAmount.getText() != null ? etAmount.getText().toString().trim() : "";
-        if (amountStr.isEmpty()) {
-            Toast.makeText(this, R.string.please_enter_amount, Toast.LENGTH_SHORT).show();
+        if (isSubmitting) return;
+        String rawAmount = textOf(etAmount).replace(".", "").replace(",", "");
+        long amount;
+        try { amount = new BigDecimal(rawAmount).longValueExact(); }
+        catch (RuntimeException exception) {
+            layoutAmount.setError(getString(R.string.please_enter_amount));
+            etAmount.requestFocus();
             return;
         }
-
-        amountStr = amountStr.replace(".", "");
-        
-        double amount;
-        try {
-            amount = Double.parseDouble(amountStr);
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, R.string.please_enter_amount, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
         if (amount <= 0) {
-            Toast.makeText(this, "Số tiền phải lớn hơn 0", Toast.LENGTH_SHORT).show();
+            layoutAmount.setError(getString(R.string.amount_must_be_positive));
+            etAmount.requestFocus();
+            return;
+        }
+        layoutAmount.setError(null);
+        if (selectedCategory == null || selectedCategory.id == null) {
+            categoryError.setText(R.string.please_select_category);
+            categoryError.setVisibility(View.VISIBLE);
             return;
         }
 
-        if (selectedCategoryId == -1) {
-            Toast.makeText(this, R.string.please_select_category, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String note = etNote.getText() != null ? etNote.getText().toString().trim() : "";
-
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            if (editTransactionId != -1) {
-                Transaction transaction = db.transactionDao().getTransactionById(editTransactionId);
-                if (transaction != null) {
-                    transaction.setAmount(amount);
-                    transaction.setNote(note);
-                    transaction.setDate(selectedDate);
-                    transaction.setCategoryId(selectedCategoryId);
-                    transaction.setType(selectedType);
-                    db.transactionDao().update(transaction);
-                }
-            } else {
-                Transaction transaction = new Transaction(amount, note, selectedDate,
-                        selectedCategoryId, selectedType, userId);
-                db.transactionDao().insert(transaction);
-            }
-            runOnUiThread(() -> {
-                Toast.makeText(this, R.string.transaction_saved, Toast.LENGTH_SHORT).show();
+        String transactionDate = Instant.ofEpochMilli(selectedDate)
+                .atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate().toString();
+        TransactionRequestDto request = new TransactionRequestDto(
+                BigDecimal.valueOf(amount), selectedType.name(), transactionDate,
+                selectedCategory.id, textOf(etNote), remoteStoreName);
+        setSubmitting(true, true);
+        RemoteCallback<TransactionDto> callback = new RemoteCallback<TransactionDto>() {
+            @Override
+            public void onSuccess(TransactionDto value) {
+                setSubmitting(false, true);
+                setResult(RESULT_OK);
                 finish();
-            });
-        });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                setSubmitting(false, true);
+                Snackbar.make(findViewById(R.id.root_transaction_form), error.getMessage(),
+                        Snackbar.LENGTH_LONG).show();
+            }
+        };
+        if (empty(remoteTransactionId)) transactionRepository.create(request, callback);
+        else transactionRepository.update(remoteTransactionId, request, callback);
     }
 
-    private void showCustomCategoryDialog() {
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-        builder.setTitle("Nhập danh mục khác");
+    private void setSubmitting(boolean submitting, boolean showProgress) {
+        isSubmitting = submitting;
+        btnSave.setEnabled(!submitting);
+        toggleType.setEnabled(!submitting);
+        progressSaving.setVisibility(submitting && showProgress ? View.VISIBLE : View.GONE);
+    }
 
-        final android.widget.EditText input = new android.widget.EditText(this);
-        input.setHint("Tên danh mục");
-        
-        android.widget.FrameLayout container = new android.widget.FrameLayout(this);
-        android.widget.FrameLayout.LayoutParams params = new  android.widget.FrameLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT, 
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.leftMargin = getResources().getDimensionPixelSize(R.dimen.spacing_md);
-        params.rightMargin = getResources().getDimensionPixelSize(R.dimen.spacing_md);
-        input.setLayoutParams(params);
-        container.addView(input);
-        
-        builder.setView(container);
+    private void updateCategoryGridHeight(int itemCount) {
+        int rows = Math.max(1, (int) Math.ceil(itemCount / (double) CATEGORY_COLUMNS));
+        ViewGroup.LayoutParams params = categoriesView.getLayoutParams();
+        params.height = dp(rows * CATEGORY_ITEM_HEIGHT_DP
+                + Math.max(0, rows - 1) * CATEGORY_VERTICAL_SPACING_DP);
+        categoriesView.setLayoutParams(params);
+    }
 
-        builder.setPositiveButton("OK", (dialog, which) -> {
-            String newCategoryName = input.getText().toString().trim();
-            if (!newCategoryName.isEmpty()) {
-                AppDatabase.databaseWriteExecutor.execute(() -> {
-                    boolean exists = false;
-                    List<Category> existingCats = db.categoryDao().getCategoriesByTypeSync(selectedType);
-                    long existingId = -1;
-                    for (Category c : existingCats) {
-                        if (c.getName().equalsIgnoreCase(newCategoryName)) {
-                            exists = true;
-                            existingId = c.getId();
-                            break;
-                        }
-                    }
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
 
-                    final long newId;
-                    if (!exists) {
-                        Category newCat = new Category(newCategoryName, "ic_other", "#607D8B", selectedType, false);
-                        newId = db.categoryDao().insert(newCat);
-                    } else {
-                        newId = existingId;
-                    }
+    private String textOf(TextInputEditText input) {
+        return input.getText() == null ? "" : input.getText().toString().trim();
+    }
 
-                    final boolean finalExists = exists;
-                    runOnUiThread(() -> {
-                        selectedCategoryId = newId;
-                        if (finalExists) {
-                            categoryAdapter.setSelectedCategoryId(selectedCategoryId);
-                        }
-                        
-                    });
-                });
-            }
-        });
-        builder.setNegativeButton("Hủy", (dialog, which) -> dialog.cancel());
-        builder.show();
+    private boolean empty(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putLong(STATE_DATE, selectedDate);
+        outState.putString(STATE_TYPE, selectedType.name());
+        outState.putString(STATE_CATEGORY, remoteCategoryId);
     }
 }

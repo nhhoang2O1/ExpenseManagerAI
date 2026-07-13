@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.example/schemas/receipt-image-metadata.schema.json",
+  "title": "Receipt image metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "imageId",
+    "receiptGroupId",
+    "imagePath",
+    "storeGroup",
+    "storeName",
+    "device",
+    "lighting",
+    "captureAngle",
+    "quality",
+    "sensitiveDataRedacted"
+  ],
+  "properties": {
+    "imageId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "receiptGroupId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "imagePath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path relative to ml/, never an absolute path."
+    },
+    "storeGroup": {
+      "enum": [
+        "circle_k",
+        "gs25",
+        "supermarket_food",
+        "cafe_food",
+        "pharmacy",
+        "independent_retail"
+      ]
+    },
+    "storeName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "device": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lighting": {
+      "enum": ["daylight", "indoor", "low_light", "mixed"]
+    },
+    "captureAngle": {
+      "enum": ["straight", "tilted", "perspective"]
+    },
+    "quality": {
+      "enum": [
+        "good",
+        "faded",
+        "blurred",
+        "overexposed",
+        "underexposed"
+      ]
+    },
+    "sensitiveDataRedacted": {
+      "const": true
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "split": {
+      "enum": ["train", "validation", "test"]
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

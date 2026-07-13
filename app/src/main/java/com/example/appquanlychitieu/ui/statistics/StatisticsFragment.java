@@ -1,13 +1,13 @@
 package com.example.appquanlychitieu.ui.statistics;
 
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.ImageButton;
-import android.widget.ListView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -18,6 +18,8 @@ import androidx.lifecycle.ViewModelProvider;
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.CategorySummary;
 import com.example.appquanlychitieu.data.model.MonthlySummary;
+import com.example.appquanlychitieu.ui.common.CategoryVisualResolver;
+import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.util.CurrencyFormatter;
 import com.example.appquanlychitieu.util.DateUtils;
 import com.github.mikephil.charting.charts.PieChart;
@@ -25,6 +27,7 @@ import com.github.mikephil.charting.data.PieData;
 import com.github.mikephil.charting.data.PieDataSet;
 import com.github.mikephil.charting.data.PieEntry;
 import com.github.mikephil.charting.formatter.PercentFormatter;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -32,196 +35,169 @@ import java.util.List;
 
 public class StatisticsFragment extends Fragment {
     private StatisticsViewModel viewModel;
-    private PieChart pieChart;
-    private TextView tvCurrentMonth, tvEmpty, tvHistoryEmpty;
-    private android.widget.LinearLayout layoutCategorySummary, layoutMonthlyHistory;
-    
-    private ImageButton btnPrev, btnNext;
+    private PieChart chart;
+    private TextView currentMonth;
+    private TextView income;
+    private TextView expense;
+    private TextView balance;
+    private TextView categoryEmpty;
+    private TextView historyEmpty;
+    private LinearLayout categoryList;
+    private LinearLayout historyList;
+    private View loading;
+    private View errorState;
+    private int selectedYear;
+    private int selectedMonth;
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_statistics, container, false);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
-        pieChart = view.findViewById(R.id.pie_chart);
-        tvCurrentMonth = view.findViewById(R.id.tv_current_month);
-        tvEmpty = view.findViewById(R.id.tv_empty);
-        tvHistoryEmpty = view.findViewById(R.id.tv_history_empty);
-        layoutCategorySummary = view.findViewById(R.id.layout_category_summary);
-        layoutMonthlyHistory = view.findViewById(R.id.layout_monthly_history);
-        btnPrev = view.findViewById(R.id.btn_prev_month);
-        btnNext = view.findViewById(R.id.btn_next_month);
-
-        setupPieChart();
+        chart = view.findViewById(R.id.pie_chart);
+        currentMonth = view.findViewById(R.id.tv_current_month);
+        income = view.findViewById(R.id.tv_kpi_income);
+        expense = view.findViewById(R.id.tv_kpi_expense);
+        balance = view.findViewById(R.id.tv_kpi_balance);
+        categoryEmpty = view.findViewById(R.id.tv_empty);
+        historyEmpty = view.findViewById(R.id.tv_history_empty);
+        categoryList = view.findViewById(R.id.layout_category_summary);
+        historyList = view.findViewById(R.id.layout_monthly_history);
+        loading = view.findViewById(R.id.progress_loading);
+        errorState = view.findViewById(R.id.layout_error_state);
+        setupChart();
 
         viewModel = new ViewModelProvider(this).get(StatisticsViewModel.class);
-
-        viewModel.getSelectedMonthYear().observe(getViewLifecycleOwner(), monthYear -> {
-            Calendar cal = Calendar.getInstance();
-            cal.set(monthYear[0], monthYear[1], 1);
-            tvCurrentMonth.setText(DateUtils.formatDisplayMonth(cal.getTimeInMillis()));
+        view.findViewById(R.id.btn_prev_month).setOnClickListener(v -> viewModel.previousMonth());
+        view.findViewById(R.id.btn_next_month).setOnClickListener(v -> viewModel.nextMonth());
+        view.findViewById(R.id.btn_retry).setOnClickListener(v -> viewModel.refreshRemoteStatistics());
+        viewModel.getSelectedMonthYear().observe(getViewLifecycleOwner(), month -> {
+            selectedYear = month[0];
+            selectedMonth = month[1];
+            currentMonth.setText(DateUtils.formatDisplayMonth(DateUtils.getStartOfMonth(month[0], month[1])));
+            updateKpis(viewModel.getMonthlySummary().getValue());
         });
-
-        viewModel.getCategorySummary().observe(getViewLifecycleOwner(), summaries -> {
-            if (summaries != null && !summaries.isEmpty()) {
-                updatePieChart(summaries);
-                
-                CategorySummaryAdapter adapter = new CategorySummaryAdapter(summaries);
-                layoutCategorySummary.removeAllViews();
-                for (int i = 0; i < adapter.getCount(); i++) {
-                    View itemView = adapter.getView(i, null, layoutCategorySummary);
-                    layoutCategorySummary.addView(itemView);
-                }
-                
-                pieChart.setVisibility(View.VISIBLE);
-                layoutCategorySummary.setVisibility(View.VISIBLE);
-                tvEmpty.setVisibility(View.GONE);
-            } else {
-                pieChart.setVisibility(View.GONE);
-                layoutCategorySummary.setVisibility(View.GONE);
-                tvEmpty.setVisibility(View.VISIBLE);
-            }
-        });
-
+        viewModel.getCategorySummary().observe(getViewLifecycleOwner(), this::renderCategories);
         viewModel.getMonthlySummary().observe(getViewLifecycleOwner(), summaries -> {
-            if (summaries != null && !summaries.isEmpty()) {
-                MonthlySummaryAdapter adapter = new MonthlySummaryAdapter(summaries);
-                layoutMonthlyHistory.removeAllViews();
-                for (int i = 0; i < adapter.getCount(); i++) {
-                    View itemView = adapter.getView(i, null, layoutMonthlyHistory);
-                    layoutMonthlyHistory.addView(itemView);
-                }
-                
-                layoutMonthlyHistory.setVisibility(View.VISIBLE);
-                tvHistoryEmpty.setVisibility(View.GONE);
-            } else {
-                layoutMonthlyHistory.setVisibility(View.GONE);
-                tvHistoryEmpty.setVisibility(View.VISIBLE);
-            }
+            renderHistory(summaries);
+            updateKpis(summaries);
         });
-
-        btnPrev.setOnClickListener(v -> viewModel.previousMonth());
-        btnNext.setOnClickListener(v -> viewModel.nextMonth());
+        viewModel.getLoadState().observe(getViewLifecycleOwner(), this::renderState);
+        viewModel.getRemoteError().observe(getViewLifecycleOwner(), message -> {
+            if (message != null && !message.trim().isEmpty())
+                Snackbar.make(view, message, Snackbar.LENGTH_LONG).show();
+        });
     }
 
-    private void setupPieChart() {
-        pieChart.setUsePercentValues(true);
-        pieChart.getDescription().setEnabled(false);
-        pieChart.setDrawHoleEnabled(true);
-        pieChart.setHoleColor(Color.TRANSPARENT);
-        pieChart.setHoleRadius(45f);
-        pieChart.setTransparentCircleRadius(50f);
-        pieChart.setDrawEntryLabels(false);
-        pieChart.getLegend().setEnabled(false);
-        pieChart.setRotationEnabled(true);
-        pieChart.animateY(800);
+    private void setupChart() {
+        chart.setUsePercentValues(true);
+        chart.getDescription().setEnabled(false);
+        chart.getLegend().setEnabled(false);
+        chart.setDrawEntryLabels(false);
+        chart.setRotationEnabled(false);
+        chart.setHoleRadius(58f);
+        chart.setTransparentCircleRadius(62f);
+        chart.setHoleColor(requireContext().getColor(R.color.surface));
+        chart.setCenterText(getString(R.string.expense));
+        chart.setCenterTextColor(requireContext().getColor(R.color.text_secondary));
+        chart.setCenterTextSize(12f);
     }
 
-    private void updatePieChart(List<CategorySummary> summaries) {
+    private void renderCategories(List<CategorySummary> summaries) {
+        boolean empty = summaries == null || summaries.isEmpty();
+        chart.setVisibility(empty ? View.GONE : View.VISIBLE);
+        categoryList.setVisibility(empty ? View.GONE : View.VISIBLE);
+        categoryEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+        categoryList.removeAllViews();
+        if (empty) return;
+
         List<PieEntry> entries = new ArrayList<>();
         List<Integer> colors = new ArrayList<>();
-        for (CategorySummary s : summaries) {
-            entries.add(new PieEntry((float) s.getTotalAmount(), s.getCategoryName()));
-            try { colors.add(Color.parseColor(s.getCategoryColor())); }
-            catch (Exception e) { colors.add(Color.GRAY); }
+        for (CategorySummary summary : summaries) {
+            entries.add(new PieEntry((float) summary.getTotalAmount(), summary.getCategoryName()));
+            int color = CategoryVisualResolver.resolveChartColor(
+                    String.valueOf(summary.getCategoryId()), summary.getCategoryColor());
+            colors.add(color);
+            View item = LayoutInflater.from(requireContext()).inflate(
+                    R.layout.item_category_summary, categoryList, false);
+            ((TextView) item.findViewById(R.id.tv_category_name)).setText(summary.getCategoryName());
+            ((TextView) item.findViewById(R.id.tv_transaction_count)).setText(getString(
+                    R.string.transactions_count, summary.getTransactionCount()));
+            ((TextView) item.findViewById(R.id.tv_amount)).setText(
+                    CurrencyFormatter.format(summary.getTotalAmount()));
+            View dot = item.findViewById(R.id.view_color);
+            GradientDrawable background = new GradientDrawable();
+            background.setShape(GradientDrawable.OVAL);
+            background.setColor(color);
+            dot.setBackground(background);
+            categoryList.addView(item);
         }
-        PieDataSet dataSet = new PieDataSet(entries, "");
-        dataSet.setColors(colors);
-        dataSet.setSliceSpace(2f);
-        dataSet.setValueTextSize(11f);
-        dataSet.setValueTextColor(Color.WHITE);
-        dataSet.setValueFormatter(new PercentFormatter(pieChart));
-        pieChart.setData(new PieData(dataSet));
-        pieChart.invalidate();
+        PieDataSet set = new PieDataSet(entries, "");
+        set.setColors(colors);
+        set.setSliceSpace(2f);
+        set.setValueTextColor(Color.WHITE);
+        set.setValueTextSize(10f);
+        set.setValueFormatter(new PercentFormatter(chart));
+        chart.setData(new PieData(set));
+        chart.invalidate();
     }
 
-    class CategorySummaryAdapter extends BaseAdapter {
-        private final List<CategorySummary> summaries;
-
-        CategorySummaryAdapter(List<CategorySummary> summaries) { this.summaries = summaries; }
-
-        @Override public int getCount() { return summaries.size(); }
-        @Override public CategorySummary getItem(int pos) { return summaries.get(pos); }
-        @Override public long getItemId(int pos) { return pos; }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            if (convertView == null)
-                convertView = LayoutInflater.from(requireContext()).inflate(R.layout.item_transaction, parent, false);
-
-            CategorySummary s = summaries.get(position);
-            TextView tvNote = convertView.findViewById(R.id.tv_note);
-            TextView tvCategory = convertView.findViewById(R.id.tv_category);
-            TextView tvAmount = convertView.findViewById(R.id.tv_amount);
-            View viewIconBg = convertView.findViewById(R.id.view_icon_bg);
-            android.widget.ImageView ivIcon = convertView.findViewById(R.id.iv_category_icon);
-
-            tvNote.setText(s.getCategoryName());
-            tvCategory.setText(String.format("%d giao dịch", s.getTransactionCount()));
-            tvAmount.setText(CurrencyFormatter.format(s.getTotalAmount()));
-            tvAmount.setTextColor(requireContext().getColor(R.color.expense_color));
-
+    private void renderHistory(List<MonthlySummary> summaries) {
+        boolean empty = summaries == null || summaries.isEmpty();
+        historyList.setVisibility(empty ? View.GONE : View.VISIBLE);
+        historyEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+        historyList.removeAllViews();
+        if (empty) return;
+        for (MonthlySummary summary : summaries) {
+            View item = LayoutInflater.from(requireContext()).inflate(
+                    R.layout.item_monthly_summary, historyList, false);
+            TextView month = item.findViewById(R.id.tv_month_year);
             try {
-                int color = Color.parseColor(s.getCategoryColor());
-                android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-                bg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-                bg.setColor(color);
-                viewIconBg.setBackground(bg);
-            } catch (Exception ignored) {}
-
-            int iconRes = getIconResource(s.getCategoryIcon());
-            if (iconRes != 0) ivIcon.setImageResource(iconRes);
-
-            return convertView;
+                String[] parts = summary.getMonthYear().split("-");
+                Calendar calendar = Calendar.getInstance();
+                calendar.set(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]) - 1, 1);
+                month.setText(DateUtils.formatDisplayMonth(calendar.getTimeInMillis()));
+            } catch (RuntimeException ignored) { month.setText(summary.getMonthYear()); }
+            ((TextView) item.findViewById(R.id.tv_income)).setText(
+                    "+ " + CurrencyFormatter.format(summary.getTotalIncome()));
+            ((TextView) item.findViewById(R.id.tv_expense)).setText(
+                    "- " + CurrencyFormatter.format(summary.getTotalExpense()));
+            TextView itemBalance = item.findViewById(R.id.tv_balance);
+            itemBalance.setText(CurrencyFormatter.format(summary.getBalance()));
+            itemBalance.setTextColor(requireContext().getColor(summary.getBalance() >= 0
+                    ? R.color.income_color : R.color.expense_color));
+            historyList.addView(item);
         }
     }
 
-    private int getIconResource(String iconName) {
-        if (iconName == null) return 0;
-        return requireContext().getResources().getIdentifier(iconName, "drawable", requireContext().getPackageName());
+    private void updateKpis(List<MonthlySummary> summaries) {
+        MonthlySummary selected = null;
+        String key = String.format("%04d-%02d", selectedYear, selectedMonth + 1);
+        if (summaries != null) {
+            for (MonthlySummary summary : summaries) {
+                if (key.equals(summary.getMonthYear())) { selected = summary; break; }
+            }
+        }
+        double in = selected == null ? 0d : selected.getTotalIncome();
+        double out = selected == null ? 0d : selected.getTotalExpense();
+        income.setText(CurrencyFormatter.format(in));
+        expense.setText(CurrencyFormatter.format(out));
+        balance.setText(CurrencyFormatter.format(in - out));
     }
 
-    class MonthlySummaryAdapter extends BaseAdapter {
-        private final List<MonthlySummary> summaries;
+    private void renderState(LoadState state) {
+        loading.setVisibility(state == LoadState.LOADING ? View.VISIBLE : View.GONE);
+        errorState.setVisibility(state == LoadState.ERROR ? View.VISIBLE : View.GONE);
+    }
 
-        MonthlySummaryAdapter(List<MonthlySummary> summaries) { this.summaries = summaries; }
-
-        @Override public int getCount() { return summaries.size(); }
-        @Override public MonthlySummary getItem(int pos) { return summaries.get(pos); }
-        @Override public long getItemId(int pos) { return pos; }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            if (convertView == null)
-                convertView = LayoutInflater.from(requireContext()).inflate(R.layout.item_monthly_summary, parent, false);
-
-            MonthlySummary s = summaries.get(position);
-            TextView tvMonthYear = convertView.findViewById(R.id.tv_month_year);
-            TextView tvIncome = convertView.findViewById(R.id.tv_income);
-            TextView tvExpense = convertView.findViewById(R.id.tv_expense);
-            TextView tvBalance = convertView.findViewById(R.id.tv_balance);
-
-            try {
-                String[] parts = s.getMonthYear().split("-");
-                Calendar cal = Calendar.getInstance();
-                cal.set(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]) - 1, 1);
-                tvMonthYear.setText(DateUtils.formatDisplayMonth(cal.getTimeInMillis()));
-            } catch (Exception e) { tvMonthYear.setText(s.getMonthYear()); }
-
-            tvIncome.setText("+ " + CurrencyFormatter.format(s.getTotalIncome()));
-            tvExpense.setText("- " + CurrencyFormatter.format(s.getTotalExpense()));
-
-            double balance = s.getBalance();
-            tvBalance.setText(CurrencyFormatter.format(balance));
-            tvBalance.setTextColor(requireContext().getColor(
-                    balance >= 0 ? R.color.income_color : R.color.expense_color));
-
-            return convertView;
-        }
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (viewModel != null) viewModel.refreshRemoteStatistics();
     }
 }

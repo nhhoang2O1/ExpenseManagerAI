@@ -1,113 +1,104 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.App.CardView"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="@dimen/card_corner_radius"
-    app:cardElevation="@dimen/card_elevation"
-    app:cardUseCompatPadding="true"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginBottom="4dp"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground">
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="@dimen/card_padding">
-
+        android:padding="14dp">
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
             <TextView
                 android:id="@+id/tv_goal_name"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Tên mục tiêu"
                 android:textColor="@color/text_primary"
-                android:textSize="@dimen/text_subtitle"
+                android:textSize="16sp"
                 android:textStyle="bold" />
-
             <TextView
                 android:id="@+id/tv_goal_completed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_progress_bar"
-                android:backgroundTint="#4CAF50"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp"
-                android:text="Hoàn thành"
-                android:textColor="@color/white"
+                android:background="@color/income_bg"
+                android:paddingStart="8dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="4dp"
+                android:text="@string/goal_completed"
+                android:textColor="@color/income_color"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
-
-            <!-- Add funds button -->
             <ImageButton
-                android:id="@+id/btn_add_funds"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:id="@+id/btn_more"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_add"
-                app:tint="@color/primary"
-                android:contentDescription="Thêm tiền" />
+                android:contentDescription="@string/content_description_more"
+                android:src="@drawable/ic_more"
+                app:tint="@color/text_secondary" />
         </LinearLayout>
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/spacing_sm"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
-
             <TextView
                 android:id="@+id/tv_current_amount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0 đ"
-                android:textColor="@color/primary"
-                android:textSize="@dimen/text_body"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=" / "
-                android:textColor="@color/text_secondary"
-                android:textSize="@dimen/text_body" />
-
-            <TextView
-                android:id="@+id/tv_target_amount"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="100,000 đ"
-                android:textColor="@color/text_secondary"
-                android:textSize="@dimen/text_body" />
-
+                android:textColor="@color/primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
             <TextView
                 android:id="@+id/tv_percentage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0%"
-                android:textColor="@color/text_primary"
-                android:textSize="@dimen/text_body"
+                android:textColor="@color/primary"
                 android:textStyle="bold" />
         </LinearLayout>
-
-        <ProgressBar
-            android:id="@+id/pb_goal_progress"
-            style="?android:attr/progressBarStyleHorizontal"
+        <TextView
+            android:id="@+id/tv_target_amount"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/progress_bar_height"
-            android:layout_marginTop="@dimen/spacing_sm"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/pb_goal_progress"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:layout_marginTop="10dp"
             android:max="100"
-            android:progress="0"
-            android:progressDrawable="@drawable/bg_progress_bar" />
+            app:indicatorColor="@color/primary"
+            app:trackColor="@color/surface_variant"
+            app:trackCornerRadius="4dp"
+            app:trackThickness="8dp" />
+        <ImageButton
+            android:id="@+id/btn_add_funds"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="end"
+            android:layout_marginTop="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/add_funds"
+            android:src="@drawable/ic_add"
+            app:tint="@color/primary" />
     </LinearLayout>
-
 </com.google.android.material.card.MaterialCardView>

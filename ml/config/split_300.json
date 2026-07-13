@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "seed": 20260709,
+  "allocationUnit": "receiptGroupId",
+  "targetReceiptGroups": 300,
+  "splits": {
+    "train": 210,
+    "validation": 30,
+    "test": 60
+  },
+  "storeGroups": {
+    "circle_k": {
+      "total": 80,
+      "train": 56,
+      "validation": 8,
+      "test": 16
+    },
+    "gs25": {
+      "total": 80,
+      "train": 56,
+      "validation": 8,
+      "test": 16
+    },
+    "supermarket_food": {
+      "total": 40,
+      "train": 28,
+      "validation": 4,
+      "test": 8
+    },
+    "cafe_food": {
+      "total": 35,
+      "train": 24,
+      "validation": 4,
+      "test": 7
+    },
+    "pharmacy": {
+      "total": 35,
+      "train": 24,
+      "validation": 4,
+      "test": 7
+    },
+    "independent_retail": {
+      "total": 30,
+      "train": 22,
+      "validation": 2,
+      "test": 6
+    }
+  }
+}

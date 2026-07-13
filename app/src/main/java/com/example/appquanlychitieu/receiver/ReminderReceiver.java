@@ -16,7 +16,6 @@ import androidx.core.app.NotificationManagerCompat;
 
 import com.example.appquanlychitieu.MainActivity;
 import com.example.appquanlychitieu.R;
-import com.example.appquanlychitieu.data.database.AppDatabase;
 import com.example.appquanlychitieu.data.model.Reminder;
 
 public class ReminderReceiver extends BroadcastReceiver {
@@ -26,18 +25,20 @@ public class ReminderReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         long reminderId = intent.getLongExtra("reminder_id", -1);
         String content = intent.getStringExtra("reminder_content");
+        int day = intent.getIntExtra("reminder_day", 1);
+        int hour = intent.getIntExtra("reminder_hour", 8);
+        int minute = intent.getIntExtra("reminder_minute", 0);
+        boolean active = intent.getBooleanExtra("reminder_active", true);
 
         if (reminderId != -1 && content != null) {
             showNotification(context, (int) reminderId, content);
-            
-            AppDatabase.databaseWriteExecutor.execute(() -> {
-                AppDatabase db = AppDatabase.getDatabase(context);
-                Reminder reminder = db.reminderDao().getReminderById(reminderId);
-                if (reminder != null && reminder.isActive()) {
-                    ReminderManager.scheduleReminder(context, reminder);
-                    Log.d("ReminderReceiver", "Rescheduled reminder " + reminderId);
-                }
-            });
+
+            if (active) {
+                Reminder reminder = new Reminder(content, day, hour, minute, -1, true);
+                reminder.setId(reminderId);
+                ReminderManager.scheduleReminder(context, reminder);
+                Log.d("ReminderReceiver", "Rescheduled reminder " + reminderId);
+            }
         }
     }
 

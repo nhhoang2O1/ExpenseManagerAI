@@ -23,14 +23,17 @@
         android:label="@string/nav_statistics"
         tools:layout="@layout/fragment_statistics" />
 
-    <!-- Tab Ngân sách — trỏ đúng về BudgetFragment -->
     <fragment
-        android:id="@+id/navigation_budget"
-        android:name="com.example.appquanlychitieu.ui.budget.BudgetFragment"
-        android:label="@string/budget_title"
-        tools:layout="@layout/fragment_budget" />
+        android:id="@+id/navigation_planning"
+        android:name="com.example.appquanlychitieu.ui.planning.PlanningFragment"
+        android:label="@string/nav_planning"
+        tools:layout="@layout/fragment_planning">
+        <argument
+            android:name="initialTab"
+            android:defaultValue="0"
+            app:argType="integer" />
+    </fragment>
 
-    <!-- Tab Cài đặt — có action chuyển sang Goals -->
     <fragment
         android:id="@+id/navigation_settings"
         android:name="com.example.appquanlychitieu.ui.settings.SettingsFragment"
@@ -38,18 +41,6 @@
         tools:layout="@layout/fragment_settings">
     </fragment>
 
-    <!-- Trang Mục tiêu tiết kiệm (truy cập từ Settings) -->
-    <fragment
-        android:id="@+id/navigation_goals"
-        android:name="com.example.appquanlychitieu.ui.goals.GoalFragment"
-        android:label="Mục tiêu tiết kiệm"
-        tools:layout="@layout/fragment_goals">
-        <action
-            android:id="@+id/action_goals_to_goal_history"
-            app:destination="@id/navigation_goal_history" />
-    </fragment>
-
-    <!-- Lịch sử nạp tiền mục tiêu -->
     <fragment
         android:id="@+id/navigation_goal_history"
         android:name="com.example.appquanlychitieu.ui.goals.GoalHistoryFragment"
@@ -63,5 +54,10 @@
             android:name="goalName"
             app:argType="string"
             android:defaultValue='""' />
+        <argument
+            android:name="remoteGoalId"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
     </fragment>
 </navigation>

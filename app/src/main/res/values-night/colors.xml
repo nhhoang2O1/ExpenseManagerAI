@@ -1,32 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#2E7D32</color>
-    <color name="primary_dark">#0B1F12</color>
-    <color name="primary_light">#66BB6A</color>
-    <color name="on_primary">#FFFFFF</color>
+    <color name="primary">#57D6AC</color>
+    <color name="primary_dark">#0E1512</color>
+    <color name="primary_light">#164B3B</color>
+    <color name="on_primary">#082A20</color>
+    <color name="primary_container">#164B3B</color>
+    <color name="on_primary_container">#B8F2DE</color>
 
-    <color name="secondary">#FFB74D</color>
-    <color name="secondary_dark">#E65100</color>
-    <color name="secondary_light">#FFD180</color>
-    <color name="on_secondary">#1C1C1C</color>
+    <color name="secondary">#78A7FF</color>
+    <color name="secondary_dark">#4F7ED6</color>
+    <color name="secondary_light">#233C68</color>
+    <color name="on_secondary">#0D244A</color>
+    <color name="secondary_container">#233C68</color>
+    <color name="on_secondary_container">#D8E5FF</color>
 
-    <color name="background">#101412</color>
-    <color name="surface">#1B211D</color>
-    <color name="on_background">#F1F5F2</color>
-    <color name="on_surface">#F1F5F2</color>
+    <color name="background">#0E1512</color>
+    <color name="surface">#16201B</color>
+    <color name="surface_variant">#1E2B25</color>
+    <color name="surface_container">#1A2620</color>
+    <color name="on_background">#EDF5F1</color>
+    <color name="on_surface">#EDF5F1</color>
+    <color name="on_surface_variant">#AAB8B0</color>
+    <color name="outline">#39483F</color>
 
-    <color name="income_color">#81C784</color>
-    <color name="income_bg">#17351F</color>
-    <color name="expense_color">#EF9A9A</color>
-    <color name="expense_bg">#3A1D1D</color>
-    <color name="budget_color">#64B5F6</color>
+    <color name="income_color">#5DD88A</color>
+    <color name="income_bg">#173A28</color>
+    <color name="expense_color">#FF7A86</color>
+    <color name="expense_bg">#48232A</color>
+    <color name="budget_color">#78A7FF</color>
+    <color name="warning_color">#F5B84B</color>
+    <color name="warning_bg">#45351B</color>
+    <color name="info_color">#78A7FF</color>
+    <color name="info_bg">#20365C</color>
 
-    <color name="balance_gradient_start">#1B5E20</color>
-    <color name="balance_gradient_end">#388E3C</color>
+    <color name="balance_gradient_start">#164B3B</color>
+    <color name="balance_gradient_end">#164B3B</color>
 
-    <color name="text_primary">#F1F5F2</color>
-    <color name="text_secondary">#C0C8C1</color>
-    <color name="text_hint">#8E988F</color>
-    <color name="divider">#344039</color>
-    <color name="card_background">#1F2722</color>
+    <color name="text_primary">#EDF5F1</color>
+    <color name="text_secondary">#AAB8B0</color>
+    <color name="text_hint">#7E8C84</color>
+    <color name="divider">#39483F</color>
+    <color name="card_background">#16201B</color>
 </resources>

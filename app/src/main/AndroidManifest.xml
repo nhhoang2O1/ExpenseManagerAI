@@ -24,6 +24,7 @@
         <!-- Login (Launcher) -->
         <activity
             android:name=".ui.auth.LoginActivity"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -34,6 +35,7 @@
         <!-- Register -->
         <activity
             android:name=".ui.auth.RegisterActivity"
+            android:windowSoftInputMode="adjustResize"
             android:exported="false"
             android:parentActivityName=".ui.auth.LoginActivity" />
 
@@ -45,6 +47,13 @@
         <!-- Add/Edit Transaction -->
         <activity
             android:name=".ui.transaction.AddEditTransactionActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.receipt.ReceiptScanActivity"
+            android:windowSoftInputMode="adjustResize"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
@@ -61,6 +70,16 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 

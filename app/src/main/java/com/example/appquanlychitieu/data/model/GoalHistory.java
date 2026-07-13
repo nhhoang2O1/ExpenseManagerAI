@@ -1,23 +1,13 @@
 package com.example.appquanlychitieu.data.model;
 
-import androidx.room.Entity;
-import androidx.room.ForeignKey;
-import androidx.room.Index;
-import androidx.room.PrimaryKey;
-
-@Entity(tableName = "goal_history",
-        foreignKeys = @ForeignKey(entity = Goal.class,
-                parentColumns = "id",
-                childColumns = "goalId",
-                onDelete = ForeignKey.CASCADE),
-        indices = {@Index("goalId")})
 public class GoalHistory {
-    @PrimaryKey(autoGenerate = true)
     private long id;
     
     private long goalId;
     private double amountAdded;
     private long date;
+    private String remoteId;
+    private String remoteGoalId;
 
     public GoalHistory(long goalId, double amountAdded, long date) {
         this.goalId = goalId;
@@ -36,4 +26,10 @@ public class GoalHistory {
 
     public long getDate() { return date; }
     public void setDate(long date) { this.date = date; }
+
+    public String getRemoteId() { return remoteId; }
+    public void setRemoteId(String remoteId) { this.remoteId = remoteId; }
+
+    public String getRemoteGoalId() { return remoteGoalId; }
+    public void setRemoteGoalId(String remoteGoalId) { this.remoteGoalId = remoteGoalId; }
 }

@@ -9,103 +9,127 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.appquanlychitieu.MainActivity;
 import com.example.appquanlychitieu.R;
-import com.example.appquanlychitieu.data.database.AppDatabase;
-import com.example.appquanlychitieu.data.model.User;
-import com.example.appquanlychitieu.util.PasswordUtils;
+import com.example.appquanlychitieu.data.remote.ApiError;
+import com.example.appquanlychitieu.data.remote.RemoteCallback;
+import com.example.appquanlychitieu.data.remote.dto.AuthResponseDto;
+import com.example.appquanlychitieu.data.repository.AuthRepository;
 import com.example.appquanlychitieu.util.SessionManager;
+import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 public class RegisterActivity extends AppCompatActivity {
-
-    private TextInputEditText etName, etEmail, etPassword, etConfirmPassword;
+    private TextInputEditText etName;
+    private TextInputEditText etEmail;
+    private TextInputEditText etPassword;
+    private TextInputEditText etConfirmPassword;
     private MaterialButton btnRegister;
+    private TextInputLayout layoutName, layoutEmail, layoutPassword, layoutConfirmPassword;
+    private android.widget.ProgressBar progressAuth;
     private TextView tvLogin;
     private SessionManager sessionManager;
+    private AuthRepository authRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
-
+        EdgeToEdgeHelper.applySystemBars(findViewById(R.id.root_register));
         sessionManager = new SessionManager(this);
-
+        authRepository = new AuthRepository(this);
         etName = findViewById(R.id.et_name);
         etEmail = findViewById(R.id.et_email);
         etPassword = findViewById(R.id.et_password);
         etConfirmPassword = findViewById(R.id.et_confirm_password);
+        layoutName = findViewById(R.id.layout_name);
+        layoutEmail = findViewById(R.id.layout_email);
+        layoutPassword = findViewById(R.id.layout_password);
+        layoutConfirmPassword = findViewById(R.id.layout_confirm_password);
+        progressAuth = findViewById(R.id.progress_auth);
         btnRegister = findViewById(R.id.btn_register);
         tvLogin = findViewById(R.id.tv_login);
-
-        btnRegister.setOnClickListener(v -> register());
-
-        tvLogin.setOnClickListener(v -> {
-            finish(); 
-        });
+        btnRegister.setOnClickListener(view -> register());
+        tvLogin.setOnClickListener(view -> finish());
     }
 
     private void register() {
-        String name = etName.getText() != null ? etName.getText().toString().trim() : "";
-        String email = etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
-        String password = etPassword.getText() != null ? etPassword.getText().toString().trim() : "";
-        String confirmPassword = etConfirmPassword.getText() != null ? etConfirmPassword.getText().toString().trim() : "";
+        String name = textOf(etName);
+        String email = textOf(etEmail);
+        String password = textOf(etPassword);
+        String confirmPassword = textOf(etConfirmPassword);
 
         if (name.isEmpty()) {
-            etName.setError("Vui lòng nhập họ tên");
+            layoutName.setError(getString(R.string.invalid_name));
             etName.requestFocus();
             return;
         }
-
-        if (email.isEmpty()) {
-            etEmail.setError("Vui lòng nhập email");
-            etEmail.requestFocus();
-            return;
-        }
-
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            etEmail.setError("Email không hợp lệ");
+            layoutEmail.setError(getString(R.string.invalid_email));
             etEmail.requestFocus();
             return;
         }
-
-        if (password.isEmpty() || password.length() < 6) {
-            etPassword.setError("Mật khẩu phải có ít nhất 6 ký tự");
+        if (password.length() < 8) {
+            layoutPassword.setError(getString(R.string.invalid_password_length));
             etPassword.requestFocus();
             return;
         }
-
         if (!password.equals(confirmPassword)) {
-            etConfirmPassword.setError("Mật khẩu xác nhận không khớp");
+            layoutConfirmPassword.setError(getString(R.string.password_mismatch));
             etConfirmPassword.requestFocus();
             return;
         }
 
-        AppDatabase db = AppDatabase.getDatabase(this);
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            
-            int exists = db.userDao().checkEmailExists(email);
-            if (exists > 0) {
-                runOnUiThread(() -> {
-                    etEmail.setError("Email đã được sử dụng");
-                    etEmail.requestFocus();
-                });
-                return;
-            }
-
-            String hashedPassword = PasswordUtils.hash(password);
-            User user = new User(name, email, hashedPassword);
-            long userId = db.userDao().insert(user);
-
-            runOnUiThread(() -> {
-                
-                sessionManager.createLoginSession(userId, name, email, true);
-                Toast.makeText(this, "Đăng ký thành công!", Toast.LENGTH_SHORT).show();
-                
-                Intent intent = new Intent(this, MainActivity.class);
+        layoutName.setError(null);
+        layoutEmail.setError(null);
+        layoutPassword.setError(null);
+        layoutConfirmPassword.setError(null);
+        setLoading(true);
+        authRepository.register(name, email, password, new RemoteCallback<AuthResponseDto>() {
+            @Override
+            public void onSuccess(AuthResponseDto response) {
+                setLoading(false);
+                String remoteId = response.resolvedId();
+                String resolvedEmail = response.resolvedEmail() == null
+                        ? email : response.resolvedEmail();
+                String resolvedName = response.resolvedName() == null
+                        ? name : response.resolvedName();
+                sessionManager.createRemoteLoginSession(
+                        stableCacheUserId(remoteId == null ? resolvedEmail : remoteId),
+                        remoteId,
+                        resolvedName,
+                        resolvedEmail,
+                        true,
+                        response.resolvedToken());
+                Toast.makeText(
+                        RegisterActivity.this,
+                        R.string.register_success,
+                        Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 startActivity(intent);
                 finish();
-            });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                setLoading(false);
+                layoutConfirmPassword.setError(error.getMessage());
+            }
         });
+    }
+
+    private String textOf(TextInputEditText input) {
+        return input.getText() == null ? "" : input.getText().toString().trim();
+    }
+
+    private long stableCacheUserId(String identity) {
+        long hash = identity == null ? 1L : identity.hashCode();
+        return Math.max(1L, Math.abs(hash));
+    }
+
+    private void setLoading(boolean loading) {
+        btnRegister.setEnabled(!loading);
+        progressAuth.setVisibility(loading ? android.view.View.VISIBLE : android.view.View.GONE);
     }
 }

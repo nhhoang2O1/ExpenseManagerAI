@@ -6,64 +6,113 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Transformations;
 
 import com.example.appquanlychitieu.data.model.CategorySummary;
 import com.example.appquanlychitieu.data.model.MonthlySummary;
-import com.example.appquanlychitieu.data.model.TransactionType;
-import com.example.appquanlychitieu.data.repository.TransactionRepository;
+import com.example.appquanlychitieu.data.remote.ApiError;
+import com.example.appquanlychitieu.data.remote.RemoteCallback;
+import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
+import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.util.DateUtils;
 import com.example.appquanlychitieu.util.SessionManager;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
 public class StatisticsViewModel extends AndroidViewModel {
-    private final TransactionRepository repository;
-    private final long userId;
+    private final RemoteStatisticsRepository repository;
+    private final boolean authenticated;
     private final MutableLiveData<int[]> selectedMonthYear = new MutableLiveData<>();
-    private final LiveData<List<CategorySummary>> categorySummary;
-    private final LiveData<List<MonthlySummary>> monthlySummary;
+    private final MutableLiveData<List<CategorySummary>> categorySummary =
+            new MutableLiveData<>(new ArrayList<>());
+    private final MutableLiveData<List<MonthlySummary>> monthlySummary =
+            new MutableLiveData<>(new ArrayList<>());
+    private final MutableLiveData<LoadState> loadState =
+            new MutableLiveData<>(LoadState.LOADING);
+    private final MutableLiveData<String> remoteError = new MutableLiveData<>();
+    private boolean categoryLoaded;
+    private boolean monthlyLoaded;
 
     public StatisticsViewModel(@NonNull Application application) {
         super(application);
-        repository = new TransactionRepository(application);
-        SessionManager session = new SessionManager(application);
-        userId = session.getUserId();
-
-        Calendar cal = Calendar.getInstance();
-        selectedMonthYear.setValue(new int[]{cal.get(Calendar.YEAR), cal.get(Calendar.MONTH)});
-
-        categorySummary = Transformations.switchMap(selectedMonthYear, monthYear -> {
-            long start = DateUtils.getStartOfMonth(monthYear[0], monthYear[1]);
-            long end = DateUtils.getEndOfMonth(monthYear[0], monthYear[1]);
-            return repository.getCategorySummary(userId, TransactionType.EXPENSE, start, end);
-        });
-
-        monthlySummary = repository.getMonthlySummary(userId);
+        repository = new RemoteStatisticsRepository(application);
+        authenticated = new SessionManager(application).hasAuthToken();
+        Calendar calendar = Calendar.getInstance();
+        selectedMonthYear.setValue(new int[]{calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH)});
+        refreshRemoteStatistics();
     }
 
     public LiveData<List<CategorySummary>> getCategorySummary() { return categorySummary; }
     public LiveData<List<MonthlySummary>> getMonthlySummary() { return monthlySummary; }
     public MutableLiveData<int[]> getSelectedMonthYear() { return selectedMonthYear; }
+    public LiveData<LoadState> getLoadState() { return loadState; }
+    public LiveData<String> getRemoteError() { return remoteError; }
 
-    public void previousMonth() {
+    public void previousMonth() { moveMonth(-1); }
+    public void nextMonth() { moveMonth(1); }
+
+    private void moveMonth(int amount) {
         int[] current = selectedMonthYear.getValue();
-        if (current != null) {
-            Calendar cal = Calendar.getInstance();
-            cal.set(current[0], current[1], 1);
-            cal.add(Calendar.MONTH, -1);
-            selectedMonthYear.setValue(new int[]{cal.get(Calendar.YEAR), cal.get(Calendar.MONTH)});
-        }
+        if (current == null) return;
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(current[0], current[1], 1);
+        calendar.add(Calendar.MONTH, amount);
+        selectedMonthYear.setValue(new int[]{calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH)});
+        refreshRemoteStatistics();
     }
 
-    public void nextMonth() {
-        int[] current = selectedMonthYear.getValue();
-        if (current != null) {
-            Calendar cal = Calendar.getInstance();
-            cal.set(current[0], current[1], 1);
-            cal.add(Calendar.MONTH, 1);
-            selectedMonthYear.setValue(new int[]{cal.get(Calendar.YEAR), cal.get(Calendar.MONTH)});
+    public void refreshRemoteStatistics() {
+        if (!authenticated) {
+            loadState.setValue(LoadState.ERROR);
+            remoteError.setValue("Phiên đăng nhập không hợp lệ");
+            return;
         }
+        int[] month = selectedMonthYear.getValue();
+        if (month == null) return;
+        categoryLoaded = false;
+        monthlyLoaded = false;
+        loadState.setValue(LoadState.LOADING);
+        String from = toIsoDate(DateUtils.getStartOfMonth(month[0], month[1]));
+        String to = toIsoDate(DateUtils.getEndOfMonth(month[0], month[1]));
+        repository.getCategorySummary(from, to, new RemoteCallback<List<CategorySummary>>() {
+            @Override public void onSuccess(List<CategorySummary> value) {
+                categoryLoaded = true;
+                categorySummary.setValue(value == null ? new ArrayList<>() : value);
+                finishLoad();
+            }
+            @Override public void onError(ApiError error) {
+                remoteError.setValue(error.getMessage());
+                loadState.setValue(LoadState.ERROR);
+            }
+        });
+        repository.getMonthlySummary(month[0], new RemoteCallback<List<MonthlySummary>>() {
+            @Override public void onSuccess(List<MonthlySummary> value) {
+                monthlyLoaded = true;
+                monthlySummary.setValue(value == null ? new ArrayList<>() : value);
+                finishLoad();
+            }
+            @Override public void onError(ApiError error) {
+                remoteError.setValue(error.getMessage());
+                loadState.setValue(LoadState.ERROR);
+            }
+        });
+    }
+
+    private void finishLoad() {
+        if (!categoryLoaded || !monthlyLoaded) return;
+        remoteError.setValue(null);
+        List<CategorySummary> categories = categorySummary.getValue();
+        List<MonthlySummary> months = monthlySummary.getValue();
+        boolean empty = (categories == null || categories.isEmpty())
+                && (months == null || months.isEmpty());
+        loadState.setValue(empty ? LoadState.EMPTY : LoadState.CONTENT);
+    }
+
+    private String toIsoDate(long millis) {
+        return Instant.ofEpochMilli(millis).atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                .toLocalDate().toString();
     }
 }

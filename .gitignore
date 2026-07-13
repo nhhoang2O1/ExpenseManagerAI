@@ -14,3 +14,39 @@
 .cxx
 local.properties
 .kiro/
+
+# Local environment secrets (keep documented examples).
+.env
+.env.*
+!.env.example
+
+# Local receipt files and real ML datasets.
+/receipt-storage/
+/ml/data/**
+!/ml/data/
+!/ml/data/**/
+!/ml/data/**/.gitkeep
+!/ml/data/**/*.example.*
+
+# Generated split manifests, model checkpoints, and exported weights.
+/ml/splits/*.jsonl
+!/ml/splits/*.example.jsonl
+/ml/models/
+/ml/checkpoints/
+*.pdparams
+*.pdopt
+*.pdmodel
+*.onnx
+
+# Local verification environments.
+/.tmp/
+
+# Generated build and runtime artifacts outside Android's module ignore files.
+**/bin/
+**/obj/
+**/__pycache__/
+**/.pytest_cache/
+*.py[cod]
+replay_pid*.log
+/scripts/receipt-smoke.png
+/ui-*-fixed.png

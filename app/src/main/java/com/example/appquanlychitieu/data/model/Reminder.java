@@ -1,11 +1,6 @@
 package com.example.appquanlychitieu.data.model;
 
-import androidx.room.Entity;
-import androidx.room.PrimaryKey;
-
-@Entity(tableName = "reminders")
 public class Reminder {
-    @PrimaryKey(autoGenerate = true)
     private long id;
     
     private String content;
@@ -14,6 +9,7 @@ public class Reminder {
     private int minute;
     private long userId;
     private boolean isActive;
+    private String remoteId;
 
     public Reminder(String content, int dayOfMonth, int hour, int minute, long userId, boolean isActive) {
         this.content = content;
@@ -44,4 +40,7 @@ public class Reminder {
 
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
+
+    public String getRemoteId() { return remoteId; }
+    public void setRemoteId(String remoteId) { this.remoteId = remoteId; }
 }

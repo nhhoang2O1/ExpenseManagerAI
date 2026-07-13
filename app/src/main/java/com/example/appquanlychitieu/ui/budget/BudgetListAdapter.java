@@ -1,132 +1,162 @@
 package com.example.appquanlychitieu.ui.budget;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
+import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
+import android.widget.PopupMenu;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.ListAdapter;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Budget;
-import com.example.appquanlychitieu.data.model.Category;
+import com.example.appquanlychitieu.ui.common.CategoryVisualResolver;
 import com.example.appquanlychitieu.util.CurrencyFormatter;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-public class BudgetListAdapter extends BaseAdapter {
-
+public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.ViewHolder> {
+    public interface Listener { void onDelete(Budget budget); }
     private final Context context;
-    private List<Budget> budgets = new ArrayList<>();
-    private Map<Long, Category> categoryCache = new HashMap<>();
-    private Map<Long, Double> spentMap = new HashMap<>();
+    private final Map<Long, Double> spentMap = new HashMap<>();
+    private Listener listener;
 
     public BudgetListAdapter(Context context) {
+        super(DIFF_CALLBACK);
         this.context = context;
     }
 
-    public void setBudgets(List<Budget> budgets) {
-        this.budgets = budgets;
+    public void setListener(Listener listener) { this.listener = listener; }
+    public void setBudgets(java.util.List<Budget> budgets) {
+        submitList(budgets == null ? new ArrayList<>() : new ArrayList<>(budgets));
+    }
+    public void setSpentMap(Map<Long, Double> spent) {
+        spentMap.clear();
+        if (spent != null) spentMap.putAll(spent);
         notifyDataSetChanged();
     }
 
-    public void setCategoryCache(Map<Long, Category> cache) {
-        this.categoryCache = cache;
-        notifyDataSetChanged();
-    }
-
-    public void setSpentMap(Map<Long, Double> spentMap) {
-        this.spentMap = spentMap;
-        notifyDataSetChanged();
+    @NonNull
+    @Override
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        return new ViewHolder(LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_budget, parent, false));
     }
 
     @Override
-    public int getCount() { return budgets.size(); }
-
-    @Override
-    public Budget getItem(int position) { return budgets.get(position); }
-
-    @Override
-    public long getItemId(int position) { return budgets.get(position).getId(); }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        ViewHolder holder;
-
-        if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.item_budget, parent, false);
-            holder = new ViewHolder(convertView);
-            convertView.setTag(holder);
-        } else {
-            holder = (ViewHolder) convertView.getTag();
-        }
-
-        Budget budget = budgets.get(position);
-        Category category = categoryCache.get(budget.getCategoryId());
-        double spent = spentMap.getOrDefault(budget.getCategoryId(), 0.0);
-
-        if (category != null) {
-            holder.tvCategoryName.setText(category.getName());
-            int iconRes = getIconResource(category.getIcon());
-            if (iconRes != 0) holder.ivCategoryIcon.setImageResource(iconRes);
-
-            try {
-                int color = Color.parseColor(category.getColor());
-                GradientDrawable bg = new GradientDrawable();
-                bg.setShape(GradientDrawable.OVAL);
-                bg.setColor(color);
-                holder.viewIconBg.setBackground(bg);
-            } catch (Exception ignored) {}
-        }
-
-        holder.tvBudgetLabel.setText("Hạn mức: " + CurrencyFormatter.format(budget.getAmount()));
-        holder.tvSpent.setText(CurrencyFormatter.format(spent));
-
-        double remaining = budget.getAmount() - spent;
-        int percentage = budget.getAmount() > 0 ? (int) ((spent / budget.getAmount()) * 100) : 0;
-        holder.progressBudget.setProgress(Math.min(percentage, 100));
-        holder.tvPercentage.setText(percentage + "%");
-
-        if (remaining >= 0) {
-            holder.tvRemaining.setText("Còn lại: " + CurrencyFormatter.format(remaining));
-            holder.tvRemaining.setTextColor(context.getColor(R.color.income_color));
-            holder.tvPercentage.setTextColor(context.getColor(R.color.primary));
-        } else {
-            holder.tvRemaining.setText("Vượt: " + CurrencyFormatter.format(Math.abs(remaining)));
-            holder.tvRemaining.setTextColor(context.getColor(R.color.expense_color));
-            holder.tvPercentage.setTextColor(context.getColor(R.color.expense_color));
-        }
-
-        return convertView;
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        holder.bind(getItem(position));
     }
 
-    private int getIconResource(String iconName) {
-        if (iconName == null) return 0;
-        return context.getResources().getIdentifier(iconName, "drawable", context.getPackageName());
-    }
-
-    static class ViewHolder {
-        View viewIconBg;
-        ImageView ivCategoryIcon;
-        TextView tvCategoryName, tvBudgetLabel, tvSpent, tvRemaining, tvPercentage;
-        ProgressBar progressBudget;
+    final class ViewHolder extends RecyclerView.ViewHolder {
+        final View iconBackground;
+        final ImageView icon;
+        final TextView name, limit, spent, remaining, percentage, status;
+        final LinearProgressIndicator progress;
+        final ImageButton more;
 
         ViewHolder(View view) {
-            viewIconBg = view.findViewById(R.id.view_icon_bg);
-            ivCategoryIcon = view.findViewById(R.id.iv_category_icon);
-            tvCategoryName = view.findViewById(R.id.tv_category_name);
-            tvBudgetLabel = view.findViewById(R.id.tv_budget_label);
-            tvSpent = view.findViewById(R.id.tv_spent);
-            tvRemaining = view.findViewById(R.id.tv_remaining);
-            tvPercentage = view.findViewById(R.id.tv_percentage);
-            progressBudget = view.findViewById(R.id.progress_budget);
+            super(view);
+            iconBackground = view.findViewById(R.id.view_icon_bg);
+            icon = view.findViewById(R.id.iv_category_icon);
+            name = view.findViewById(R.id.tv_category_name);
+            limit = view.findViewById(R.id.tv_budget_label);
+            spent = view.findViewById(R.id.tv_spent);
+            remaining = view.findViewById(R.id.tv_remaining);
+            percentage = view.findViewById(R.id.tv_percentage);
+            status = view.findViewById(R.id.tv_budget_status);
+            progress = view.findViewById(R.id.progress_budget);
+            more = view.findViewById(R.id.btn_more);
         }
+
+        void bind(Budget budget) {
+            double used = spentMap.getOrDefault(budget.getCategoryId(), 0d);
+            double left = budget.getAmount() - used;
+            int percent = budget.getAmount() <= 0 ? 0
+                    : (int) Math.round(used * 100d / budget.getAmount());
+            name.setText(budget.getRemoteCategoryName());
+            limit.setText(context.getString(R.string.budget_limit,
+                    CurrencyFormatter.format(budget.getAmount())));
+            spent.setText(context.getString(R.string.budget_spent, CurrencyFormatter.format(used)));
+            remaining.setText(context.getString(left >= 0
+                    ? R.string.budget_remaining_value : R.string.budget_over_value,
+                    CurrencyFormatter.format(Math.abs(left))));
+            percentage.setText(percent + "%");
+            progress.setProgressCompat(Math.min(100, Math.max(0, percent)), false);
+
+            int stateColor;
+            if (percent >= 100) {
+                stateColor = context.getColor(R.color.expense_color);
+                status.setText(R.string.budget_exceeded_label);
+                status.setVisibility(View.VISIBLE);
+            } else if (percent >= 80) {
+                stateColor = context.getColor(R.color.warning_color);
+                status.setText(R.string.budget_warning);
+                status.setVisibility(View.VISIBLE);
+            } else {
+                stateColor = context.getColor(R.color.budget_color);
+                status.setVisibility(View.GONE);
+            }
+            progress.setIndicatorColor(stateColor);
+            percentage.setTextColor(stateColor);
+            remaining.setTextColor(left >= 0
+                    ? context.getColor(R.color.text_secondary) : context.getColor(R.color.expense_color));
+
+            CategoryVisualResolver.CategoryVisual visual = CategoryVisualResolver.resolve(context,
+                    budget.getRemoteCategoryId(), budget.getRemoteCategoryColor());
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.OVAL);
+            bg.setColor(visual.baseColor);
+            iconBackground.setBackground(bg);
+            icon.setColorFilter(visual.onBaseColor);
+            int iconRes = context.getResources().getIdentifier(
+                    budget.getRemoteCategoryIcon(), "drawable", context.getPackageName());
+            icon.setImageResource(iconRes == 0 ? R.drawable.ic_other : iconRes);
+            more.setOnClickListener(v -> {
+                PopupMenu menu = new PopupMenu(context, v);
+                menu.getMenu().add(R.string.delete);
+                menu.setOnMenuItemClickListener(item -> {
+                    if (listener != null) listener.onDelete(budget);
+                    return true;
+                });
+                menu.show();
+            });
+        }
+    }
+
+    private static final DiffUtil.ItemCallback<Budget> DIFF_CALLBACK =
+            new DiffUtil.ItemCallback<Budget>() {
+                @Override public boolean areItemsTheSame(@NonNull Budget oldItem, @NonNull Budget newItem) {
+                    return sameItem(oldItem, newItem);
+                }
+                @Override public boolean areContentsTheSame(@NonNull Budget oldItem, @NonNull Budget newItem) {
+                    return sameContent(oldItem, newItem);
+                }
+            };
+
+    static boolean sameItem(Budget first, Budget second) {
+        if (first.getRemoteId() != null || second.getRemoteId() != null)
+            return Objects.equals(first.getRemoteId(), second.getRemoteId());
+        return first.getCategoryId() == second.getCategoryId()
+                && Objects.equals(first.getMonthYear(), second.getMonthYear());
+    }
+
+    static boolean sameContent(Budget first, Budget second) {
+        return Double.compare(first.getAmount(), second.getAmount()) == 0
+                && Objects.equals(first.getMonthYear(), second.getMonthYear())
+                && Objects.equals(first.getRemoteCategoryName(), second.getRemoteCategoryName())
+                && Objects.equals(first.getRemoteCategoryColor(), second.getRemoteCategoryColor())
+                && Objects.equals(first.getRemoteCategoryIcon(), second.getRemoteCategoryIcon());
     }
 }

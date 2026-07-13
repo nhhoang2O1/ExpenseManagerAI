@@ -1,46 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_empty_state"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
+    android:layout_height="match_parent"
     android:gravity="center"
+    android:orientation="vertical"
     android:padding="32dp"
     android:visibility="gone">
-
     <ImageView
-        android:id="@+id/iv_empty_illustration"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:contentDescription="@null"
         android:src="@drawable/ic_empty_wallet"
-        android:contentDescription="@null" />
-
+        app:tint="@color/text_hint" />
     <TextView
         android:id="@+id/tv_empty_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="@color/text_primary"
-        android:gravity="center" />
-
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:text="@string/empty_transaction_title"
+        android:textAppearance="@style/TextAppearance.App.SectionTitle" />
     <TextView
         android:id="@+id/tv_empty_desc"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:textSize="14sp"
-        android:textColor="@color/text_hint"
-        android:gravity="center" />
-
-    <Button
+        android:layout_marginTop="6dp"
+        android:gravity="center"
+        android:text="@string/empty_transaction_desc"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp" />
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_empty_cta"
+        style="@style/Widget.App.Button.Primary"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:backgroundTint="@color/primary"
-        android:textColor="@color/white" />
-
+        android:layout_marginTop="20dp"
+        android:text="@string/add_transaction"
+        app:icon="@drawable/ic_add" />
 </LinearLayout>

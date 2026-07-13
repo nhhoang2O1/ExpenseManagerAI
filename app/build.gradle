@@ -17,7 +17,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField "String", "BACKEND_BASE_URL", '"http://10.0.2.2:8080/"'
+        }
         release {
+            buildConfigField "String", "BACKEND_BASE_URL", '"https://api.example.invalid/"'
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -28,6 +32,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 }
 
@@ -38,13 +43,10 @@ dependencies {
     implementation libs.activity
     implementation libs.constraintlayout
 
-    // Room Database
-    implementation 'androidx.room:room-runtime:2.6.1'
-    annotationProcessor 'androidx.room:room-compiler:2.6.1'
-
     // Navigation Component
     implementation 'androidx.navigation:navigation-fragment:2.7.7'
     implementation 'androidx.navigation:navigation-ui:2.7.7'
+    implementation 'androidx.viewpager2:viewpager2:1.1.0'
 
     // Lifecycle (ViewModel + LiveData)
     implementation 'androidx.lifecycle:lifecycle-viewmodel:2.7.0'
@@ -62,8 +64,11 @@ dependencies {
     // Fragment
     implementation 'androidx.fragment:fragment:1.6.2'
 
-    // Password hashing
-    implementation 'at.favre.lib:bcrypt:0.10.2'
+    // Backend API and encrypted JWT storage
+    implementation 'com.squareup.retrofit2:retrofit:2.11.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 
     // Test
     testImplementation libs.junit

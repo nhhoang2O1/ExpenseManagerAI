@@ -16,9 +16,14 @@
     <dimen name="text_display">32sp</dimen>
 
     <!-- Card -->
-    <dimen name="card_corner_radius">16dp</dimen>
-    <dimen name="card_elevation">4dp</dimen>
+    <dimen name="card_corner_radius">8dp</dimen>
+    <dimen name="card_elevation">1dp</dimen>
     <dimen name="card_padding">16dp</dimen>
+    <dimen name="control_corner_radius">8dp</dimen>
+    <dimen name="content_padding_horizontal">16dp</dimen>
+    <dimen name="touch_target">48dp</dimen>
+    <dimen name="toolbar_height">64dp</dimen>
+    <dimen name="stroke_width">1dp</dimen>
 
     <!-- Icon -->
     <dimen name="icon_sm">24dp</dimen>

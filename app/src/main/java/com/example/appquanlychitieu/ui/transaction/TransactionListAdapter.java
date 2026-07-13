@@ -1,40 +1,46 @@
 package com.example.appquanlychitieu.ui.transaction;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
+import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.ListAdapter;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Category;
 import com.example.appquanlychitieu.data.model.Transaction;
 import com.example.appquanlychitieu.data.model.TransactionType;
+import com.example.appquanlychitieu.ui.common.CategoryVisualResolver;
 import com.example.appquanlychitieu.util.CurrencyFormatter;
+import com.example.appquanlychitieu.util.DateUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-public class TransactionListAdapter extends BaseAdapter {
-
-    private final Context context;
-    private List<Transaction> transactions = new ArrayList<>();
-    private Map<Long, Category> categoryCache = new HashMap<>();
-
+public class TransactionListAdapter
+        extends ListAdapter<Transaction, TransactionListAdapter.ViewHolder> {
     public interface OnItemClickListener {
         void onClick(Transaction transaction);
         void onLongClick(Transaction transaction);
     }
 
+    private final Context context;
+    private final Map<Long, Category> categoryCache = new HashMap<>();
     private OnItemClickListener listener;
 
     public TransactionListAdapter(Context context) {
+        super(DIFF_CALLBACK);
         this.context = context;
     }
 
@@ -42,94 +48,147 @@ public class TransactionListAdapter extends BaseAdapter {
         this.listener = listener;
     }
 
-    public void setTransactions(List<Transaction> transactions) {
-        this.transactions = transactions;
-        notifyDataSetChanged();
+    public void setTransactions(java.util.List<Transaction> transactions) {
+        submitList(transactions == null ? new ArrayList<>() : new ArrayList<>(transactions));
     }
 
     public void setCategoryCache(Map<Long, Category> cache) {
-        this.categoryCache = cache;
+        categoryCache.clear();
+        if (cache != null) categoryCache.putAll(cache);
         notifyDataSetChanged();
     }
 
+    @NonNull
     @Override
-    public int getCount() { return transactions.size(); }
-
-    @Override
-    public Transaction getItem(int position) { return transactions.get(position); }
-
-    @Override
-    public long getItemId(int position) { return transactions.get(position).getId(); }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        ViewHolder holder;
-
-        if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.item_transaction, parent, false);
-            holder = new ViewHolder(convertView);
-            convertView.setTag(holder);
-        } else {
-            holder = (ViewHolder) convertView.getTag();
-        }
-
-        Transaction transaction = transactions.get(position);
-        Category category = categoryCache.get(transaction.getCategoryId());
-
-        String note = transaction.getNote();
-        String categoryName = category != null ? category.getName() : "";
-        String dateLabel = com.example.appquanlychitieu.util.DateUtils.getRelativeDateLabel(transaction.getDate());
-
-        holder.tvNote.setText(categoryName);
-        if (note != null && !note.isEmpty()) {
-            holder.tvCategory.setText(note + " • " + dateLabel);
-        } else {
-            holder.tvCategory.setText(dateLabel);
-        }
-
-        boolean isExpense = transaction.getType() == TransactionType.EXPENSE;
-        holder.tvAmount.setText(CurrencyFormatter.formatWithSign(transaction.getAmount(), isExpense));
-        holder.tvAmount.setTextColor(context.getColor(isExpense ? R.color.expense_color : R.color.income_color));
-
-        if (category != null) {
-            int iconResId = getIconResource(category.getIcon());
-            if (iconResId != 0) holder.ivCategoryIcon.setImageResource(iconResId);
-
-            try {
-                int color = Color.parseColor(category.getColor());
-                GradientDrawable bg = new GradientDrawable();
-                bg.setShape(GradientDrawable.OVAL);
-                bg.setColor(color);
-                holder.viewIconBg.setBackground(bg);
-            } catch (Exception ignored) {}
-        }
-
-        final Transaction t = transaction;
-        convertView.setOnClickListener(v -> { if (listener != null) listener.onClick(t); });
-        convertView.setOnLongClickListener(v -> {
-            if (listener != null) listener.onLongClick(t);
-            return true;
-        });
-
-        return convertView;
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        return new ViewHolder(LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_transaction, parent, false));
     }
 
-    private int getIconResource(String iconName) {
-        if (iconName == null) return 0;
-        return context.getResources().getIdentifier(iconName, "drawable", context.getPackageName());
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        Transaction transaction = getItem(position);
+        Transaction previous = position > 0 ? getItem(position - 1) : null;
+        holder.bind(transaction, previous);
     }
 
-    static class ViewHolder {
-        View viewIconBg;
-        ImageView ivCategoryIcon;
-        TextView tvNote, tvCategory, tvAmount;
+    final class ViewHolder extends RecyclerView.ViewHolder {
+        final View viewIconBg;
+        final ImageView ivCategoryIcon;
+        final TextView tvDateGroup;
+        final TextView tvNote;
+        final TextView tvCategory;
+        final TextView tvAmount;
+        final ImageButton btnMore;
 
         ViewHolder(View view) {
+            super(view);
+            tvDateGroup = view.findViewById(R.id.tv_date_group);
             viewIconBg = view.findViewById(R.id.view_icon_bg);
             ivCategoryIcon = view.findViewById(R.id.iv_category_icon);
             tvNote = view.findViewById(R.id.tv_note);
             tvCategory = view.findViewById(R.id.tv_category);
             tvAmount = view.findViewById(R.id.tv_amount);
+            btnMore = view.findViewById(R.id.btn_more);
         }
+
+        void bind(Transaction transaction, Transaction previous) {
+            Category local = categoryCache.get(transaction.getCategoryId());
+            String categoryName = local != null ? local.getName() : transaction.getRemoteCategoryName();
+            String categoryColor = local != null ? local.getColor() : transaction.getRemoteCategoryColor();
+            String categoryIcon = local != null ? local.getIcon() : transaction.getRemoteCategoryIcon();
+            String categoryId = transaction.getRemoteCategoryId() == null
+                    ? String.valueOf(transaction.getCategoryId()) : transaction.getRemoteCategoryId();
+
+            if (categoryName == null || categoryName.trim().isEmpty()) {
+                categoryName = context.getString(R.string.remote_transaction);
+            }
+            String note = transaction.getNote();
+            tvNote.setText(categoryName);
+            tvCategory.setText(note == null || note.trim().isEmpty()
+                    ? DateUtils.getRelativeDateLabel(transaction.getDate())
+                    : note + " · " + DateUtils.getRelativeDateLabel(transaction.getDate()));
+
+            boolean expense = transaction.getType() == TransactionType.EXPENSE;
+            tvAmount.setText(CurrencyFormatter.formatWithSign(transaction.getAmount(), expense));
+            tvAmount.setTextColor(context.getColor(expense ? R.color.expense_color : R.color.income_color));
+
+            CategoryVisualResolver.CategoryVisual visual =
+                    CategoryVisualResolver.resolve(context, categoryId, categoryColor);
+            GradientDrawable background = new GradientDrawable();
+            background.setShape(GradientDrawable.OVAL);
+            background.setColor(visual.baseColor);
+            viewIconBg.setBackground(background);
+            ivCategoryIcon.setColorFilter(visual.onBaseColor);
+            int icon = iconResource(categoryIcon);
+            ivCategoryIcon.setImageResource(icon == 0 ? R.drawable.ic_other : icon);
+
+            boolean newDay = previous == null
+                    || !DateUtils.formatDate(previous.getDate()).equals(DateUtils.formatDate(transaction.getDate()));
+            tvDateGroup.setVisibility(newDay ? View.VISIBLE : View.GONE);
+            if (newDay) tvDateGroup.setText(DateUtils.getRelativeDateLabel(transaction.getDate()));
+
+            itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onClick(transaction);
+            });
+            itemView.setOnLongClickListener(v -> {
+                if (listener != null) listener.onLongClick(transaction);
+                return true;
+            });
+            btnMore.setOnClickListener(v -> showMenu(v, transaction));
+        }
+
+        private void showMenu(View anchor, Transaction transaction) {
+            PopupMenu menu = new PopupMenu(context, anchor);
+            menu.getMenu().add(context.getString(R.string.edit));
+            menu.getMenu().add(context.getString(R.string.delete));
+            menu.setOnMenuItemClickListener(item -> {
+                if (listener == null) return false;
+                if (item.getTitle().toString().equals(context.getString(R.string.delete))) {
+                    listener.onLongClick(transaction);
+                } else {
+                    listener.onClick(transaction);
+                }
+                return true;
+            });
+            menu.show();
+        }
+
+        private int iconResource(String name) {
+            if (name == null || name.trim().isEmpty()) return 0;
+            return context.getResources().getIdentifier(name, "drawable", context.getPackageName());
+        }
+    }
+
+    private static final DiffUtil.ItemCallback<Transaction> DIFF_CALLBACK =
+            new DiffUtil.ItemCallback<Transaction>() {
+                @Override
+                public boolean areItemsTheSame(@NonNull Transaction oldItem,
+                                               @NonNull Transaction newItem) {
+                    return sameItem(oldItem, newItem);
+                }
+
+                @Override
+                public boolean areContentsTheSame(@NonNull Transaction oldItem,
+                                                  @NonNull Transaction newItem) {
+                    return sameContent(oldItem, newItem);
+                }
+            };
+
+    static boolean sameItem(Transaction first, Transaction second) {
+        if (first.getRemoteId() != null || second.getRemoteId() != null)
+            return Objects.equals(first.getRemoteId(), second.getRemoteId());
+        return first.getId() == second.getId();
+    }
+
+    static boolean sameContent(Transaction first, Transaction second) {
+        return Double.compare(first.getAmount(), second.getAmount()) == 0
+                && first.getDate() == second.getDate()
+                && first.getType() == second.getType()
+                && Objects.equals(first.getNote(), second.getNote())
+                && Objects.equals(first.getCategoryId(), second.getCategoryId())
+                && Objects.equals(first.getRemoteCategoryName(), second.getRemoteCategoryName())
+                && Objects.equals(first.getRemoteCategoryColor(), second.getRemoteCategoryColor())
+                && Objects.equals(first.getRemoteCategoryIcon(), second.getRemoteCategoryIcon());
     }
 }

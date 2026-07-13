@@ -1,11 +1,6 @@
 package com.example.appquanlychitieu.data.model;
 
-import androidx.room.Entity;
-import androidx.room.PrimaryKey;
-
-@Entity(tableName = "categories")
 public class Category {
-    @PrimaryKey(autoGenerate = true)
     private long id;
     private String name;
     private String icon;

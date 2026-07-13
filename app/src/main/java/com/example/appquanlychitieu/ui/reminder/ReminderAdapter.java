@@ -4,11 +4,11 @@ import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Reminder;
@@ -59,7 +59,7 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.Remind
     class ReminderViewHolder extends RecyclerView.ViewHolder {
         TextView tvContent;
         TextView tvTime;
-        Switch switchActive;
+        SwitchMaterial switchActive;
         android.widget.ImageButton btnDelete;
 
         public ReminderViewHolder(@NonNull View itemView) {
@@ -103,7 +103,9 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.Remind
         @SuppressLint("SetTextI18n")
         public void bind(Reminder reminder) {
             tvContent.setText(reminder.getContent());
-            @SuppressLint("DefaultLocale") String timeText = String.format("Ngày %d - %02d:%02d", reminder.getDayOfMonth(), reminder.getHour(), reminder.getMinute());
+            String timeText = itemView.getContext().getString(
+                    R.string.reminder_schedule,
+                    reminder.getDayOfMonth(), reminder.getHour(), reminder.getMinute());
             tvTime.setText(timeText);
             switchActive.setChecked(reminder.isActive());
         }

@@ -8,10 +8,10 @@ import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
 
-import com.example.appquanlychitieu.data.database.AppDatabase;
 import com.example.appquanlychitieu.ui.transaction.AddEditTransactionActivity;
 import com.example.appquanlychitieu.ui.auth.LoginActivity;
 import com.example.appquanlychitieu.util.SessionManager;
+import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -35,27 +35,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void validateSessionAndSetup() {
-        AppDatabase db = AppDatabase.getDatabase(this);
-        long userId = sessionManager.getUserId();
-
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            boolean validSession = userId > 0 && db.userDao().getUserById(userId) != null;
-            runOnUiThread(() -> {
-                if (isFinishing() || isDestroyed()) {
-                    return;
-                }
-                if (validSession) {
-                    setupMainContent();
-                } else {
-                    sessionManager.logout();
-                    navigateToLogin();
-                }
-            });
-        });
+        if (sessionManager.hasAuthToken()) {
+            setupMainContent();
+            return;
+        }
+        sessionManager.logout();
+        navigateToLogin();
     }
 
     private void setupMainContent() {
         setContentView(R.layout.activity_main);
+        EdgeToEdgeHelper.applySystemBars(findViewById(R.id.main));
         fabAddTransaction = findViewById(R.id.fab_add_transaction);
         fabAddTransaction.setOnClickListener(v ->
                 startActivity(new Intent(this, AddEditTransactionActivity.class)));
@@ -70,8 +60,14 @@ public class MainActivity extends AppCompatActivity {
 
             navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
                 int destinationId = destination.getId();
-                if (destinationId == R.id.navigation_transactions
-                        || destinationId == R.id.navigation_statistics) {
+                boolean rootDestination = destinationId == R.id.navigation_home
+                        || destinationId == R.id.navigation_transactions
+                        || destinationId == R.id.navigation_planning
+                        || destinationId == R.id.navigation_statistics
+                        || destinationId == R.id.navigation_settings;
+                bottomNav.setVisibility(rootDestination
+                        ? android.view.View.VISIBLE : android.view.View.GONE);
+                if (destinationId == R.id.navigation_transactions) {
                     fabAddTransaction.show();
                 } else {
                     fabAddTransaction.hide();
