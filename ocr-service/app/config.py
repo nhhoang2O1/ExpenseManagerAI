@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     language: str = "vi"
     recognition_model_dir: Path | None = None
     preload_model: bool = False
+    use_doc_orientation_classify: bool = True
+    use_doc_unwarping: bool = True
+    use_textline_orientation: bool = True
 
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1024)
     max_image_pixels: int = Field(default=40_000_000, ge=1_000_000)

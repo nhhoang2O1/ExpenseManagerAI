@@ -15,7 +15,7 @@ public final class RemoteTransactionMapper {
     public static Transaction toLocalView(TransactionDto remote, long cacheUserId) {
         Transaction local = new Transaction();
         local.setId(toReadOnlyId(remote.id));
-        local.setAmount(remote.amount == null ? 0d : remote.amount.doubleValue());
+        local.setAmount(toVnd(remote.amount));
         local.setNote(remote.resolvedNote());
         local.setDate(toEpochMillis(remote.transactionDate));
         local.setCategoryId(null);
@@ -29,6 +29,7 @@ public final class RemoteTransactionMapper {
         local.setRemoteStoreName(remote.storeName);
         local.setRemoteCategoryColor(remote.resolvedCategoryColor());
         local.setRemoteCategoryIcon(remote.resolvedCategoryIcon());
+        local.setVersion(remote.version);
         return local;
     }
 
@@ -49,5 +50,16 @@ public final class RemoteTransactionMapper {
     public static long toReadOnlyId(String remoteId) {
         long hash = remoteId == null ? 1L : remoteId.hashCode();
         return -Math.max(1L, Math.abs(hash));
+    }
+
+    private static long toVnd(java.math.BigDecimal amount) {
+        if (amount == null) return 0L;
+        try {
+            return amount.longValueExact();
+        } catch (ArithmeticException ignored) {
+            // The backend contract is integer VND. Keep a deterministic
+            // fallback for malformed legacy payloads.
+            return amount.setScale(0, java.math.RoundingMode.HALF_UP).longValue();
+        }
     }
 }

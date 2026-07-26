@@ -53,7 +53,7 @@ public class GoalViewModel extends AndroidViewModel {
         repository.update(goal, new RefreshCallback("Đã cập nhật mục tiêu"));
     }
 
-    public void addFunds(Goal goal, double amount) {
+    public void addFunds(Goal goal, long amount) {
         repository.addFunds(goal, amount, new RefreshCallback("Đã cập nhật tiến độ"));
     }
 

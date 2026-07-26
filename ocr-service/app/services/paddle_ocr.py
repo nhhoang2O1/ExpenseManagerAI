@@ -1,7 +1,9 @@
 import json
+import logging
 import os
 import threading
 from collections.abc import Iterable, Mapping
+from time import perf_counter
 from typing import Any, Protocol, runtime_checkable
 
 import cv2
@@ -11,6 +13,8 @@ from numpy.typing import NDArray
 from app.config import Settings
 from app.schemas import OCRLine
 from app.services.errors import OCRExecutionError
+
+logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -47,11 +51,21 @@ class PaddleOCREngine:
         with self._load_lock:
             if self._model is not None:
                 return
+            started = perf_counter()
             try:
                 _configure_paddle_runtime()
                 from paddleocr import PaddleOCR
 
-                options: dict[str, Any] = {"lang": self.settings.language}
+                options: dict[str, Any] = {
+                    "lang": self.settings.language,
+                    "use_doc_orientation_classify": (
+                        self.settings.use_doc_orientation_classify
+                    ),
+                    "use_doc_unwarping": self.settings.use_doc_unwarping,
+                    "use_textline_orientation": (
+                        self.settings.use_textline_orientation
+                    ),
+                }
                 if self.settings.recognition_model_dir is not None:
                     options["text_recognition_model_dir"] = str(
                         self.settings.recognition_model_dir
@@ -61,6 +75,10 @@ class PaddleOCREngine:
                 raise OCRExecutionError(
                     f"Could not initialize PaddleOCR: {exc}"
                 ) from exc
+            logger.info(
+                "ocr_model_load_timing load_ms=%s",
+                round((perf_counter() - started) * 1000),
+            )
 
     def recognize(self, image: NDArray[np.uint8]) -> list[OCRLine]:
         self.load()

@@ -183,8 +183,8 @@ public class StatisticsFragment extends Fragment {
                 if (key.equals(summary.getMonthYear())) { selected = summary; break; }
             }
         }
-        double in = selected == null ? 0d : selected.getTotalIncome();
-        double out = selected == null ? 0d : selected.getTotalExpense();
+        long in = selected == null ? 0L : selected.getTotalIncome();
+        long out = selected == null ? 0L : selected.getTotalExpense();
         income.setText(CurrencyFormatter.format(in));
         expense.setText(CurrencyFormatter.format(out));
         balance.setText(CurrencyFormatter.format(in - out));

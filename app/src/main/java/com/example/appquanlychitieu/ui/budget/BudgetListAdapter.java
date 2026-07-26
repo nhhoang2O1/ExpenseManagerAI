@@ -27,9 +27,12 @@ import java.util.Map;
 import java.util.Objects;
 
 public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.ViewHolder> {
-    public interface Listener { void onDelete(Budget budget); }
+    public interface Listener {
+        void onEdit(Budget budget);
+        void onDelete(Budget budget);
+    }
     private final Context context;
-    private final Map<Long, Double> spentMap = new HashMap<>();
+    private final Map<Long, Long> spentMap = new HashMap<>();
     private Listener listener;
 
     public BudgetListAdapter(Context context) {
@@ -41,7 +44,7 @@ public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.Vie
     public void setBudgets(java.util.List<Budget> budgets) {
         submitList(budgets == null ? new ArrayList<>() : new ArrayList<>(budgets));
     }
-    public void setSpentMap(Map<Long, Double> spent) {
+    public void setSpentMap(Map<Long, Long> spent) {
         spentMap.clear();
         if (spent != null) spentMap.putAll(spent);
         notifyDataSetChanged();
@@ -81,8 +84,8 @@ public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.Vie
         }
 
         void bind(Budget budget) {
-            double used = spentMap.getOrDefault(budget.getCategoryId(), 0d);
-            double left = budget.getAmount() - used;
+            long used = spentMap.getOrDefault(budget.getCategoryId(), 0L);
+            long left = budget.getAmount() - used;
             int percent = budget.getAmount() <= 0 ? 0
                     : (int) Math.round(used * 100d / budget.getAmount());
             name.setText(budget.getRemoteCategoryName());
@@ -125,9 +128,14 @@ public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.Vie
             icon.setImageResource(iconRes == 0 ? R.drawable.ic_other : iconRes);
             more.setOnClickListener(v -> {
                 PopupMenu menu = new PopupMenu(context, v);
+                menu.getMenu().add(R.string.edit).setOnMenuItemClickListener(item -> {
+                    if (listener != null) listener.onEdit(budget);
+                    return true;
+                });
                 menu.getMenu().add(R.string.delete);
                 menu.setOnMenuItemClickListener(item -> {
-                    if (listener != null) listener.onDelete(budget);
+                    if (item.getTitle().equals(context.getString(R.string.delete)) && listener != null)
+                        listener.onDelete(budget);
                     return true;
                 });
                 menu.show();
@@ -153,7 +161,7 @@ public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.Vie
     }
 
     static boolean sameContent(Budget first, Budget second) {
-        return Double.compare(first.getAmount(), second.getAmount()) == 0
+        return first.getAmount() == second.getAmount()
                 && Objects.equals(first.getMonthYear(), second.getMonthYear())
                 && Objects.equals(first.getRemoteCategoryName(), second.getRemoteCategoryName())
                 && Objects.equals(first.getRemoteCategoryColor(), second.getRemoteCategoryColor())

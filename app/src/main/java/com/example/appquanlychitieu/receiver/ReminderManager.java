@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.google.gson.Gson;
+import com.example.appquanlychitieu.util.SessionManager;
 
 public class ReminderManager {
     private static final String STORE_NAME = "scheduled_reminders";
@@ -95,7 +96,7 @@ public class ReminderManager {
     }
 
     public static void cancelReminder(Context context, Reminder reminder) {
-        removeSchedule(context, reminder.getId());
+        removeSchedule(context, reminder.getUserId(), reminder.getId());
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
 
@@ -117,7 +118,9 @@ public class ReminderManager {
     }
 
     public static void reschedulePersisted(Context context) {
-        SharedPreferences preferences = context.getSharedPreferences(STORE_NAME, Context.MODE_PRIVATE);
+        long userId = new SessionManager(context.getApplicationContext()).getUserId();
+        if (userId <= 0) return;
+        SharedPreferences preferences = preferences(context, userId);
         Set<String> ids = new HashSet<>(preferences.getStringSet(KEY_IDS, new HashSet<>()));
         for (String id : ids) {
             String json = preferences.getString(KEY_PREFIX + id, null);
@@ -132,7 +135,7 @@ public class ReminderManager {
     }
 
     private static void persistSchedule(Context context, Reminder reminder) {
-        SharedPreferences preferences = context.getSharedPreferences(STORE_NAME, Context.MODE_PRIVATE);
+        SharedPreferences preferences = preferences(context, reminder.getUserId());
         Set<String> ids = new HashSet<>(preferences.getStringSet(KEY_IDS, new HashSet<>()));
         String id = Long.toString(reminder.getId());
         ids.add(id);
@@ -142,8 +145,9 @@ public class ReminderManager {
                 .apply();
     }
 
-    private static void removeSchedule(Context context, long reminderId) {
-        SharedPreferences preferences = context.getSharedPreferences(STORE_NAME, Context.MODE_PRIVATE);
+    private static void removeSchedule(Context context, long userId, long reminderId) {
+        if (userId <= 0) return;
+        SharedPreferences preferences = preferences(context, userId);
         Set<String> ids = new HashSet<>(preferences.getStringSet(KEY_IDS, new HashSet<>()));
         String id = Long.toString(reminderId);
         ids.remove(id);
@@ -151,5 +155,41 @@ public class ReminderManager {
                 .putStringSet(KEY_IDS, ids)
                 .remove(KEY_PREFIX + id)
                 .apply();
+    }
+
+    /** Cancels and removes only the alarms owned by the specified user. */
+    public static void clearForUser(Context context, long userId) {
+        if (userId <= 0) return;
+        SharedPreferences preferences = preferences(context, userId);
+        Set<String> ids = new HashSet<>(preferences.getStringSet(KEY_IDS, new HashSet<>()));
+        for (String id : ids) {
+            String json = preferences.getString(KEY_PREFIX + id, null);
+            if (json == null) continue;
+            try {
+                Reminder reminder = GSON.fromJson(json, Reminder.class);
+                if (reminder != null) cancelAlarmOnly(context, reminder);
+            } catch (RuntimeException exception) {
+                Log.w("ReminderManager", "Ignoring invalid reminder during cleanup", exception);
+            }
+        }
+        preferences.edit().clear().commit();
+    }
+
+    private static void cancelAlarmOnly(Context context, Reminder reminder) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) return;
+        Intent intent = new Intent(context, ReminderReceiver.class);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                context, (int) reminder.getId(), intent, flags);
+        alarmManager.cancel(pendingIntent);
+        pendingIntent.cancel();
+    }
+
+    private static SharedPreferences preferences(Context context, long userId) {
+        return context.getApplicationContext().getSharedPreferences(
+                STORE_NAME + "_user_" + userId,
+                Context.MODE_PRIVATE);
     }
 }

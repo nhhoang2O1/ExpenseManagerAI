@@ -11,9 +11,12 @@ import java.security.GeneralSecurityException;
 
 public class TokenStore {
     private static final String PREF_NAME = "secure_backend_session";
-    private static final String KEY_TOKEN = "jwt_access_token";
+    private static final String KEY_ACCESS_TOKEN = "jwt_access_token";
+    private static final String KEY_REFRESH_TOKEN = "refresh_token";
+    private static final String KEY_EXPIRES_IN = "access_token_expires_in";
 
     private final SharedPreferences preferences;
+    private final Object lock = new Object();
 
     public TokenStore(Context context) {
         try {
@@ -32,19 +35,79 @@ public class TokenStore {
     }
 
     public void saveToken(String token) {
-        preferences.edit().putString(KEY_TOKEN, token).apply();
+        saveAccessToken(token);
     }
 
     public String getToken() {
-        return preferences.getString(KEY_TOKEN, "");
+        return getAccessToken();
     }
 
     public boolean hasToken() {
-        String token = getToken();
+        String token = getAccessToken();
         return token != null && !token.trim().isEmpty();
     }
 
+    public void saveAccessToken(String accessToken) {
+        synchronized (lock) {
+            preferences.edit().putString(KEY_ACCESS_TOKEN, accessToken).commit();
+        }
+    }
+
+    public String getAccessToken() {
+        synchronized (lock) {
+            return preferences.getString(KEY_ACCESS_TOKEN, "");
+        }
+    }
+
+    public void saveRefreshToken(String refreshToken) {
+        synchronized (lock) {
+            preferences.edit().putString(KEY_REFRESH_TOKEN, refreshToken).commit();
+        }
+    }
+
+    public String getRefreshToken() {
+        synchronized (lock) {
+            return preferences.getString(KEY_REFRESH_TOKEN, "");
+        }
+    }
+
+    public boolean hasRefreshToken() {
+        String token = getRefreshToken();
+        return token != null && !token.trim().isEmpty();
+    }
+
+    public boolean hasPair() {
+        return hasToken() && hasRefreshToken();
+    }
+
+    /** Saves both credentials in one synchronous encrypted-preferences edit. */
+    public void savePair(String accessToken, String refreshToken, int expiresIn) {
+        if (accessToken == null || accessToken.trim().isEmpty()
+                || refreshToken == null || refreshToken.trim().isEmpty()) {
+            throw new IllegalArgumentException("Both access and refresh tokens are required");
+        }
+        synchronized (lock) {
+            preferences.edit()
+                    .putString(KEY_ACCESS_TOKEN, accessToken)
+                    .putString(KEY_REFRESH_TOKEN, refreshToken)
+                    .putInt(KEY_EXPIRES_IN, expiresIn)
+                    .commit();
+        }
+    }
+
+    public int getExpiresIn() {
+        synchronized (lock) {
+            return preferences.getInt(KEY_EXPIRES_IN, 0);
+        }
+    }
+
     public void clear() {
-        preferences.edit().remove(KEY_TOKEN).apply();
+        synchronized (lock) {
+            preferences.edit()
+                    .remove(KEY_ACCESS_TOKEN)
+                    .remove(KEY_REFRESH_TOKEN)
+                    .remove(KEY_EXPIRES_IN)
+                    .commit();
+        }
     }
 }

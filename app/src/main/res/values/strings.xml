@@ -127,6 +127,17 @@
     <string name="warning_generic">Mẫu hóa đơn chưa được hỗ trợ riêng. Hãy kiểm tra kỹ kết quả.</string>
     <string name="warning_unrecognized">Không nhận dạng chắc chắn đây là hóa đơn. Bạn có thể nhập tay hoặc chụp lại.</string>
     <string name="warning_low_quality">Ảnh có chất lượng thấp. Hãy kiểm tra kết quả hoặc chụp lại rõ hơn.</string>
+    <string name="warning_store_not_found">Chưa đọc được tên cửa hàng. Vui lòng nhập hoặc sửa lại.</string>
+    <string name="warning_date_not_found">Chưa đọc được ngày hóa đơn. Vui lòng kiểm tra lại.</string>
+    <string name="warning_total_not_found">Chưa đọc được tổng tiền. Vui lòng kiểm tra lại.</string>
+    <string name="warning_image_too_dark">Ảnh quá tối; kết quả có thể chưa chính xác.</string>
+    <string name="warning_image_overexposed">Ảnh quá sáng; kết quả có thể chưa chính xác.</string>
+    <string name="warning_low_contrast">Ảnh có độ tương phản thấp; vui lòng kiểm tra kết quả.</string>
+    <string name="warning_blurry_image">Ảnh bị mờ; nên chụp lại nếu kết quả không đúng.</string>
+    <string name="warning_no_text">Không đọc được đủ nội dung hóa đơn.</string>
+    <string name="warning_low_ocr_confidence">Độ tin cậy nhận diện thấp; vui lòng kiểm tra kỹ.</string>
+    <string name="warning_review_result">Có thông tin cần kiểm tra lại trước khi xác nhận.</string>
+    <string name="category_suggested">Gợi ý: %1$s%2$s. %3$s</string>
     <string name="ocr_confidence">Độ tin cậy OCR: %1$s</string>
     <string name="invalid_store_name">Vui lòng nhập tên cửa hàng</string>
     <string name="invalid_receipt_date">Ngày hóa đơn phải có dạng yyyy-MM-dd</string>

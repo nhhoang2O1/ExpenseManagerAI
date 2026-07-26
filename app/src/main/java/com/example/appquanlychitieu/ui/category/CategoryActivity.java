@@ -1,0 +1,107 @@
+package com.example.appquanlychitieu.ui.category;
+
+import android.os.Bundle;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.example.appquanlychitieu.R;
+import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
+import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
+
+import java.util.ArrayList;
+
+public final class CategoryActivity extends AppCompatActivity {
+    private CategoryViewModel viewModel;
+    private ArrayAdapter<CategoryDto> adapter;
+
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int padding = Math.round(16 * getResources().getDisplayMetrics().density);
+        root.setPadding(padding, padding, padding, padding);
+        TextView title = new TextView(this);
+        title.setText("Quản lý danh mục");
+        title.setTextSize(24);
+        title.setPadding(0, 0, 0, padding);
+        Button add = new Button(this);
+        add.setText("Thêm danh mục");
+        ListView list = new ListView(this);
+        root.addView(title);
+        root.addView(add);
+        root.addView(list, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        setContentView(root);
+        EdgeToEdgeHelper.applySystemBars(root);
+
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_2,
+                android.R.id.text1, new ArrayList<>()) {
+            @Override public android.view.View getView(int position, android.view.View convertView,
+                                                       ViewGroup parent) {
+                android.view.View row = super.getView(position, convertView, parent);
+                CategoryDto item = getItem(position);
+                ((TextView) row.findViewById(android.R.id.text1)).setText(item.name);
+                ((TextView) row.findViewById(android.R.id.text2)).setText(
+                        "INCOME".equals(item.type) ? "Thu nhập" : "Chi tiêu");
+                return row;
+            }
+        };
+        list.setAdapter(adapter);
+        viewModel = new ViewModelProvider(this).get(CategoryViewModel.class);
+        viewModel.getCategories().observe(this, items -> {
+            adapter.clear();
+            if (items != null) adapter.addAll(items);
+            adapter.notifyDataSetChanged();
+        });
+        viewModel.getError().observe(this, message -> {
+            if (message != null && !message.trim().isEmpty())
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        });
+        add.setOnClickListener(v -> showEditor(null));
+        list.setOnItemClickListener((p, v, position, id) -> showEditor(adapter.getItem(position)));
+        list.setOnItemLongClickListener((p, v, position, id) -> {
+            CategoryDto category = adapter.getItem(position);
+            new AlertDialog.Builder(this).setTitle(R.string.delete)
+                    .setMessage(R.string.confirm_delete)
+                    .setPositiveButton(R.string.delete, (d, w) -> viewModel.delete(category))
+                    .setNegativeButton(R.string.cancel, null).show();
+            return true;
+        });
+    }
+
+    private void showEditor(CategoryDto category) {
+        EditText name = new EditText(this);
+        name.setHint("Tên danh mục");
+        Spinner type = new Spinner(this);
+        String[] types = {"Chi tiêu", "Thu nhập"};
+        type.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, types));
+        if (category != null) {
+            name.setText(category.name);
+            type.setSelection("INCOME".equals(category.type) ? 1 : 0);
+        }
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        int padding = Math.round(24 * getResources().getDisplayMetrics().density);
+        form.setPadding(padding, 0, padding, 0);
+        form.addView(name);
+        form.addView(type);
+        new AlertDialog.Builder(this).setTitle(category == null ? "Thêm danh mục" : "Sửa danh mục")
+                .setView(form).setPositiveButton(R.string.save, (d, w) -> {
+                    String value = name.getText().toString().trim();
+                    if (value.isEmpty()) return;
+                    viewModel.save(category, value, type.getSelectedItemPosition() == 1
+                            ? "INCOME" : "EXPENSE");
+                }).setNegativeButton(R.string.cancel, null).show();
+    }
+}

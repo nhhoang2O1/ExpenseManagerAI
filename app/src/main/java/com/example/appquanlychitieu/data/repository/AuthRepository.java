@@ -9,6 +9,9 @@ import com.example.appquanlychitieu.data.remote.ApiService;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.AuthResponseDto;
 import com.example.appquanlychitieu.data.remote.dto.LoginRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.LogoutRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.ForgotPasswordRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.ResetPasswordRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.RegisterRequestDto;
 
 import retrofit2.Call;
@@ -32,6 +35,36 @@ public class AuthRepository {
             String password,
             RemoteCallback<AuthResponseDto> callback) {
         enqueue(apiService.register(new RegisterRequestDto(name, email, password)), callback);
+    }
+
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.trim().isEmpty()) return;
+        apiService.logout(new LogoutRequestDto(refreshToken)).enqueue(new Callback<Void>() {
+            @Override public void onResponse(Call<Void> call, Response<Void> response) { }
+            @Override public void onFailure(Call<Void> call, Throwable throwable) { }
+        });
+    }
+
+    public void forgotPassword(String email, RemoteCallback<Void> callback) {
+        enqueueVoid(apiService.forgotPassword(new ForgotPasswordRequestDto(email)), callback);
+    }
+
+    public void resetPassword(String email, String code, String newPassword,
+                              RemoteCallback<Void> callback) {
+        enqueueVoid(apiService.resetPassword(
+                new ResetPasswordRequestDto(email, code, newPassword)), callback);
+    }
+
+    private void enqueueVoid(Call<Void> call, RemoteCallback<Void> callback) {
+        call.enqueue(new Callback<Void>() {
+            @Override public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) callback.onSuccess(null);
+                else callback.onError(ApiResponseHelper.fromResponse(response));
+            }
+            @Override public void onFailure(Call<Void> call, Throwable throwable) {
+                callback.onError(ApiResponseHelper.fromFailure(throwable));
+            }
+        });
     }
 
     private void enqueue(Call<AuthResponseDto> call, RemoteCallback<AuthResponseDto> callback) {

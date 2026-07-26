@@ -6,8 +6,8 @@
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Android Keystore keys are device-bound and are not restored with
+         EncryptedSharedPreferences. Never back up credentials or session state. -->
+    <exclude domain="sharedpref" path="secure_backend_session.xml" />
+    <exclude domain="sharedpref" path="expense_manager_session.xml" />
 </full-backup-content>

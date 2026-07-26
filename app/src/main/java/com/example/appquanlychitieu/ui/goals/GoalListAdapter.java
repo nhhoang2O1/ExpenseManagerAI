@@ -25,6 +25,7 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
     public interface OnGoalInteractionListener {
         void onGoalClick(Goal goal);
         void onAddFundsClick(Goal goal);
+        void onEditGoalClick(Goal goal);
         void onGoalLongClick(Goal goal);
     }
 
@@ -85,9 +86,14 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
             addFunds.setOnClickListener(v -> listener.onAddFundsClick(goal));
             more.setOnClickListener(v -> {
                 PopupMenu menu = new PopupMenu(context, v);
+                menu.getMenu().add(R.string.edit).setOnMenuItemClickListener(item -> {
+                    listener.onEditGoalClick(goal);
+                    return true;
+                });
                 menu.getMenu().add(R.string.delete);
                 menu.setOnMenuItemClickListener(item -> {
-                    listener.onGoalLongClick(goal);
+                    if (item.getTitle().equals(context.getString(R.string.delete)))
+                        listener.onGoalLongClick(goal);
                     return true;
                 });
                 menu.show();
@@ -113,7 +119,7 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
 
     static boolean sameContent(Goal first, Goal second) {
         return Objects.equals(first.getName(), second.getName())
-                && Double.compare(first.getTargetAmount(), second.getTargetAmount()) == 0
-                && Double.compare(first.getCurrentAmount(), second.getCurrentAmount()) == 0;
+                && first.getTargetAmount() == second.getTargetAmount()
+                && first.getCurrentAmount() == second.getCurrentAmount();
     }
 }

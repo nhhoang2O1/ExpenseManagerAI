@@ -7,61 +7,72 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.example.appquanlychitieu.data.model.MonthlySummary;
 import com.example.appquanlychitieu.data.model.Transaction;
 import com.example.appquanlychitieu.data.model.TransactionType;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
+import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.data.repository.RemoteTransactionRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.util.DateUtils;
 import com.example.appquanlychitieu.util.SessionManager;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Home owns remote loading and derives only the day/recent presentation data.
+ * Monthly totals come from the backend statistics endpoint, so totals remain
+ * correct even when the account has more than one page of transactions.
+ */
 public class HomeViewModel extends AndroidViewModel {
-    private final RemoteTransactionRepository repository;
+    private final RemoteTransactionRepository transactionRepository;
+    private final RemoteStatisticsRepository statisticsRepository;
     private final long userId;
     private final boolean authenticated;
-    private final MutableLiveData<Double> totalIncome = new MutableLiveData<>(0d);
-    private final MutableLiveData<Double> totalExpense = new MutableLiveData<>(0d);
-    private final MutableLiveData<Double> balance = new MutableLiveData<>(0d);
+    private final MutableLiveData<Long> totalIncome = new MutableLiveData<>(0L);
+    private final MutableLiveData<Long> totalExpense = new MutableLiveData<>(0L);
+    private final MutableLiveData<Long> balance = new MutableLiveData<>(0L);
     private final MutableLiveData<List<Transaction>> recentTransactions =
             new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<Long> selectedDate =
             new MutableLiveData<>(System.currentTimeMillis());
-    private final MutableLiveData<Double> dailyIncome = new MutableLiveData<>(0d);
-    private final MutableLiveData<Double> dailyExpense = new MutableLiveData<>(0d);
+    private final MutableLiveData<Long> dailyIncome = new MutableLiveData<>(0L);
+    private final MutableLiveData<Long> dailyExpense = new MutableLiveData<>(0L);
     private final MutableLiveData<LoadState> loadState =
             new MutableLiveData<>(LoadState.LOADING);
     private final MutableLiveData<String> remoteError = new MutableLiveData<>();
     private List<Transaction> serverSnapshot = new ArrayList<>();
     private boolean hasLoaded;
     private boolean refreshing;
+    private int refreshGeneration;
 
     public HomeViewModel(@NonNull Application application) {
         super(application);
-        repository = new RemoteTransactionRepository(application);
+        transactionRepository = new RemoteTransactionRepository(application);
+        statisticsRepository = new RemoteStatisticsRepository(application);
         SessionManager session = new SessionManager(application);
         userId = session.getUserId();
         authenticated = session.hasAuthToken();
         refreshRemoteTransactions();
     }
 
-    public LiveData<Double> getTotalIncome() { return totalIncome; }
-    public LiveData<Double> getTotalExpense() { return totalExpense; }
-    public LiveData<Double> getBalance() { return balance; }
+    public LiveData<Long> getTotalIncome() { return totalIncome; }
+    public LiveData<Long> getTotalExpense() { return totalExpense; }
+    public LiveData<Long> getBalance() { return balance; }
     public LiveData<List<Transaction>> getRecentTransactions() { return recentTransactions; }
     public LiveData<Long> getSelectedDate() { return selectedDate; }
-    public LiveData<Double> getDailyIncome() { return dailyIncome; }
-    public LiveData<Double> getDailyExpense() { return dailyExpense; }
+    public LiveData<Long> getDailyIncome() { return dailyIncome; }
+    public LiveData<Long> getDailyExpense() { return dailyExpense; }
     public LiveData<LoadState> getLoadState() { return loadState; }
     public LiveData<String> getRemoteError() { return remoteError; }
 
     public void setSelectedDate(long date) {
         selectedDate.setValue(date);
-        publish();
+        publishTransactions();
     }
 
     public boolean isRemoteTransaction(Transaction transaction) {
@@ -70,7 +81,8 @@ public class HomeViewModel extends AndroidViewModel {
 
     public void deleteTransaction(Transaction transaction) {
         if (!isRemoteTransaction(transaction)) return;
-        repository.delete(transaction.getRemoteId(), new RemoteCallback<Void>() {
+        transactionRepository.delete(transaction.getRemoteId(), transaction.getVersion(),
+                new RemoteCallback<Void>() {
             @Override public void onSuccess(Void value) { refreshRemoteTransactions(); }
             @Override public void onError(ApiError error) { remoteError.setValue(error.getMessage()); }
         });
@@ -85,52 +97,84 @@ public class HomeViewModel extends AndroidViewModel {
             return;
         }
         refreshing = true;
+        final int generation = ++refreshGeneration;
         if (!hasLoaded) loadState.setValue(LoadState.LOADING);
-        repository.getTransactions(userId, new RemoteCallback<List<Transaction>>() {
+
+        // Repository transparently follows every backend page.
+        transactionRepository.getTransactions(userId, new RemoteCallback<List<Transaction>>() {
             @Override
             public void onSuccess(List<Transaction> value) {
+                if (generation != refreshGeneration) return;
                 refreshing = false;
                 hasLoaded = true;
                 serverSnapshot = value == null ? new ArrayList<>() : new ArrayList<>(value);
-                serverSnapshot.sort(Comparator.comparingLong(Transaction::getDate).reversed());
-                remoteError.setValue(null);
-                publish();
+                serverSnapshot.sort(Comparator
+                        .comparingLong(Transaction::getDate)
+                        .reversed()
+                        .thenComparing(transaction -> transaction.getRemoteId() == null
+                                ? "" : transaction.getRemoteId(), Comparator.reverseOrder()));
+                publishTransactions();
             }
 
             @Override
             public void onError(ApiError error) {
+                if (generation != refreshGeneration) return;
                 refreshing = false;
                 remoteError.setValue(error.getMessage());
                 if (!hasLoaded) loadState.setValue(LoadState.ERROR);
             }
         });
+
+        Calendar now = Calendar.getInstance();
+        statisticsRepository.getMonthlySummary(now.get(Calendar.YEAR),
+                new RemoteCallback<List<MonthlySummary>>() {
+                    @Override
+                    public void onSuccess(List<MonthlySummary> summaries) {
+                        if (generation != refreshGeneration) return;
+                        publishMonthlyTotals(summaries);
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        if (generation != refreshGeneration) return;
+                        remoteError.setValue(error.getMessage());
+                    }
+                });
     }
 
-    private void publish() {
-        long monthStart = DateUtils.getStartOfCurrentMonth();
-        long monthEnd = DateUtils.getEndOfCurrentMonth();
-        long day = selectedDate.getValue() == null ? System.currentTimeMillis() : selectedDate.getValue();
+    private void publishMonthlyTotals(List<MonthlySummary> summaries) {
+        String currentMonth = DateUtils.getCurrentMonthYear();
+        long income = 0L;
+        long expense = 0L;
+        if (summaries != null) {
+            for (MonthlySummary summary : summaries) {
+                if (summary != null && currentMonth.equals(summary.getMonthYear())) {
+                    income = summary.getTotalIncome();
+                    expense = summary.getTotalExpense();
+                    break;
+                }
+            }
+        }
+        totalIncome.setValue(income);
+        totalExpense.setValue(expense);
+        balance.setValue(income - expense);
+    }
+
+    private void publishTransactions() {
+        long day = selectedDate.getValue() == null
+                ? System.currentTimeMillis() : selectedDate.getValue();
         long dayStart = DateUtils.getStartOfDay(day);
         long dayEnd = DateUtils.getEndOfDay(day);
-        double income = 0d;
-        double expense = 0d;
-        double dayIncome = 0d;
-        double dayExpense = 0d;
+        long dayIncome = 0L;
+        long dayExpense = 0L;
         List<Transaction> recent = new ArrayList<>();
         for (Transaction transaction : serverSnapshot) {
-            if (transaction.getDate() >= monthStart && transaction.getDate() <= monthEnd) {
-                if (transaction.getType() == TransactionType.INCOME) income += transaction.getAmount();
-                else expense += transaction.getAmount();
-            }
             if (transaction.getDate() >= dayStart && transaction.getDate() <= dayEnd) {
                 if (transaction.getType() == TransactionType.INCOME) dayIncome += transaction.getAmount();
                 else dayExpense += transaction.getAmount();
             }
             if (recent.size() < 5) recent.add(transaction);
         }
-        totalIncome.setValue(income);
-        totalExpense.setValue(expense);
-        balance.setValue(income - expense);
         dailyIncome.setValue(dayIncome);
         dailyExpense.setValue(dayExpense);
         recentTransactions.setValue(recent);

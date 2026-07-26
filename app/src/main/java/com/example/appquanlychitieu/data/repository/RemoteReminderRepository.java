@@ -16,6 +16,7 @@ import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -56,17 +57,19 @@ public class RemoteReminderRepository {
     }
 
     public void create(Reminder reminder, RemoteCallback<Reminder> callback) {
-        enqueue(apiService.createReminder(toRequest(reminder)), reminder.getUserId(), callback);
+        enqueue(apiService.createReminder(UUID.randomUUID().toString(), toRequest(reminder)),
+                reminder.getUserId(), callback);
     }
 
     public void update(Reminder reminder, RemoteCallback<Reminder> callback) {
         if (reminder.getRemoteId() == null || reminder.getRemoteId().trim().isEmpty()) return;
-        enqueue(apiService.updateReminder(reminder.getRemoteId(), toRequest(reminder)), reminder.getUserId(), callback);
+        enqueue(apiService.updateReminder(reminder.getRemoteId(), quote(reminder.getVersion()),
+                toRequest(reminder)), reminder.getUserId(), callback);
     }
 
     public void delete(Reminder reminder, RemoteCallback<Void> callback) {
         if (reminder.getRemoteId() == null || reminder.getRemoteId().trim().isEmpty()) return;
-        apiService.deleteReminder(reminder.getRemoteId()).enqueue(new Callback<Void>() {
+        apiService.deleteReminder(reminder.getRemoteId(), quote(reminder.getVersion())).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) callback.onSuccess(null);
@@ -117,8 +120,11 @@ public class RemoteReminderRepository {
                 dto.isActive);
         reminder.setId(dto.id == null ? 0L : dto.id.hashCode());
         reminder.setRemoteId(dto.id);
+        reminder.setVersion(dto.version);
         return reminder;
     }
+
+    private String quote(long version) { return "\"" + version + "\""; }
 
     private JsonArray resolveArray(JsonElement body) {
         if (body.isJsonArray()) return body.getAsJsonArray();

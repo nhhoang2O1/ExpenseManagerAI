@@ -19,6 +19,7 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         var items = await db.Goals.AsNoTracking()
             .Where(x => x.UserId == userContext.UserId)
             .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);
         return Ok(items.Select(x => x.ToResponse()).ToList());
     }
@@ -28,15 +29,20 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         GoalRequest request,
         CancellationToken cancellationToken)
     {
+        var name = request.Name.Trim();
+        if (name.Length == 0)
+            return BadRequest(new { message = "Tên mục tiêu không được để trống." });
+
         var goal = new Goal
         {
             UserId = userContext.UserId,
-            Name = request.Name.Trim(),
+            Name = name,
             TargetAmount = request.TargetAmount,
-            CurrentAmount = Math.Min(request.CurrentAmount, request.TargetAmount)
+            CurrentAmount = 0
         };
         db.Goals.Add(goal);
         await db.SaveChangesAsync(cancellationToken);
+        OptimisticConcurrency.WriteEtag(this, goal.Version);
         return StatusCode(StatusCodes.Status201Created, goal.ToResponse());
     }
 
@@ -50,11 +56,27 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (goal is null)
             return NotFound();
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
 
-        goal.Name = request.Name.Trim();
+        var name = request.Name.Trim();
+        if (name.Length == 0)
+            return BadRequest(new { message = "Tên mục tiêu không được để trống." });
+
+        if (request.TargetAmount < goal.CurrentAmount)
+            return Conflict(new { message = "Target amount cannot be lower than the current balance." });
+
+        goal.Name = name;
         goal.TargetAmount = request.TargetAmount;
-        goal.CurrentAmount = Math.Min(request.CurrentAmount, request.TargetAmount);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        OptimisticConcurrency.WriteEtag(this, goal.Version);
         return Ok(goal.ToResponse());
     }
 
@@ -65,9 +87,18 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (goal is null)
             return NotFound();
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
 
         db.Goals.Remove(goal);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
         return NoContent();
     }
 
@@ -77,18 +108,68 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         AddGoalFundsRequest request,
         CancellationToken cancellationToken)
     {
-        var goal = await db.Goals.SingleOrDefaultAsync(
-            x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
+        if (!IdempotencySupport.TryCreate(
+                this, $"goals:{id}:add-funds", request, out var idempotency, out var keyError))
+            return keyError!;
+
+        // PostgreSQL's row lock serializes concurrent additions so none of the
+        // increments is lost. Other providers are used only by fast unit tests.
+        await using var transaction = db.Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL"
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        var goal = transaction is null
+            ? await db.Goals.SingleOrDefaultAsync(
+                x => x.Id == id && x.UserId == userContext.UserId, cancellationToken)
+            : await db.Goals
+                .FromSqlInterpolated($"SELECT * FROM goals WHERE id = {id} AND user_id = {userContext.UserId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
         if (goal is null)
             return NotFound();
-
-        goal.CurrentAmount = Math.Min(goal.TargetAmount, goal.CurrentAmount + request.Amount);
-        db.GoalHistories.Add(new GoalHistory
+        var replay = await IdempotencySupport.FindAsync<GoalResponse>(
+            db, userContext.UserId, idempotency, cancellationToken);
+        if (replay?.RequestConflict == true)
+            return IdempotencySupport.Conflict(this);
+        if (replay?.Exists == true)
         {
-            GoalId = goal.Id,
-            AmountAdded = request.Amount
-        });
-        await db.SaveChangesAsync(cancellationToken);
+            var current = goal.ToResponse();
+            OptimisticConcurrency.WriteEtag(this, current.Version);
+            return StatusCode(replay.StatusCode, current);
+        }
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
+
+        var remaining = Math.Max(0, goal.TargetAmount - goal.CurrentAmount);
+        if (remaining == 0)
+            return Conflict(new { message = "This goal is already fully funded." });
+        var appliedAmount = Math.Min(request.Amount, remaining);
+        goal.CurrentAmount += appliedAmount;
+        if (appliedAmount > 0)
+        {
+            db.GoalHistories.Add(new GoalHistory
+            {
+                GoalId = goal.Id,
+                AmountAdded = appliedAmount,
+                RequestedAmount = request.Amount,
+                BalanceAfter = goal.CurrentAmount
+            });
+        }
+        IdempotencySupport.Add(
+            db,
+            userContext.UserId,
+            idempotency,
+            StatusCodes.Status200OK,
+            goal.ToResponse());
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+        OptimisticConcurrency.WriteEtag(this, goal.Version);
         return Ok(goal.ToResponse());
     }
 
@@ -105,6 +186,7 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         var items = await db.GoalHistories.AsNoTracking()
             .Where(x => x.GoalId == id)
             .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);
         return Ok(items.Select(x => x.ToResponse()).ToList());
     }

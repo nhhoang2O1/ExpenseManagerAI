@@ -39,6 +39,25 @@ STORE_BLOCKLIST = (
     "NGAY",
     "DATE",
     "TEL",
+    "MA HD",
+    "SO HD",
+    "MA HOA DON",
+    "NHAN VIEN",
+    "THU NGAN",
+    "BAN:",
+    "GIO VAO",
+    "GIO RA",
+    "STT",
+    "TEN MON",
+    "DON GIA",
+)
+ADDRESS_SIGNALS = (
+    "DIA CHI",
+    "HOTLINE",
+    "VIET NAM",
+    "QUAN ",
+    "PHUONG ",
+    "DUONG ",
 )
 
 
@@ -63,56 +82,47 @@ class _StoreMatch:
     confidence: float
 
 
-class CircleKParser:
-    @staticmethod
-    def match(normalized_lines: list[str]) -> _StoreMatch | None:
-        header = "\n".join(normalized_lines[:10])
-        if (
-            "CIRCLE K" in header
-            or "CIRCLEK" in header
-            or "VONG TRON DO" in header
-        ):
-            return _StoreMatch(name="Circle K", confidence=0.98)
-        return None
-
-
-class GS25Parser:
-    @staticmethod
-    def match(normalized_lines: list[str]) -> _StoreMatch | None:
-        header = "\n".join(normalized_lines[:10])
-        if re.search(r"\bGS\s*25\b", header) or "GS RETAIL" in header:
-            return _StoreMatch(name="GS25", confidence=0.98)
-        return None
-
-
 class GenericReceiptParser:
     @staticmethod
     def match_store(
         lines: list[OCRLine], normalized_lines: list[str]
     ) -> _StoreMatch | None:
-        for line, text in zip(lines[:6], normalized_lines[:6]):
+        candidates: list[tuple[float, str]] = []
+        for index, (line, text) in enumerate(zip(lines, normalized_lines)):
             clean = line.text.strip()
             letters = sum(character.isalpha() for character in clean)
-            if (
+            if not (
                 3 <= len(clean) <= 80
                 and letters >= 3
                 and letters / max(len(clean), 1) >= 0.4
-                and not any(keyword in text for keyword in STORE_BLOCKLIST)
-            ):
-                return _StoreMatch(name=clean, confidence=0.55)
-        return None
+            ) or any(keyword in text for keyword in STORE_BLOCKLIST):
+                continue
+
+            # A merchant name is commonly next to its address or hotline. This
+            # is more reliable than blindly taking the first alphabetic line,
+            # which often is a receipt code or cashier name on Vietnamese bills.
+            nearby = normalized_lines[max(0, index - 1) : index + 4]
+            address_bonus = 0.35 if any(
+                signal in candidate
+                for candidate in nearby
+                for signal in ADDRESS_SIGNALS
+            ) else 0.0
+            header_bonus = 0.08 if index < 6 else 0.0
+            candidates.append((0.45 + address_bonus + header_bonus, clean))
+
+        if not candidates:
+            return None
+        score, name = max(candidates, key=lambda candidate: candidate[0])
+        return _StoreMatch(name=name, confidence=min(0.85, score))
 
 
 class ReceiptParser:
     def __init__(self) -> None:
-        self.specialized_parsers = (CircleKParser(), GS25Parser())
         self.generic_parser = GenericReceiptParser()
 
     def parse(self, lines: list[OCRLine]) -> ParseResult:
         normalized = [_normalize(line.text) for line in lines]
-        store_name, specialized, store_confidence = self._extract_store(
-            lines, normalized
-        )
+        store_name, store_confidence = self._extract_store(lines, normalized)
         receipt_date, date_confidence = self._extract_date(lines, normalized)
         total_amount, total_confidence = self._extract_total(lines, normalized)
         vat_amount, vat_confidence = self._extract_vat(lines, normalized)
@@ -133,7 +143,6 @@ class ReceiptParser:
 
         classification = self._classify(
             normalized=normalized,
-            specialized=specialized,
             store_name=store_name,
             receipt_date=receipt_date,
             total_amount=total_amount,
@@ -160,16 +169,11 @@ class ReceiptParser:
     def _extract_store(
         self,
         lines: list[OCRLine], normalized: list[str]
-    ) -> tuple[str | None, bool, float]:
-        for parser in self.specialized_parsers:
-            match = parser.match(normalized)
-            if match is not None:
-                return match.name, True, match.confidence
-
+    ) -> tuple[str | None, float]:
         match = self.generic_parser.match_store(lines, normalized)
         if match is not None:
-            return match.name, False, match.confidence
-        return None, False, 0.0
+            return match.name, match.confidence
+        return None, 0.0
 
     @staticmethod
     def _extract_date(
@@ -260,12 +264,14 @@ class ReceiptParser:
     @staticmethod
     def _classify(
         normalized: list[str],
-        specialized: bool,
         store_name: str | None,
         receipt_date: date | None,
         total_amount: int | None,
     ) -> Classification:
-        if specialized:
+        required_fields = sum(
+            (store_name is not None, receipt_date is not None, total_amount is not None)
+        )
+        if required_fields == 3:
             return Classification.SUPPORTED
 
         joined = "\n".join(normalized)
@@ -279,9 +285,7 @@ class ReceiptParser:
             )
         )
         return (
-            Classification.GENERIC
-            if signals >= 2
-            else Classification.UNRECOGNIZED
+            Classification.GENERIC if signals >= 2 else Classification.UNRECOGNIZED
         )
 
 

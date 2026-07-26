@@ -17,12 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Budget;
-import com.example.appquanlychitieu.data.model.CategorySummary;
-import com.example.appquanlychitieu.data.remote.ApiError;
-import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
-import com.example.appquanlychitieu.data.repository.RemoteCategoryRepository;
-import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.ui.planning.PlanningFragment;
 import com.example.appquanlychitieu.util.CurrencyFormatter;
@@ -43,10 +38,8 @@ import java.util.Map;
 public class BudgetFragment extends Fragment {
     private BudgetViewModel viewModel;
     private BudgetListAdapter adapter;
-    private RemoteCategoryRepository categoryRepository;
-    private RemoteStatisticsRepository statisticsRepository;
     private final List<CategoryDto> categories = new ArrayList<>();
-    private final Map<Long, Double> spentMap = new HashMap<>();
+    private final Map<Long, Long> spentMap = new HashMap<>();
     private List<Budget> currentBudgets = new ArrayList<>();
 
     private RecyclerView budgetsView;
@@ -79,14 +72,15 @@ public class BudgetFragment extends Fragment {
         budgetsView.setLayoutManager(new LinearLayoutManager(requireContext()));
         budgetsView.setAdapter(adapter);
         viewModel = new ViewModelProvider(this).get(BudgetViewModel.class);
-        categoryRepository = new RemoteCategoryRepository(requireContext());
-        statisticsRepository = new RemoteStatisticsRepository(requireContext());
 
         view.findViewById(R.id.btn_prev_month).setOnClickListener(v -> viewModel.previousMonth());
         view.findViewById(R.id.btn_next_month).setOnClickListener(v -> viewModel.nextMonth());
         view.findViewById(R.id.btn_empty_cta).setOnClickListener(v -> showAddBudgetDialog());
         view.findViewById(R.id.btn_retry).setOnClickListener(v -> viewModel.refreshBudgets());
-        adapter.setListener(this::confirmDelete);
+        adapter.setListener(new BudgetListAdapter.Listener() {
+            @Override public void onEdit(Budget budget) { showEditBudgetDialog(budget); }
+            @Override public void onDelete(Budget budget) { confirmDelete(budget); }
+        });
 
         getParentFragmentManager().setFragmentResultListener(
                 PlanningFragment.RESULT_ADD, getViewLifecycleOwner(), (key, result) -> {
@@ -109,12 +103,21 @@ public class BudgetFragment extends Fragment {
                 Snackbar.make(view, message, Snackbar.LENGTH_SHORT).show();
             }
         });
+        viewModel.getCategories().observe(getViewLifecycleOwner(), value -> {
+            categories.clear();
+            if (value != null) categories.addAll(value);
+        });
+        viewModel.getSpentByCategory().observe(getViewLifecycleOwner(), value -> {
+            spentMap.clear();
+            if (value != null) spentMap.putAll(value);
+            adapter.setSpentMap(spentMap);
+            updateTotals();
+        });
         viewModel.getSelectedMonthYear().observe(getViewLifecycleOwner(), month -> {
             currentMonth.setText(DateUtils.formatDisplayMonth(
                     DateUtils.getStartOfMonth(month[0], month[1])));
-            loadSpent(month[0], month[1]);
+            viewModel.loadSpent(month[0], month[1]);
         });
-        loadCategories();
     }
 
     private void renderState(LoadState state) {
@@ -125,47 +128,15 @@ public class BudgetFragment extends Fragment {
     }
 
     private void loadCategories() {
-        categoryRepository.getCategories("EXPENSE", new RemoteCallback<List<CategoryDto>>() {
-            @Override public void onSuccess(List<CategoryDto> value) {
-                categories.clear();
-                if (value != null) categories.addAll(value);
-            }
-            @Override public void onError(ApiError error) {
-                if (isAdded()) Snackbar.make(requireView(), error.getMessage(), Snackbar.LENGTH_LONG).show();
-            }
-        });
-    }
-
-    private void loadSpent(int year, int monthIndex) {
-        String from = String.format("%04d-%02d-01", year, monthIndex + 1);
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(year, monthIndex, 1);
-        String to = String.format("%04d-%02d-%02d", year, monthIndex + 1,
-                calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
-        statisticsRepository.getCategorySummary(from, to,
-                new RemoteCallback<List<CategorySummary>>() {
-                    @Override public void onSuccess(List<CategorySummary> value) {
-                        spentMap.clear();
-                        if (value != null) {
-                            for (CategorySummary item : value)
-                                spentMap.put(item.getCategoryId(), item.getTotalAmount());
-                        }
-                        adapter.setSpentMap(spentMap);
-                        updateTotals();
-                    }
-                    @Override public void onError(ApiError error) {
-                        if (isAdded()) Snackbar.make(requireView(), error.getMessage(),
-                                Snackbar.LENGTH_LONG).show();
-                    }
-                });
+        viewModel.loadCategories();
     }
 
     private void updateTotals() {
-        double limit = 0d;
-        double spent = 0d;
+        long limit = 0L;
+        long spent = 0L;
         for (Budget budget : currentBudgets) {
             limit += budget.getAmount();
-            spent += spentMap.getOrDefault(budget.getCategoryId(), 0d);
+            spent += spentMap.getOrDefault(budget.getCategoryId(), 0L);
         }
         totalBudget.setText(CurrencyFormatter.format(limit));
         totalSpent.setText(CurrencyFormatter.format(spent));
@@ -200,8 +171,8 @@ public class BudgetFragment extends Fragment {
                 .setOnClickListener(v -> {
                     String raw = amount.getText() == null ? ""
                             : amount.getText().toString().replace(".", "").replace(",", "").trim();
-                    double value;
-                    try { value = Double.parseDouble(raw); }
+                    long value;
+                    try { value = Long.parseLong(raw); }
                     catch (RuntimeException exception) {
                         amountLayout.setError(getString(R.string.please_enter_amount));
                         return;
@@ -219,6 +190,38 @@ public class BudgetFragment extends Fragment {
                     budget.setRemoteCategoryColor(selected[0].color);
                     budget.setRemoteCategoryIcon(selected[0].icon);
                     viewModel.insertBudget(budget);
+                    dialog.dismiss();
+                }));
+        dialog.show();
+    }
+
+    private void showEditBudgetDialog(Budget budget) {
+        View content = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_budget, null);
+        MaterialAutoCompleteTextView dropdown = content.findViewById(R.id.dropdown_category);
+        TextInputEditText amount = content.findViewById(R.id.et_amount);
+        TextInputLayout amountLayout = content.findViewById(R.id.layout_amount);
+        dropdown.setText(budget.getRemoteCategoryName(), false);
+        dropdown.setEnabled(false);
+        amount.setText(String.valueOf(budget.getAmount()));
+        amount.addTextChangedListener(new NumberTextWatcher(amount));
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.edit)
+                .setView(content)
+                .setPositiveButton(R.string.save, null)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String raw = amount.getText() == null ? "" : amount.getText().toString()
+                            .replace(".", "").replace(",", "").trim();
+                    long value;
+                    try { value = Long.parseLong(raw); }
+                    catch (RuntimeException exception) { value = 0L; }
+                    if (value <= 0) {
+                        amountLayout.setError(getString(R.string.amount_must_be_positive));
+                        return;
+                    }
+                    viewModel.updateBudget(budget, value);
                     dialog.dismiss();
                 }));
         dialog.show();

@@ -93,7 +93,7 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
         dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                 .setOnClickListener(v -> {
                     String goalName = text(name);
-                    double target = parseAmount(amount);
+                    long target = parseAmount(amount);
                     if (goalName.isEmpty()) {
                         nameLayout.setError(getString(R.string.invalid_name));
                         return;
@@ -102,7 +102,7 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
                         amountLayout.setError(getString(R.string.amount_must_be_positive));
                         return;
                     }
-                    viewModel.insertGoal(new Goal(goalName, target, 0d, viewModel.getUserId()));
+                    viewModel.insertGoal(new Goal(goalName, target, 0L, viewModel.getUserId()));
                     dialog.dismiss();
                 }));
         dialog.show();
@@ -125,7 +125,7 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
                 .create();
         dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                 .setOnClickListener(v -> {
-                    double value = parseAmount(amount);
+                    long value = parseAmount(amount);
                     if (value <= 0) {
                         amountLayout.setError(getString(R.string.amount_must_be_positive));
                         return;
@@ -146,6 +146,42 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
     }
 
     @Override
+    public void onEditGoalClick(Goal goal) {
+        View content = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_goal_amount, null);
+        TextInputLayout nameLayout = content.findViewById(R.id.layout_goal_name);
+        TextInputLayout amountLayout = content.findViewById(R.id.layout_goal_amount);
+        TextInputEditText name = content.findViewById(R.id.et_goal_name);
+        TextInputEditText amount = content.findViewById(R.id.et_goal_amount);
+        name.setText(goal.getName());
+        amount.setText(String.valueOf(goal.getTargetAmount()));
+        amount.addTextChangedListener(new NumberTextWatcher(amount));
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.edit)
+                .setView(content)
+                .setPositiveButton(R.string.save, null)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String goalName = text(name);
+                    long target = parseAmount(amount);
+                    if (goalName.isEmpty()) {
+                        nameLayout.setError(getString(R.string.invalid_name));
+                        return;
+                    }
+                    if (target <= 0 || target < goal.getCurrentAmount()) {
+                        amountLayout.setError(getString(R.string.amount_must_be_positive));
+                        return;
+                    }
+                    goal.setName(goalName);
+                    goal.setTargetAmount(target);
+                    viewModel.updateGoal(goal);
+                    dialog.dismiss();
+                }));
+        dialog.show();
+    }
+
+    @Override
     public void onGoalLongClick(Goal goal) {
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.delete)
@@ -159,8 +195,8 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
         return input.getText() == null ? "" : input.getText().toString().trim();
     }
 
-    private double parseAmount(TextInputEditText input) {
-        try { return Double.parseDouble(text(input).replace(".", "").replace(",", "")); }
-        catch (RuntimeException ignored) { return 0d; }
+    private long parseAmount(TextInputEditText input) {
+        try { return Long.parseLong(text(input).replace(".", "").replace(",", "")); }
+        catch (RuntimeException ignored) { return 0L; }
     }
 }

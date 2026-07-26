@@ -6,6 +6,7 @@ public class CategoryDto {
     public String type;
     public String color;
     public String icon;
+    public long version = 1L;
 
     @Override
     public String toString() {

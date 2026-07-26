@@ -102,15 +102,15 @@ public class HomeFragment extends Fragment {
             @Override public void onLongClick(Transaction transaction) { confirmDelete(transaction); }
         });
         viewModel.getTotalIncome().observe(getViewLifecycleOwner(), value ->
-                income.setText(CurrencyFormatter.format(value == null ? 0d : value)));
+                income.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getTotalExpense().observe(getViewLifecycleOwner(), value ->
-                expense.setText(CurrencyFormatter.format(value == null ? 0d : value)));
+                expense.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getBalance().observe(getViewLifecycleOwner(), value ->
-                balance.setText(CurrencyFormatter.format(value == null ? 0d : value)));
+                balance.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getDailyIncome().observe(getViewLifecycleOwner(), value ->
-                dailyIncome.setText("+ " + CurrencyFormatter.format(value == null ? 0d : value)));
+                dailyIncome.setText("+ " + CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getDailyExpense().observe(getViewLifecycleOwner(), value ->
-                dailyExpense.setText("- " + CurrencyFormatter.format(value == null ? 0d : value)));
+                dailyExpense.setText("- " + CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getSelectedDate().observe(getViewLifecycleOwner(), value ->
                 dailyDate.setText(DateUtils.formatDate(value == null ? System.currentTimeMillis() : value)));
         viewModel.getRecentTransactions().observe(getViewLifecycleOwner(), adapter::setTransactions);
@@ -149,6 +149,7 @@ public class HomeFragment extends Fragment {
         intent.putExtra(AddEditTransactionActivity.EXTRA_REMOTE_TRANSACTION_ID, transaction.getRemoteId());
         intent.putExtra(AddEditTransactionActivity.EXTRA_REMOTE_CATEGORY_ID, transaction.getRemoteCategoryId());
         intent.putExtra(AddEditTransactionActivity.EXTRA_REMOTE_STORE_NAME, transaction.getRemoteStoreName());
+        intent.putExtra(AddEditTransactionActivity.EXTRA_VERSION, transaction.getVersion());
         intent.putExtra(AddEditTransactionActivity.EXTRA_PREFILL_AMOUNT,
                 String.valueOf((long) transaction.getAmount()));
         intent.putExtra(AddEditTransactionActivity.EXTRA_PREFILL_NOTE, transaction.getNote());

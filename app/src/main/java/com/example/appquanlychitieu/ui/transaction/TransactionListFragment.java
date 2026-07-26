@@ -151,6 +151,7 @@ public class TransactionListFragment extends Fragment {
         intent.putExtra(AddEditTransactionActivity.EXTRA_REMOTE_TRANSACTION_ID, transaction.getRemoteId());
         intent.putExtra(AddEditTransactionActivity.EXTRA_REMOTE_CATEGORY_ID, transaction.getRemoteCategoryId());
         intent.putExtra(AddEditTransactionActivity.EXTRA_REMOTE_STORE_NAME, transaction.getRemoteStoreName());
+        intent.putExtra(AddEditTransactionActivity.EXTRA_VERSION, transaction.getVersion());
         intent.putExtra(AddEditTransactionActivity.EXTRA_PREFILL_AMOUNT,
                 String.valueOf((long) transaction.getAmount()));
         intent.putExtra(AddEditTransactionActivity.EXTRA_PREFILL_NOTE, transaction.getNote());

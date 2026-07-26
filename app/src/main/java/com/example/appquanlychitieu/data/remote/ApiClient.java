@@ -24,6 +24,8 @@ public final class ApiClient {
                     TokenStore tokenStore = new TokenStore(context.getApplicationContext());
                     OkHttpClient client = new OkHttpClient.Builder()
                             .addInterceptor(new JwtInterceptor(tokenStore))
+                            .authenticator(new RefreshTokenAuthenticator(
+                                    context.getApplicationContext(), tokenStore))
                             // Fail fast when the API host is unavailable. OCR processing still
                             // has a longer read/write window after a connection is established.
                             .connectTimeout(5, TimeUnit.SECONDS)

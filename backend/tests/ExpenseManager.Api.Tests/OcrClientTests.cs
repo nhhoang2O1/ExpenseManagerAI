@@ -15,33 +15,29 @@ public sealed class OcrClientTests
             BaseAddress = new Uri("http://ocr-service:8000/")
         };
         var client = new OcrClient(httpClient);
-        var imagePath = Path.GetTempFileName();
+        var image = new byte[] { 1, 2, 3 };
 
-        try
-        {
-            await File.WriteAllBytesAsync(imagePath, [1, 2, 3]);
+        var result = await client.ProcessAsync(
+            image,
+            "receipt.jpg",
+            "image/jpeg",
+            CancellationToken.None);
 
-            var result = await client.ProcessAsync(
-                imagePath,
-                "image/jpeg",
-                CancellationToken.None);
-
-            Assert.Equal(
-                new Uri("http://ocr-service:8000/internal/v1/ocr/receipts"),
-                handler.RequestUri);
-            Assert.Equal("image", handler.MultipartFieldName);
-            Assert.Equal("Circle K", result.Fields.StoreName);
-        }
-        finally
-        {
-            File.Delete(imagePath);
-        }
+        Assert.Equal(
+            new Uri("http://ocr-service:8000/internal/v1/ocr/receipts"),
+            handler.RequestUri);
+        Assert.Equal("image", handler.MultipartFieldName);
+        Assert.Equal(image, handler.ImageBytes);
+        Assert.Equal("image/jpeg", handler.ImageContentType);
+        Assert.Equal("Circle K", result.Fields.StoreName);
     }
 
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public Uri? RequestUri { get; private set; }
         public string? MultipartFieldName { get; private set; }
+        public byte[]? ImageBytes { get; private set; }
+        public string? ImageContentType { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -51,6 +47,8 @@ public sealed class OcrClientTests
             var multipart = Assert.IsType<MultipartFormDataContent>(request.Content);
             var part = Assert.Single(multipart);
             MultipartFieldName = part.Headers.ContentDisposition?.Name?.Trim('"');
+            ImageBytes = part.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+            ImageContentType = part.Headers.ContentType?.MediaType;
 
             const string json = """
                 {

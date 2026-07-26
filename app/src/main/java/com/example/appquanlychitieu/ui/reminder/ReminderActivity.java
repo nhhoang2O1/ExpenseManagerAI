@@ -88,16 +88,32 @@ public class ReminderActivity extends AppCompatActivity {
 
             @Override
             public void onReminderSwitchToggle(Reminder reminder, boolean isChecked) {
+                boolean previous = reminder.isActive();
                 reminder.setActive(isChecked);
-                viewModel.update(reminder);
-                if (isChecked) {
-                    checkNotificationPermission();
-                    ReminderManager.scheduleReminder(ReminderActivity.this, reminder);
-                    Snackbar.make(rvReminders, R.string.reminder_enabled, Snackbar.LENGTH_SHORT).show();
-                } else {
-                    ReminderManager.cancelReminder(ReminderActivity.this, reminder);
-                    Snackbar.make(rvReminders, R.string.reminder_disabled, Snackbar.LENGTH_SHORT).show();
-                }
+                viewModel.update(reminder, new RemoteCallback<Reminder>() {
+                    @Override
+                    public void onSuccess(Reminder saved) {
+                        runOnUiThread(() -> {
+                            if (saved.isActive()) {
+                                checkNotificationPermission();
+                                ReminderManager.scheduleReminder(ReminderActivity.this, saved);
+                                Snackbar.make(rvReminders, R.string.reminder_enabled, Snackbar.LENGTH_SHORT).show();
+                            } else {
+                                ReminderManager.cancelReminder(ReminderActivity.this, saved);
+                                Snackbar.make(rvReminders, R.string.reminder_disabled, Snackbar.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        reminder.setActive(previous);
+                        runOnUiThread(() -> {
+                            adapter.notifyDataSetChanged();
+                            Toast.makeText(ReminderActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                });
             }
 
             @Override
@@ -114,9 +130,21 @@ public class ReminderActivity extends AppCompatActivity {
                 .setTitle(R.string.delete_reminder)
                 .setMessage(R.string.confirm_delete_reminder)
                 .setPositiveButton(R.string.delete, (dialog, which) -> {
-                    ReminderManager.cancelReminder(this, reminder);
-                    viewModel.delete(reminder);
-                    Snackbar.make(rvReminders, R.string.reminder_deleted, Snackbar.LENGTH_SHORT).show();
+                    viewModel.delete(reminder, new RemoteCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void value) {
+                            runOnUiThread(() -> {
+                                ReminderManager.cancelReminder(ReminderActivity.this, reminder);
+                                Snackbar.make(rvReminders, R.string.reminder_deleted, Snackbar.LENGTH_SHORT).show();
+                            });
+                        }
+
+                        @Override
+                        public void onError(ApiError error) {
+                            runOnUiThread(() -> Toast.makeText(
+                                    ReminderActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show());
+                        }
+                    });
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
@@ -227,11 +255,23 @@ public class ReminderActivity extends AppCompatActivity {
             reminder.setDayOfMonth(day);
             reminder.setHour(selectedHour);
             reminder.setMinute(selectedMinute);
-            viewModel.update(reminder);
-            if (reminder.isActive()) {
-                ReminderManager.scheduleReminder(this, reminder);
-            }
-            Snackbar.make(rvReminders, R.string.reminder_updated, Snackbar.LENGTH_SHORT).show();
+            viewModel.update(reminder, new RemoteCallback<Reminder>() {
+                @Override
+                public void onSuccess(Reminder saved) {
+                    runOnUiThread(() -> {
+                        if (saved.isActive()) ReminderManager.scheduleReminder(ReminderActivity.this, saved);
+                        else ReminderManager.cancelReminder(ReminderActivity.this, saved);
+                        Snackbar.make(rvReminders, R.string.reminder_updated, Snackbar.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    runOnUiThread(() -> Toast.makeText(
+                            ReminderActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show());
+                    viewModel.refresh(sessionManager.getUserId());
+                }
+            });
         }
 
         dialog.dismiss();

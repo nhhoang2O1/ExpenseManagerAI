@@ -423,9 +423,10 @@ Docker Compose gom:
 - `postgres`
 - `backend`
 - `ocr-service`
-- volume `receipt-storage`
+- volume `postgres-data` (du lieu PostgreSQL, bao gom `receipt_images`)
+- volume legacy `receipt-storage` read-only trong giai doan import mot lan
 
 Chi backend expose ra ngoai. OCR service chi nhan request trong Docker network.
 Android emulator goi backend qua `http://10.0.2.2:<port>` trong debug build.
-JWT secret, connection string va storage path duoc truyen qua environment
-variables.
+JWT secret, connection string va duong dan legacy tam thoi duoc truyen qua
+environment variables. Anh upload moi khong con ghi vao filesystem.

@@ -40,9 +40,27 @@ public class SessionManager {
             String email,
             boolean rememberMe,
             String token) {
+        createRemoteLoginSession(
+                cacheUserId, remoteUserId, name, email, rememberMe,
+                token, null, 0);
+    }
+
+    public void createRemoteLoginSession(
+            long cacheUserId,
+            String remoteUserId,
+            String name,
+            String email,
+            boolean rememberMe,
+            String accessToken,
+            String refreshToken,
+            int expiresIn) {
         createLoginSession(cacheUserId, name, email, rememberMe);
         editor.putString(KEY_REMOTE_USER_ID, remoteUserId == null ? "" : remoteUserId).apply();
-        tokenStore.saveToken(token);
+        if (refreshToken != null && !refreshToken.trim().isEmpty()) {
+            tokenStore.savePair(accessToken, refreshToken, expiresIn);
+        } else {
+            tokenStore.saveToken(accessToken);
+        }
     }
 
     public boolean isLoggedIn() {
@@ -70,8 +88,18 @@ public class SessionManager {
         return prefs.getString(KEY_REMOTE_USER_ID, "");
     }
 
+    public void updateIdentity(String name, String email) {
+        editor.putString(KEY_USER_NAME, name == null ? "" : name);
+        editor.putString(KEY_USER_EMAIL, email == null ? "" : email);
+        editor.apply();
+    }
+
     public String getAuthToken() {
         return tokenStore.getToken();
+    }
+
+    public String getRefreshToken() {
+        return tokenStore.getRefreshToken();
     }
 
     public boolean hasAuthToken() {

@@ -22,6 +22,64 @@ namespace ExpenseManager.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("ExpenseManager.Api.Domain.AccountVerificationCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code_hash");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid")
+                        .HasColumnName("concurrency_stamp");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<int>("FailedAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_attempts");
+
+                    b.Property<string>("PendingEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("pending_email");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("purpose");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_account_verification_codes");
+
+                    b.HasIndex("UserId", "Purpose", "CreatedAt")
+                        .HasDatabaseName("ix_account_verification_codes_user_id_purpose_created_at");
+
+                    b.ToTable("account_verification_codes", (string)null);
+                });
+
             modelBuilder.Entity("ExpenseManager.Api.Domain.Budget", b =>
                 {
                     b.Property<Guid>("Id")
@@ -54,6 +112,11 @@ namespace ExpenseManager.Api.Data.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_budgets");
@@ -105,6 +168,11 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
                     b.HasKey("Id")
                         .HasName("pk_categories");
 
@@ -148,6 +216,11 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
                     b.HasKey("Id")
                         .HasName("pk_goals");
 
@@ -168,6 +241,10 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("numeric(18,0)")
                         .HasColumnName("amount_added");
 
+                    b.Property<decimal?>("BalanceAfter")
+                        .HasColumnType("numeric(18,0)")
+                        .HasColumnName("balance_after");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("date");
@@ -176,6 +253,10 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("goal_id");
 
+                    b.Property<decimal?>("RequestedAmount")
+                        .HasColumnType("numeric(18,0)")
+                        .HasColumnName("requested_amount");
+
                     b.HasKey("Id")
                         .HasName("pk_goal_histories");
 
@@ -183,6 +264,65 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasDatabaseName("ix_goal_histories_goal_id_date");
 
                     b.ToTable("goal_histories");
+                });
+
+            modelBuilder.Entity("ExpenseManager.Api.Domain.IdempotencyRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("response_json");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("scope");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("status_code");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_idempotency_records");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_idempotency_records_expires_at");
+
+                    b.HasIndex("UserId", "Scope", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_idempotency_records_user_id_scope_key");
+
+                    b.ToTable("idempotency_records");
                 });
 
             modelBuilder.Entity("ExpenseManager.Api.Domain.OcrResult", b =>
@@ -285,21 +425,38 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("FilePath")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("file_path");
-
                     b.Property<long>("FileSize")
                         .HasColumnType("bigint")
                         .HasColumnName("file_size");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime?>("LeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_expires_at");
+
+                    b.Property<DateTime?>("NextRetryAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_retry_at");
 
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("original_file_name");
+
+                    b.Property<int>("ProcessingAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("processing_attempts");
+
+                    b.Property<DateTime?>("ProcessingStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processing_started_at");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -315,13 +472,107 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
                     b.HasKey("Id")
                         .HasName("pk_receipts");
 
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_receipts_user_id_created_at");
 
+                    b.HasIndex("Status", "NextRetryAt", "LeaseExpiresAt", "CreatedAt")
+                        .HasDatabaseName("ix_receipts_status_next_retry_at_lease_expires_at_created_at");
+
                     b.ToTable("receipts");
+                });
+
+            modelBuilder.Entity("ExpenseManager.Api.Domain.ReceiptImage", b =>
+                {
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("receipt_id");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("data");
+
+                    b.HasKey("ReceiptId")
+                        .HasName("pk_receipt_images");
+
+                    b.ToTable("receipt_images");
+                });
+
+            modelBuilder.Entity("ExpenseManager.Api.Domain.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid")
+                        .HasColumnName("concurrency_stamp");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedByIp")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("created_by_ip");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid?>("ReplacedByTokenId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replaced_by_token_id");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("RevokedByIp")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("revoked_by_ip");
+
+                    b.Property<string>("RevokedReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("revoked_reason");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_refresh_tokens");
+
+                    b.HasIndex("ReplacedByTokenId")
+                        .HasDatabaseName("ix_refresh_tokens_replaced_by_token_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_refresh_tokens_token_hash");
+
+                    b.HasIndex("UserId", "ExpiresAt")
+                        .HasDatabaseName("ix_refresh_tokens_user_id_expires_at");
+
+                    b.ToTable("refresh_tokens", (string)null);
                 });
 
             modelBuilder.Entity("ExpenseManager.Api.Domain.Reminder", b =>
@@ -364,6 +615,11 @@ namespace ExpenseManager.Api.Data.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_reminders");
@@ -425,6 +681,11 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
                     b.HasKey("Id")
                         .HasName("pk_transactions");
 
@@ -437,6 +698,9 @@ namespace ExpenseManager.Api.Data.Migrations
 
                     b.HasIndex("UserId", "TransactionDate")
                         .HasDatabaseName("ix_transactions_user_id_transaction_date");
+
+                    b.HasIndex("UserId", "TransactionDate", "CreatedAt", "Id")
+                        .HasDatabaseName("ix_transactions_user_id_transaction_date_created_at_id");
 
                     b.ToTable("transactions");
                 });
@@ -470,6 +734,15 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("password_hash");
 
+                    b.Property<int>("TokenVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("token_version");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
                     b.HasKey("Id")
                         .HasName("pk_users");
 
@@ -477,7 +750,22 @@ namespace ExpenseManager.Api.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_users_email");
 
+                    b.HasIndex("TokenVersion")
+                        .HasDatabaseName("ix_users_token_version");
+
                     b.ToTable("users");
+                });
+
+            modelBuilder.Entity("ExpenseManager.Api.Domain.AccountVerificationCode", b =>
+                {
+                    b.HasOne("ExpenseManager.Api.Domain.User", "User")
+                        .WithMany("VerificationCodes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_account_verification_codes_users_user_id");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ExpenseManager.Api.Domain.Budget", b =>
@@ -537,6 +825,18 @@ namespace ExpenseManager.Api.Data.Migrations
                     b.Navigation("Goal");
                 });
 
+            modelBuilder.Entity("ExpenseManager.Api.Domain.IdempotencyRecord", b =>
+                {
+                    b.HasOne("ExpenseManager.Api.Domain.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_idempotency_records_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ExpenseManager.Api.Domain.OcrResult", b =>
                 {
                     b.HasOne("ExpenseManager.Api.Domain.Receipt", "Receipt")
@@ -557,6 +857,38 @@ namespace ExpenseManager.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_receipts_users_user_id");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ExpenseManager.Api.Domain.ReceiptImage", b =>
+                {
+                    b.HasOne("ExpenseManager.Api.Domain.Receipt", "Receipt")
+                        .WithOne("Image")
+                        .HasForeignKey("ExpenseManager.Api.Domain.ReceiptImage", "ReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_receipt_images_receipts_receipt_id");
+
+                    b.Navigation("Receipt");
+                });
+
+            modelBuilder.Entity("ExpenseManager.Api.Domain.RefreshToken", b =>
+                {
+                    b.HasOne("ExpenseManager.Api.Domain.RefreshToken", "ReplacedByToken")
+                        .WithMany()
+                        .HasForeignKey("ReplacedByTokenId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_refresh_tokens_refresh_tokens_replaced_by_token_id");
+
+                    b.HasOne("ExpenseManager.Api.Domain.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_tokens_users_user_id");
+
+                    b.Navigation("ReplacedByToken");
 
                     b.Navigation("User");
                 });
@@ -616,6 +948,9 @@ namespace ExpenseManager.Api.Data.Migrations
 
             modelBuilder.Entity("ExpenseManager.Api.Domain.Receipt", b =>
                 {
+                    b.Navigation("Image")
+                        .IsRequired();
+
                     b.Navigation("OcrResult");
 
                     b.Navigation("Transaction");
@@ -631,9 +966,13 @@ namespace ExpenseManager.Api.Data.Migrations
 
                     b.Navigation("Receipts");
 
+                    b.Navigation("RefreshTokens");
+
                     b.Navigation("Reminders");
 
                     b.Navigation("Transactions");
+
+                    b.Navigation("VerificationCodes");
                 });
 #pragma warning restore 612, 618
         }

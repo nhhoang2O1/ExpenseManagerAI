@@ -63,6 +63,11 @@
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name=".ui.category.CategoryActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
         <!-- Receivers -->
         <receiver android:name=".receiver.ReminderReceiver" android:exported="false" />
         <receiver android:name=".receiver.BootReceiver" android:exported="true">

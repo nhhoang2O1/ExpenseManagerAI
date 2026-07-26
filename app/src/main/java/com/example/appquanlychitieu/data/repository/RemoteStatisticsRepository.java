@@ -15,7 +15,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -119,8 +118,8 @@ public class RemoteStatisticsRepository {
         return new JsonArray();
     }
 
-    private double amount(BigDecimal value) {
-        return value == null ? 0d : value.doubleValue();
+    private long amount(Long value) {
+        return value == null ? 0L : value;
     }
 
     private String emptyToDefault(String value, String fallback) {

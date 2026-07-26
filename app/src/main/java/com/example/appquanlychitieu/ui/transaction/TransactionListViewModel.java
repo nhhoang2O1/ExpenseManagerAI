@@ -88,7 +88,7 @@ public class TransactionListViewModel extends AndroidViewModel {
             remoteError.setValue("Không tìm thấy mã giao dịch trên máy chủ");
             return;
         }
-        repository.delete(transaction.getRemoteId(), new RemoteCallback<Void>() {
+        repository.delete(transaction.getRemoteId(), transaction.getVersion(), new RemoteCallback<Void>() {
             @Override
             public void onSuccess(Void value) {
                 feedback.setValue("Đã xóa giao dịch");

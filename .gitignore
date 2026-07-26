@@ -50,3 +50,7 @@ local.properties
 replay_pid*.log
 /scripts/receipt-smoke.png
 /ui-*-fixed.png
+
+# Local report documents and temporary Microsoft Office lock files.
+/HuynhTrongThua_C44_BaoCao_ExpenseManagerAI.docx
+/~$*.docx

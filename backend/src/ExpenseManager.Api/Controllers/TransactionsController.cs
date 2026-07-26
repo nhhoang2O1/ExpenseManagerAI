@@ -58,6 +58,7 @@ public sealed class TransactionsController(AppDbContext db, IUserContext userCon
         var entities = await query.Include(x => x.Category)
             .OrderByDescending(x => x.TransactionDate)
             .ThenByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -71,6 +72,21 @@ public sealed class TransactionsController(AppDbContext db, IUserContext userCon
         TransactionRequest request,
         CancellationToken cancellationToken)
     {
+        if (!IdempotencySupport.TryCreate(
+                this, "transactions:create", request, out var idempotency, out var keyError))
+            return keyError!;
+        var replay = await IdempotencySupport.FindAsync<TransactionResponse>(
+            db, userContext.UserId, idempotency, cancellationToken);
+        if (replay?.RequestConflict == true)
+            return IdempotencySupport.Conflict(this);
+        if (replay?.Exists == true && replay.Response is not null)
+        {
+            OptimisticConcurrency.WriteEtag(this, replay.Response.Version);
+            return StatusCode(replay.StatusCode, replay.Response);
+        }
+
+        await using var databaseTransaction =
+            await FinanceDatabaseLocks.BeginIfPostgresAsync(db, cancellationToken);
         var category = await OwnedCategory(request.CategoryId, cancellationToken);
         if (category is null)
             return BadRequest(new { message = "Danh mục không hợp lệ." });
@@ -89,8 +105,40 @@ public sealed class TransactionsController(AppDbContext db, IUserContext userCon
             StoreName = Clean(request.StoreName)
         };
         db.Transactions.Add(transaction);
-        await db.SaveChangesAsync(cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, transaction.ToResponse());
+        var response = transaction.ToResponse();
+        IdempotencySupport.Add(
+            db,
+            userContext.UserId,
+            idempotency,
+            StatusCodes.Status201Created,
+            response);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (idempotency is not null)
+        {
+            if (databaseTransaction is not null)
+            {
+                await databaseTransaction.RollbackAsync(cancellationToken);
+                await databaseTransaction.DisposeAsync();
+            }
+            db.ChangeTracker.Clear();
+            replay = await IdempotencySupport.FindAsync<TransactionResponse>(
+                db, userContext.UserId, idempotency, cancellationToken);
+            if (replay?.RequestConflict == true)
+                return IdempotencySupport.Conflict(this);
+            if (replay?.Exists == true && replay.Response is not null)
+            {
+                OptimisticConcurrency.WriteEtag(this, replay.Response.Version);
+                return StatusCode(replay.StatusCode, replay.Response);
+            }
+            throw;
+        }
+        if (databaseTransaction is not null)
+            await databaseTransaction.CommitAsync(cancellationToken);
+        OptimisticConcurrency.WriteEtag(this, transaction.Version);
+        return StatusCode(StatusCodes.Status201Created, response);
     }
 
     [HttpPut("{id:guid}")]
@@ -99,10 +147,14 @@ public sealed class TransactionsController(AppDbContext db, IUserContext userCon
         TransactionRequest request,
         CancellationToken cancellationToken)
     {
+        await using var databaseTransaction =
+            await FinanceDatabaseLocks.BeginIfPostgresAsync(db, cancellationToken);
         var transaction = await db.Transactions.Include(x => x.Category).SingleOrDefaultAsync(
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (transaction is null)
             return NotFound();
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, transaction.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
         var category = await OwnedCategory(request.CategoryId, cancellationToken);
         if (category is null)
             return BadRequest(new { message = "Danh mục không hợp lệ." });
@@ -116,7 +168,17 @@ public sealed class TransactionsController(AppDbContext db, IUserContext userCon
         transaction.Category = category;
         transaction.Note = Clean(request.Note);
         transaction.StoreName = Clean(request.StoreName);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        if (databaseTransaction is not null)
+            await databaseTransaction.CommitAsync(cancellationToken);
+        OptimisticConcurrency.WriteEtag(this, transaction.Version);
         return Ok(transaction.ToResponse());
     }
 
@@ -127,15 +189,24 @@ public sealed class TransactionsController(AppDbContext db, IUserContext userCon
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (transaction is null)
             return NotFound();
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, transaction.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
 
         db.Transactions.Remove(transaction);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
         return NoContent();
     }
 
     private Task<Category?> OwnedCategory(Guid categoryId, CancellationToken cancellationToken) =>
-        db.Categories.SingleOrDefaultAsync(
-            x => x.Id == categoryId && x.UserId == userContext.UserId, cancellationToken);
+        FinanceDatabaseLocks.GetOwnedCategoryForReferenceAsync(
+            db, categoryId, userContext.UserId, cancellationToken);
 
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

@@ -7,4 +7,5 @@ public class ReminderDto {
     public int hour;
     public int minute;
     public boolean isActive;
+    public long version = 1L;
 }

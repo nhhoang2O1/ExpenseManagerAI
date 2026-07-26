@@ -1,7 +1,7 @@
 from datetime import date
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 def to_camel(value: str) -> str:
@@ -40,6 +40,22 @@ class ExtractedFields(CamelModel):
     receipt_date: date | None = None
     total_amount: int | None = Field(default=None, ge=0)
     vat_amount: int | None = Field(default=None, ge=0)
+
+    @field_serializer("store_name")
+    def serialize_store_name(self, value: str | None) -> str | None:
+        if value is None or value != value.upper():
+            return value
+
+        # OCR commonly returns merchant names in all caps. Keep short brand
+        # tokens such as "K" or "GS" uppercase while making the API response
+        # easier to read. The parser model itself still preserves raw OCR text.
+        tokens = []
+        for token in value.split():
+            if token.isalpha() and len(token) <= 2:
+                tokens.append(token)
+            else:
+                tokens.append(token.capitalize())
+        return " ".join(tokens)
 
 
 class OCRResponse(CamelModel):

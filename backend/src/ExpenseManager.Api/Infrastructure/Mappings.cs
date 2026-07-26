@@ -7,7 +7,7 @@ namespace ExpenseManager.Api.Infrastructure;
 public static class Mappings
 {
     public static CategoryResponse ToResponse(this Category category) =>
-        new(category.Id, category.Name, category.Type, category.Color, category.Icon);
+        new(category.Id, category.Name, category.Type, category.Color, category.Icon, category.Version);
 
     public static TransactionResponse ToResponse(this Domain.Transaction transaction) =>
         new(
@@ -23,7 +23,8 @@ public static class Mappings
             transaction.StoreName,
             transaction.ReceiptId,
             transaction.CreatedAt,
-            transaction.UpdatedAt);
+            transaction.UpdatedAt,
+            transaction.Version);
 
     public static BudgetResponse ToResponse(this Budget budget) =>
         new(
@@ -35,7 +36,8 @@ public static class Mappings
             budget.Amount,
             budget.MonthYear,
             budget.CreatedAt,
-            budget.UpdatedAt);
+            budget.UpdatedAt,
+            budget.Version);
 
     public static GoalResponse ToResponse(this Goal goal) =>
         new(
@@ -44,10 +46,12 @@ public static class Mappings
             goal.TargetAmount,
             goal.CurrentAmount,
             goal.CreatedAt,
-            goal.UpdatedAt);
+            goal.UpdatedAt,
+            goal.Version);
 
     public static GoalHistoryResponse ToResponse(this GoalHistory history) =>
-        new(history.Id, history.GoalId, history.AmountAdded, history.Date);
+        new(history.Id, history.GoalId, history.AmountAdded, history.Date,
+            history.RequestedAmount, history.BalanceAfter);
 
     public static ReminderResponse ToResponse(this Reminder reminder) =>
         new(
@@ -58,7 +62,8 @@ public static class Mappings
             reminder.Minute,
             reminder.IsActive,
             reminder.CreatedAt,
-            reminder.UpdatedAt);
+            reminder.UpdatedAt,
+            reminder.Version);
 
     public static ReceiptResponse ToResponse(this Receipt receipt)
     {
@@ -78,6 +83,12 @@ public static class Mappings
             result?.OverallConfidence,
             warnings,
             result?.RawText,
-            result?.ModelVersion);
+            result?.ModelVersion,
+            receipt.ProcessingAttempts,
+            receipt.NextRetryAt,
+            receipt.LastError,
+            receipt.CreatedAt,
+            receipt.UpdatedAt,
+            receipt.Version);
     }
 }

@@ -6,13 +6,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.appquanlychitieu.MainActivity;
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.AuthResponseDto;
-import com.example.appquanlychitieu.data.repository.AuthRepository;
 import com.example.appquanlychitieu.util.SessionManager;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.google.android.material.button.MaterialButton;
@@ -29,7 +29,7 @@ public class RegisterActivity extends AppCompatActivity {
     private android.widget.ProgressBar progressAuth;
     private TextView tvLogin;
     private SessionManager sessionManager;
-    private AuthRepository authRepository;
+    private AuthViewModel viewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +37,7 @@ public class RegisterActivity extends AppCompatActivity {
         setContentView(R.layout.activity_register);
         EdgeToEdgeHelper.applySystemBars(findViewById(R.id.root_register));
         sessionManager = new SessionManager(this);
-        authRepository = new AuthRepository(this);
+        viewModel = new ViewModelProvider(this).get(AuthViewModel.class);
         etName = findViewById(R.id.et_name);
         etEmail = findViewById(R.id.et_email);
         etPassword = findViewById(R.id.et_password);
@@ -85,7 +85,7 @@ public class RegisterActivity extends AppCompatActivity {
         layoutPassword.setError(null);
         layoutConfirmPassword.setError(null);
         setLoading(true);
-        authRepository.register(name, email, password, new RemoteCallback<AuthResponseDto>() {
+        viewModel.register(name, email, password, new RemoteCallback<AuthResponseDto>() {
             @Override
             public void onSuccess(AuthResponseDto response) {
                 setLoading(false);
@@ -100,7 +100,9 @@ public class RegisterActivity extends AppCompatActivity {
                         resolvedName,
                         resolvedEmail,
                         true,
-                        response.resolvedToken());
+                        response.resolvedToken(),
+                        response.resolvedRefreshToken(),
+                        response.expiresIn);
                 Toast.makeText(
                         RegisterActivity.this,
                         R.string.register_success,

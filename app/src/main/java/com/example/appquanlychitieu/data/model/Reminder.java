@@ -10,6 +10,7 @@ public class Reminder {
     private long userId;
     private boolean isActive;
     private String remoteId;
+    private long version = 1L;
 
     public Reminder(String content, int dayOfMonth, int hour, int minute, long userId, boolean isActive) {
         this.content = content;
@@ -43,4 +44,6 @@ public class Reminder {
 
     public String getRemoteId() { return remoteId; }
     public void setRemoteId(String remoteId) { this.remoteId = remoteId; }
+    public long getVersion() { return version; }
+    public void setVersion(long version) { this.version = version; }
 }

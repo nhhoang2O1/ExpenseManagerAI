@@ -2,6 +2,16 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+def configuredReleaseBackendUrl = project.findProperty("backendUrl")
+        ?: System.getenv("BACKEND_BASE_URL")
+        ?: ""
+def releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains("release")
+}
+if (configuredReleaseBackendUrl && !configuredReleaseBackendUrl.endsWith("/")) {
+    configuredReleaseBackendUrl = configuredReleaseBackendUrl + "/"
+}
+
 android {
     namespace 'com.example.appquanlychitieu'
     compileSdk 35
@@ -21,7 +31,12 @@ android {
             buildConfigField "String", "BACKEND_BASE_URL", '"http://10.0.2.2:8080/"'
         }
         release {
-            buildConfigField "String", "BACKEND_BASE_URL", '"https://api.example.invalid/"'
+            if (releaseTaskRequested &&
+                    (!configuredReleaseBackendUrl || !configuredReleaseBackendUrl.startsWith("https://"))) {
+                throw new GradleException("Release builds require -PbackendUrl=https://... or BACKEND_BASE_URL=https://...")
+            }
+            def releaseUrl = configuredReleaseBackendUrl ?: "https://invalid.invalid/"
+            buildConfigField "String", "BACKEND_BASE_URL", "\"${releaseUrl}\""
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -72,6 +87,7 @@ dependencies {
 
     // Test
     testImplementation libs.junit
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
 }

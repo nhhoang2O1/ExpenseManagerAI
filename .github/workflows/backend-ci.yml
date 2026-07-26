@@ -1,0 +1,63 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "scripts/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "scripts/**"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore backend/ExpenseManager.sln
+
+      - name: Build
+        run: dotnet build backend/ExpenseManager.sln --configuration Release --no-restore
+
+      - name: Test
+        run: >-
+          dotnet test backend/ExpenseManager.sln
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=backend-tests.trx"
+          --results-directory "${{ github.workspace }}/test-results/backend"
+
+      - name: Install EF Core CLI
+        run: dotnet tool install --global dotnet-ef --version 8.0.11
+
+      - name: Reject model/migration drift
+        run: >-
+          dotnet ef migrations has-pending-model-changes
+          --project backend/src/ExpenseManager.Api/ExpenseManager.Api.csproj
+          --startup-project backend/src/ExpenseManager.Api/ExpenseManager.Api.csproj
+          --no-build
+          --configuration Release
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: test-results/backend
+          if-no-files-found: warn

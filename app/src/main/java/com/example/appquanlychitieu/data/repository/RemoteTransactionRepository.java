@@ -18,6 +18,7 @@ import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -32,7 +33,16 @@ public class RemoteTransactionRepository {
     }
 
     public void getTransactions(long cacheUserId, RemoteCallback<List<Transaction>> callback) {
-        apiService.getTransactions(100).enqueue(new Callback<JsonElement>() {
+        loadTransactionsPage(cacheUserId, 1, 100, new ArrayList<>(), callback);
+    }
+
+    private void loadTransactionsPage(
+            long cacheUserId,
+            int page,
+            int pageSize,
+            List<Transaction> accumulated,
+            RemoteCallback<List<Transaction>> callback) {
+        apiService.getTransactions(page, pageSize).enqueue(new Callback<JsonElement>() {
             @Override
             public void onResponse(Call<JsonElement> call, Response<JsonElement> response) {
                 if (!response.isSuccessful() || response.body() == null) {
@@ -45,7 +55,19 @@ public class RemoteTransactionRepository {
                         TransactionDto dto = gson.fromJson(item, TransactionDto.class);
                         mapped.add(RemoteTransactionMapper.toLocalView(dto, cacheUserId));
                     }
-                    callback.onSuccess(mapped);
+                    accumulated.addAll(mapped);
+                    JsonObject object = response.body().isJsonObject()
+                            ? response.body().getAsJsonObject() : null;
+                    int totalPages = readInt(object, "totalPages", "total_pages");
+                    int currentPage = readInt(object, "page");
+                    if (currentPage <= 0) currentPage = page;
+                    boolean hasNext = totalPages > currentPage
+                            || (totalPages <= 0 && mapped.size() == pageSize);
+                    if (hasNext && page < 10_000) {
+                        loadTransactionsPage(cacheUserId, page + 1, pageSize, accumulated, callback);
+                    } else {
+                        callback.onSuccess(new ArrayList<>(accumulated));
+                    }
                 } catch (RuntimeException exception) {
                     callback.onError(ApiResponseHelper.fromFailure(exception));
                 }
@@ -56,6 +78,16 @@ public class RemoteTransactionRepository {
                 callback.onError(ApiResponseHelper.fromFailure(throwable));
             }
         });
+    }
+
+    private int readInt(JsonObject object, String... keys) {
+        if (object == null) return 0;
+        for (String key : keys) {
+            if (!object.has(key) || object.get(key).isJsonNull()) continue;
+            try { return object.get(key).getAsInt(); }
+            catch (RuntimeException ignored) { }
+        }
+        return 0;
     }
 
     public void getCategories(
@@ -92,18 +124,19 @@ public class RemoteTransactionRepository {
     public void create(
             TransactionRequestDto request,
             RemoteCallback<TransactionDto> callback) {
-        enqueueTransaction(apiService.createTransaction(request), callback);
+        enqueueTransaction(apiService.createTransaction(UUID.randomUUID().toString(), request), callback);
     }
 
     public void update(
             String transactionId,
+            long version,
             TransactionRequestDto request,
             RemoteCallback<TransactionDto> callback) {
-        enqueueTransaction(apiService.updateTransaction(transactionId, request), callback);
+        enqueueTransaction(apiService.updateTransaction(transactionId, quote(version), request), callback);
     }
 
-    public void delete(String transactionId, RemoteCallback<Void> callback) {
-        apiService.deleteTransaction(transactionId).enqueue(new Callback<Void>() {
+    public void delete(String transactionId, long version, RemoteCallback<Void> callback) {
+        apiService.deleteTransaction(transactionId, quote(version)).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
@@ -119,6 +152,8 @@ public class RemoteTransactionRepository {
             }
         });
     }
+
+    private String quote(long version) { return "\"" + version + "\""; }
 
     private void enqueueTransaction(
             Call<TransactionDto> call,

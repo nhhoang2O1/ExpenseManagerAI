@@ -17,13 +17,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.UUID;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -69,12 +69,14 @@ public class RemoteGoalRepository {
 
     public void update(Goal goal, RemoteCallback<Goal> callback) {
         if (goal.getRemoteId() == null || goal.getRemoteId().trim().isEmpty()) return;
-        enqueue(apiService.updateGoal(goal.getRemoteId(), toRequest(goal)), goal.getUserId(), callback);
+        enqueue(apiService.updateGoal(goal.getRemoteId(), quote(goal.getVersion()), toRequest(goal)),
+                goal.getUserId(), callback);
     }
 
-    public void addFunds(Goal goal, double amount, RemoteCallback<Goal> callback) {
+    public void addFunds(Goal goal, long amount, RemoteCallback<Goal> callback) {
         if (goal.getRemoteId() == null || goal.getRemoteId().trim().isEmpty()) return;
-        apiService.addGoalFunds(goal.getRemoteId(), new AddGoalFundsRequestDto(BigDecimal.valueOf(amount)))
+        apiService.addGoalFunds(goal.getRemoteId(), UUID.randomUUID().toString(), quote(goal.getVersion()),
+                new AddGoalFundsRequestDto(amount))
                 .enqueue(new Callback<GoalDto>() {
                     @Override
                     public void onResponse(Call<GoalDto> call, Response<GoalDto> response) {
@@ -94,7 +96,7 @@ public class RemoteGoalRepository {
 
     public void delete(Goal goal, RemoteCallback<Void> callback) {
         if (goal.getRemoteId() == null || goal.getRemoteId().trim().isEmpty()) return;
-        apiService.deleteGoal(goal.getRemoteId()).enqueue(new Callback<Void>() {
+        apiService.deleteGoal(goal.getRemoteId(), quote(goal.getVersion())).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) callback.onSuccess(null);
@@ -155,14 +157,15 @@ public class RemoteGoalRepository {
     private GoalRequestDto toRequest(Goal goal) {
         return new GoalRequestDto(
                 goal.getName(),
-                BigDecimal.valueOf(goal.getTargetAmount()),
-                BigDecimal.valueOf(goal.getCurrentAmount()));
+                goal.getTargetAmount(),
+                goal.getCurrentAmount());
     }
 
     private Goal toLocal(GoalDto dto, long cacheUserId) {
         Goal goal = new Goal(dto.name, amount(dto.targetAmount), amount(dto.currentAmount), cacheUserId);
         goal.setId(dto.id == null ? 0L : dto.id.hashCode());
         goal.setRemoteId(dto.id);
+        goal.setVersion(dto.version);
         return goal;
     }
 
@@ -186,9 +189,11 @@ public class RemoteGoalRepository {
         }
     }
 
-    private double amount(BigDecimal value) {
-        return value == null ? 0d : value.doubleValue();
+    private long amount(Long value) {
+        return value == null ? 0L : value;
     }
+
+    private String quote(long version) { return "\"" + version + "\""; }
 
     private JsonArray resolveArray(JsonElement body) {
         if (body.isJsonArray()) return body.getAsJsonArray();

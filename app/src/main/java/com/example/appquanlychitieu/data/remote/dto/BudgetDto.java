@@ -1,6 +1,5 @@
 package com.example.appquanlychitieu.data.remote.dto;
 
-import java.math.BigDecimal;
 
 public class BudgetDto {
     public String id;
@@ -8,6 +7,7 @@ public class BudgetDto {
     public String categoryName;
     public String categoryColor;
     public String categoryIcon;
-    public BigDecimal amount;
+    public Long amount;
     public String monthYear;
+    public long version = 1L;
 }

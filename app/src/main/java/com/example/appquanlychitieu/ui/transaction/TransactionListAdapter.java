@@ -182,7 +182,7 @@ public class TransactionListAdapter
     }
 
     static boolean sameContent(Transaction first, Transaction second) {
-        return Double.compare(first.getAmount(), second.getAmount()) == 0
+        return first.getAmount() == second.getAmount()
                 && first.getDate() == second.getDate()
                 && first.getType() == second.getType()
                 && Objects.equals(first.getNote(), second.getNote())

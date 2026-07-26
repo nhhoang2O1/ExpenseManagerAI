@@ -1,0 +1,42 @@
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HOME=/home/ocr \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH
+
+WORKDIR /service
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        libgl1 \
+        libglib2.0-0 \
+        libgomp1 \
+        python3 \
+        python3-pip \
+        python3-venv \
+        util-linux \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m venv /opt/venv \
+    && useradd --create-home --uid 10001 ocr
+
+COPY requirements-gpu.txt ./
+RUN pip install --upgrade pip \
+    && pip install paddlepaddle-gpu==3.3.0 \
+        -i https://www.paddlepaddle.org.cn/packages/stable/cu126/ \
+    && pip install -r requirements-gpu.txt
+
+COPY --chown=ocr:ocr app ./app
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

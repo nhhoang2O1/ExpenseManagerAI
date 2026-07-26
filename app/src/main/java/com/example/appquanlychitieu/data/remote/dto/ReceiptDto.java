@@ -17,6 +17,15 @@ public class ReceiptDto {
     public List<String> warnings;
     public String rawText;
     public String modelVersion;
+    public int processingAttempts;
+    public String nextRetryAt;
+    public String lastError;
+    public String updatedAt;
+    public long version = 1L;
+    public String suggestedCategoryId;
+    public String suggestedCategoryName;
+    public Double categoryConfidence;
+    public String categoryReason;
 
     public List<String> safeWarnings() {
         return warnings == null ? Collections.emptyList() : warnings;

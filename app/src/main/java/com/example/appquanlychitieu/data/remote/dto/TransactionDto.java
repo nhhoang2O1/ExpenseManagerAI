@@ -17,6 +17,7 @@ public class TransactionDto {
     public String categoryColor;
     public String categoryIcon;
     public CategoryDto category;
+    public long version = 1L;
 
     public String resolvedCategoryName() {
         return category != null && category.name != null ? category.name : categoryName;

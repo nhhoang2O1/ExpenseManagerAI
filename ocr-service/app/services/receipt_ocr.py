@@ -1,3 +1,4 @@
+import logging
 from time import perf_counter
 
 from app.config import Settings
@@ -5,6 +6,8 @@ from app.schemas import Classification, OCRResponse, OCRStatus
 from app.services.paddle_ocr import OCREngine
 from app.services.parsers import ReceiptParser, deduplicate_warnings
 from app.services.preprocessing import ImagePreprocessor
+
+logger = logging.getLogger(__name__)
 
 
 class ReceiptOCRService:
@@ -26,9 +29,17 @@ class ReceiptOCRService:
 
     def process(self, content: bytes) -> OCRResponse:
         started = perf_counter()
+        preprocess_started = perf_counter()
         preprocessed = self.preprocessor.process(content)
+        preprocess_ms = round((perf_counter() - preprocess_started) * 1000)
+
+        recognition_started = perf_counter()
         lines = self.ocr_engine.recognize(preprocessed.image)
+        recognition_ms = round((perf_counter() - recognition_started) * 1000)
+
+        parser_started = perf_counter()
         parsed = self.parser.parse(lines)
+        parser_ms = round((perf_counter() - parser_started) * 1000)
 
         raw_text = "\n".join(line.text for line in lines)
         warnings = [*preprocessed.warnings, *parsed.warnings]
@@ -50,6 +61,15 @@ class ReceiptOCRService:
             0.65 * ocr_confidence + 0.35 * parsed.confidence if lines else 0.0
         )
         elapsed_ms = max(0, round((perf_counter() - started) * 1000))
+        logger.info(
+            "ocr_timing preprocess_ms=%s recognition_ms=%s parser_ms=%s "
+            "total_ms=%s lines=%s",
+            preprocess_ms,
+            recognition_ms,
+            parser_ms,
+            elapsed_ms,
+            len(lines),
+        )
         return OCRResponse(
             classification=classification,
             status=OCRStatus.REVIEW_REQUIRED,

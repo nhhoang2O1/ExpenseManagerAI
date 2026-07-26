@@ -3,7 +3,7 @@ package com.example.appquanlychitieu.data.model;
 public class Budget {
     private long id;
     private long categoryId;
-    private double amount;
+    private long amount;
     private String monthYear; 
     private long userId;
     private String remoteId;
@@ -11,10 +11,11 @@ public class Budget {
     private String remoteCategoryName;
     private String remoteCategoryColor;
     private String remoteCategoryIcon;
+    private long version = 1L;
 
     public Budget() {}
 
-    public Budget(long categoryId, double amount, String monthYear, long userId) {
+    public Budget(long categoryId, long amount, String monthYear, long userId) {
         this.categoryId = categoryId;
         this.amount = amount;
         this.monthYear = monthYear;
@@ -28,8 +29,8 @@ public class Budget {
     public long getCategoryId() { return categoryId; }
     public void setCategoryId(long categoryId) { this.categoryId = categoryId; }
 
-    public double getAmount() { return amount; }
-    public void setAmount(double amount) { this.amount = amount; }
+    public long getAmount() { return amount; }
+    public void setAmount(long amount) { this.amount = amount; }
 
     public String getMonthYear() { return monthYear; }
     public void setMonthYear(String monthYear) { this.monthYear = monthYear; }
@@ -51,4 +52,6 @@ public class Budget {
 
     public String getRemoteCategoryIcon() { return remoteCategoryIcon; }
     public void setRemoteCategoryIcon(String remoteCategoryIcon) { this.remoteCategoryIcon = remoteCategoryIcon; }
+    public long getVersion() { return version; }
+    public void setVersion(long version) { this.version = version; }
 }

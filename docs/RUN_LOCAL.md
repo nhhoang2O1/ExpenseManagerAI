@@ -8,6 +8,7 @@ backend; `ocr-service` chi truy cap duoc ben trong Docker network.
 Can cai:
 
 - Docker Desktop co Docker Compose V2.
+- Cau hinh mac dinh chay OCR bang CPU, khong can NVIDIA GPU.
 - .NET 8 SDK neu muon chay migration tu host.
 - Android Studio va Android emulator cho luong mobile.
 
@@ -17,8 +18,11 @@ Tao file env local:
 Copy-Item .env.example .env
 ```
 
-Thay `POSTGRES_PASSWORD` va `JWT_SECRET` trong `.env`. Secret JWT local nen la
-chuoi ngau nhien toi thieu 32 ky tu. Khong commit `.env`.
+Thay `POSTGRES_PASSWORD`, `JWT_SECRET` va cac bien `SMTP_*` trong `.env`.
+`SMTP_USERNAME` va `SMTP_FROM_ADDRESS` la tai khoan Gmail dung de gui mail;
+`SMTP_PASSWORD` la Gmail App Password, khong phai mat khau dang nhap thong
+thuong. Secret JWT local nen la chuoi ngau nhien toi thieu 32 ky tu. Khong
+commit `.env`.
 
 ## 2. Khoi dong Docker
 
@@ -30,6 +34,14 @@ docker compose ps
 docker compose logs -f backend ocr-service
 ```
 
+Lan khoi dong OCR dau tien co the lau hon vi PaddleOCR can tai model.
+
+Neu may co NVIDIA GPU va da cai NVIDIA Container Toolkit, dung image GPU:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build -d
+```
+
 Cong local:
 
 | Dich vu | Dia chi |
@@ -37,9 +49,12 @@ Cong local:
 | Backend | `http://localhost:8080` |
 | PostgreSQL | `localhost:5432` |
 | OCR | Khong publish; backend goi `http://ocr-service:8000` |
+| Email | Backend gui truc tiep qua `smtp.gmail.com:587` |
 
-Hai named volume la `postgres-data` va `receipt-storage`. Vi la named volume,
-du lieu database va anh receipt van con khi container duoc tao lai.
+`postgres-data` la volume chinh cua PostgreSQL. Anh receipt moi duoc luu trong
+bang `receipt_images` cua PostgreSQL cung transaction voi metadata. Volume
+`receipt-storage` chi duoc mount read-only de importer anh tu phien ban cu trong
+giai doan migration; sau khi xac minh import co the xoa volume nay.
 
 Dung stack:
 
@@ -47,16 +62,22 @@ Dung stack:
 docker compose down
 ```
 
-Lenh tren khong xoa volume. Chi dung `docker compose down -v` khi chu dong
-muon xoa toan bo database va receipt local.
+Lenh tren khong xoa volume. Khong dung `docker compose down -v` neu chua backup
+PostgreSQL. Chi xoa `receipt-storage` rieng sau khi da kiem tra bang
+`receipt_images` co day du byte anh.
 
 ## 3. Migration PostgreSQL
 
 Backend Docker image dat `Database__ApplyMigrations=true`, vi vay migration se
-duoc ap dung khi container backend khoi dong sau khi PostgreSQL healthy.
+duoc ap dung khi container backend khoi dong sau khi PostgreSQL healthy. Lan
+dau, migration staging giu `file_path`, doc tung file legacy tu volume read-only,
+ghi vao `receipt_images`, kiem tra kich thuoc, roi moi drop `file_path`. Neu
+thieu file, backend dung khoi dong de tranh mat anh im lang.
 
-Neu muon chay migration thu cong tu host, tat co tu dong migration va dung cung
-connection string:
+Neu database da co receipt cu, phai chay backend voi volume legacy duoc mount
+de importer co the doc file. Khong chay migration final bang SQL truc tiep truoc
+khi import xong. Neu muon chay migration thu cong tu host, tat co tu dong
+migration va dung cung connection string:
 
 ```powershell
 $env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=expense_manager;Username=expense_manager;Password=<POSTGRES_PASSWORD>"

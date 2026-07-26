@@ -30,6 +30,11 @@ services:
     environment:
       OCR_HOST: 0.0.0.0
       OCR_PORT: "8000"
+      OCR_PRELOAD_MODEL: "true"
+      OCR_USE_DOC_ORIENTATION_CLASSIFY: "true"
+      OCR_USE_DOC_UNWARPING: "false"
+      OCR_USE_TEXTLINE_ORIENTATION: "false"
+      OCR_MAX_IMAGE_SIDE: "1600"
     healthcheck:
       test:
         [
@@ -54,11 +59,20 @@ services:
       Database__ApplyMigrations: "true"
       Jwt__Secret: ${JWT_SECRET:?Set JWT_SECRET in .env}
       OCR_SERVICE_BASE_URL: http://ocr-service:8000
-      Storage__ReceiptPath: /app/storage/receipts
+      LegacyReceiptPath: /app/storage/receipts
+      Email__Smtp__Host: ${SMTP_HOST:-smtp.gmail.com}
+      Email__Smtp__Port: ${SMTP_PORT:-587}
+      Email__Smtp__EnableSsl: ${SMTP_ENABLE_SSL:-true}
+      Email__Smtp__FromAddress: ${SMTP_FROM_ADDRESS:?Set SMTP_FROM_ADDRESS in .env}
+      Email__Smtp__FromName: ${SMTP_FROM_NAME:-Expense Manager}
+      Email__Smtp__Username: ${SMTP_USERNAME:?Set SMTP_USERNAME in .env}
+      Email__Smtp__Password: ${SMTP_PASSWORD:?Set SMTP_PASSWORD in .env}
     ports:
       - "8080:8080"
     volumes:
-      - receipt-storage:/app/storage/receipts
+      # Read-only compatibility mount used only to import receipts created by
+      # older versions. New uploads are stored in PostgreSQL receipt_images.
+      - receipt-storage:/app/storage/receipts:ro
     depends_on:
       postgres:
         condition: service_healthy

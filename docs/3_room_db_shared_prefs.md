@@ -1,3 +1,9 @@
+# LEGACY — KHÔNG PHẢI KIẾN TRÚC ĐANG CHẠY
+
+> Tài liệu này mô tả bản Room/SQLite cũ và chỉ được giữ để tham khảo lịch sử.
+> Ứng dụng hiện tại gọi backend API; dữ liệu nghiệp vụ và ảnh receipt nằm trong
+> PostgreSQL. Xem `docs/README.md` và `docs/ANDROID_ARCHITECTURE.md`.
+
 # HƯỚNG DẪN ÔN TẬP LẬP TRÌNH ANDROID: QUẢN LÝ DỮ LIỆU & LƯU TRỮ (ROOM DATABASE & SHAREDPREFERENCES)
 
 Tài liệu này đi sâu vào cách lưu trữ dữ liệu trong ứng dụng của bạn, bao gồm cơ sở dữ liệu quan hệ **Room Database (SQLite)** và lưu trữ cấu hình nhỏ **SharedPreferences**. Đây là phần thầy cô thường xuyên đặt câu hỏi truy vấn cấu trúc dữ liệu.

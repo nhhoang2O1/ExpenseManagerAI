@@ -5,7 +5,7 @@ public class CategorySummary {
     private String categoryName;
     private String categoryColor;
     private String categoryIcon;
-    private double totalAmount;
+    private long totalAmount;
     private int transactionCount;
 
     public long getCategoryId() { return categoryId; }
@@ -20,8 +20,8 @@ public class CategorySummary {
     public String getCategoryIcon() { return categoryIcon; }
     public void setCategoryIcon(String categoryIcon) { this.categoryIcon = categoryIcon; }
 
-    public double getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(double totalAmount) { this.totalAmount = totalAmount; }
+    public long getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(long totalAmount) { this.totalAmount = totalAmount; }
 
     public int getTransactionCount() { return transactionCount; }
     public void setTransactionCount(int transactionCount) { this.transactionCount = transactionCount; }

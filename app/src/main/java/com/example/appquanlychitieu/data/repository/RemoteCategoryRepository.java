@@ -7,6 +7,7 @@ import com.example.appquanlychitieu.data.remote.ApiResponseHelper;
 import com.example.appquanlychitieu.data.remote.ApiService;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
+import com.example.appquanlychitieu.data.remote.dto.CategoryRequestDto;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -53,6 +54,41 @@ public final class RemoteCategoryRepository {
             }
         });
     }
+
+    public void create(CategoryRequestDto request, RemoteCallback<CategoryDto> callback) {
+        enqueue(apiService.createCategory(request), callback);
+    }
+
+    public void update(CategoryDto category, CategoryRequestDto request,
+                       RemoteCallback<CategoryDto> callback) {
+        enqueue(apiService.updateCategory(category.id, quote(category.version), request), callback);
+    }
+
+    public void delete(CategoryDto category, RemoteCallback<Void> callback) {
+        apiService.deleteCategory(category.id, quote(category.version)).enqueue(new Callback<Void>() {
+            @Override public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) callback.onSuccess(null);
+                else callback.onError(ApiResponseHelper.fromResponse(response));
+            }
+            @Override public void onFailure(Call<Void> call, Throwable throwable) {
+                callback.onError(ApiResponseHelper.fromFailure(throwable));
+            }
+        });
+    }
+
+    private void enqueue(Call<CategoryDto> call, RemoteCallback<CategoryDto> callback) {
+        call.enqueue(new Callback<CategoryDto>() {
+            @Override public void onResponse(Call<CategoryDto> call, Response<CategoryDto> response) {
+                if (response.isSuccessful() && response.body() != null) callback.onSuccess(response.body());
+                else callback.onError(ApiResponseHelper.fromResponse(response));
+            }
+            @Override public void onFailure(Call<CategoryDto> call, Throwable throwable) {
+                callback.onError(ApiResponseHelper.fromFailure(throwable));
+            }
+        });
+    }
+
+    private String quote(long version) { return "\"" + version + "\""; }
 
     private JsonArray resolveArray(JsonElement body) {
         if (body.isJsonArray()) return body.getAsJsonArray();

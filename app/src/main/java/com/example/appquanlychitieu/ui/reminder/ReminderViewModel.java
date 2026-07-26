@@ -37,18 +37,28 @@ public class ReminderViewModel extends AndroidViewModel {
     }
 
     public void update(Reminder reminder) {
-        remoteRepository.update(reminder, new ForwardingReminderCallback(null, reminder.getUserId()));
+        update(reminder, null);
+    }
+
+    public void update(Reminder reminder, RemoteCallback<Reminder> callback) {
+        remoteRepository.update(reminder, new ForwardingReminderCallback(callback, reminder.getUserId()));
     }
 
     public void delete(Reminder reminder) {
+        delete(reminder, null);
+    }
+
+    public void delete(Reminder reminder, RemoteCallback<Void> callback) {
         remoteRepository.delete(reminder, new RemoteCallback<Void>() {
                 @Override
                 public void onSuccess(Void value) {
                     refresh(reminder.getUserId());
+                    if (callback != null) callback.onSuccess(value);
                 }
 
                 @Override
                 public void onError(ApiError error) {
+                    if (callback != null) callback.onError(error);
                 }
             });
     }

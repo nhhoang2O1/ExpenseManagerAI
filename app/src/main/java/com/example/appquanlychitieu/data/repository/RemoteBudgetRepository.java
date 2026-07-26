@@ -14,7 +14,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,16 +55,18 @@ public class RemoteBudgetRepository {
         });
     }
 
-    public void create(String categoryId, double amount, String monthYear, RemoteCallback<Budget> callback) {
-        enqueue(apiService.createBudget(new BudgetRequestDto(categoryId, BigDecimal.valueOf(amount), monthYear)), callback);
+    public void create(String categoryId, long amount, String monthYear, RemoteCallback<Budget> callback) {
+        enqueue(apiService.createBudget(new BudgetRequestDto(categoryId, amount, monthYear)), callback);
     }
 
-    public void update(String budgetId, String categoryId, double amount, String monthYear, RemoteCallback<Budget> callback) {
-        enqueue(apiService.updateBudget(budgetId, new BudgetRequestDto(categoryId, BigDecimal.valueOf(amount), monthYear)), callback);
+    public void update(String budgetId, long version, String categoryId, long amount,
+                       String monthYear, RemoteCallback<Budget> callback) {
+        enqueue(apiService.updateBudget(budgetId, quote(version),
+                new BudgetRequestDto(categoryId, amount, monthYear)), callback);
     }
 
-    public void delete(String budgetId, RemoteCallback<Void> callback) {
-        apiService.deleteBudget(budgetId).enqueue(new Callback<Void>() {
+    public void delete(String budgetId, long version, RemoteCallback<Void> callback) {
+        apiService.deleteBudget(budgetId, quote(version)).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) callback.onSuccess(null);
@@ -106,11 +107,14 @@ public class RemoteBudgetRepository {
         budget.setRemoteCategoryName(dto.categoryName);
         budget.setRemoteCategoryColor(dto.categoryColor);
         budget.setRemoteCategoryIcon(dto.categoryIcon);
+        budget.setVersion(dto.version);
         return budget;
     }
 
-    private double amount(BigDecimal value) {
-        return value == null ? 0d : value.doubleValue();
+    private String quote(long version) { return "\"" + version + "\""; }
+
+    private long amount(Long value) {
+        return value == null ? 0L : value;
     }
 
     private JsonArray resolveArray(JsonElement body) {

@@ -9,6 +9,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Category;
@@ -18,8 +19,6 @@ import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
 import com.example.appquanlychitieu.data.remote.dto.TransactionDto;
 import com.example.appquanlychitieu.data.remote.dto.TransactionRequestDto;
-import com.example.appquanlychitieu.data.repository.RemoteCategoryRepository;
-import com.example.appquanlychitieu.data.repository.RemoteTransactionRepository;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.example.appquanlychitieu.util.DateUtils;
 import com.example.appquanlychitieu.util.NumberTextWatcher;
@@ -56,6 +55,7 @@ public class AddEditTransactionActivity extends AppCompatActivity {
     public static final String EXTRA_REMOTE_TRANSACTION_ID = "remote_transaction_id";
     public static final String EXTRA_REMOTE_CATEGORY_ID = "remote_category_id";
     public static final String EXTRA_REMOTE_STORE_NAME = "remote_store_name";
+    public static final String EXTRA_VERSION = "version";
 
     private TextInputEditText etAmount;
     private TextInputEditText etNote;
@@ -71,8 +71,7 @@ public class AddEditTransactionActivity extends AppCompatActivity {
     private final Map<Long, CategoryDto> categoryMap = new HashMap<>();
     private final List<Category> displayedCategories = new ArrayList<>();
     private CategoryGridViewAdapter categoryAdapter;
-    private RemoteTransactionRepository transactionRepository;
-    private RemoteCategoryRepository categoryRepository;
+    private TransactionFormViewModel viewModel;
     private TransactionType selectedType = TransactionType.EXPENSE;
     private long selectedDate = System.currentTimeMillis();
     private long selectedCategoryId = -1L;
@@ -80,6 +79,7 @@ public class AddEditTransactionActivity extends AppCompatActivity {
     private String remoteTransactionId;
     private String remoteCategoryId;
     private String remoteStoreName;
+    private long version = 1L;
     private boolean isSubmitting;
 
     @Override
@@ -93,11 +93,11 @@ public class AddEditTransactionActivity extends AppCompatActivity {
             finish();
             return;
         }
-        transactionRepository = new RemoteTransactionRepository(this);
-        categoryRepository = new RemoteCategoryRepository(this);
+        viewModel = new ViewModelProvider(this).get(TransactionFormViewModel.class);
         remoteTransactionId = getIntent().getStringExtra(EXTRA_REMOTE_TRANSACTION_ID);
         remoteCategoryId = getIntent().getStringExtra(EXTRA_REMOTE_CATEGORY_ID);
         remoteStoreName = getIntent().getStringExtra(EXTRA_REMOTE_STORE_NAME);
+        version = getIntent().getLongExtra(EXTRA_VERSION, 1L);
 
         bindViews();
         restoreSelection(savedInstanceState);
@@ -189,7 +189,7 @@ public class AddEditTransactionActivity extends AppCompatActivity {
 
     private void loadCategories() {
         setSubmitting(true, false);
-        categoryRepository.getCategories(selectedType.name(), new RemoteCallback<List<CategoryDto>>() {
+        viewModel.loadCategories(selectedType.name(), new RemoteCallback<List<CategoryDto>>() {
             @Override
             public void onSuccess(List<CategoryDto> values) {
                 displayedCategories.clear();
@@ -287,8 +287,7 @@ public class AddEditTransactionActivity extends AppCompatActivity {
                         Snackbar.LENGTH_LONG).show();
             }
         };
-        if (empty(remoteTransactionId)) transactionRepository.create(request, callback);
-        else transactionRepository.update(remoteTransactionId, request, callback);
+        viewModel.save(remoteTransactionId, version, request, callback);
     }
 
     private void setSubmitting(boolean submitting, boolean showProgress) {

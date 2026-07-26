@@ -31,7 +31,8 @@ public sealed record OcrServiceResponse(
 public interface IOcrClient
 {
     Task<OcrServiceResponse> ProcessAsync(
-        string filePath,
+        byte[] imageData,
+        string fileName,
         string contentType,
         CancellationToken cancellationToken);
 }
@@ -44,15 +45,15 @@ public sealed class OcrClient(HttpClient httpClient) : IOcrClient
     };
 
     public async Task<OcrServiceResponse> ProcessAsync(
-        string filePath,
+        byte[] imageData,
+        string fileName,
         string contentType,
         CancellationToken cancellationToken)
     {
-        await using var file = File.OpenRead(filePath);
-        using var fileContent = new StreamContent(file);
+        using var fileContent = new ByteArrayContent(imageData);
         fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
         using var form = new MultipartFormDataContent();
-        form.Add(fileContent, "image", Path.GetFileName(filePath));
+        form.Add(fileContent, "image", SafeFileName(fileName));
 
         using var response = await httpClient.PostAsync(
             "internal/v1/ocr/receipts",
@@ -67,5 +68,12 @@ public sealed class OcrClient(HttpClient httpClient) : IOcrClient
 
         return JsonSerializer.Deserialize<OcrServiceResponse>(body, JsonOptions)
                ?? throw new InvalidDataException("OCR service returned an empty response.");
+    }
+
+    private static string SafeFileName(string fileName)
+    {
+        var normalized = fileName.Replace('\\', '/');
+        var safe = Path.GetFileName(normalized);
+        return string.IsNullOrWhiteSpace(safe) ? "receipt" : safe;
     }
 }

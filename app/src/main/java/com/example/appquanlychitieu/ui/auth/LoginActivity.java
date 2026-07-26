@@ -5,20 +5,23 @@ import android.os.Bundle;
 import android.widget.CheckBox;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.appquanlychitieu.MainActivity;
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.AuthResponseDto;
-import com.example.appquanlychitieu.data.repository.AuthRepository;
 import com.example.appquanlychitieu.util.SessionManager;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class LoginActivity extends AppCompatActivity {
     private TextInputEditText etEmail;
@@ -30,13 +33,13 @@ public class LoginActivity extends AppCompatActivity {
     private android.widget.ProgressBar progressAuth;
     private TextView tvRegister;
     private SessionManager sessionManager;
-    private AuthRepository authRepository;
+    private AuthViewModel viewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         sessionManager = new SessionManager(this);
-        authRepository = new AuthRepository(this);
+        viewModel = new ViewModelProvider(this).get(AuthViewModel.class);
 
         if (sessionManager.isLoggedIn()) {
             if (sessionManager.isRememberMe()) {
@@ -61,9 +64,67 @@ public class LoginActivity extends AppCompatActivity {
         cbRememberMe = findViewById(R.id.cb_remember_me);
         btnLogin = findViewById(R.id.btn_login);
         tvRegister = findViewById(R.id.tv_register);
+        findViewById(R.id.tv_forgot_password).setOnClickListener(v -> showForgotPassword());
         btnLogin.setOnClickListener(view -> login());
         tvRegister.setOnClickListener(view ->
                 startActivity(new Intent(this, RegisterActivity.class)));
+    }
+
+    private void showForgotPassword() {
+        EditText emailInput = new EditText(this);
+        emailInput.setHint("Email");
+        emailInput.setText(etEmail.getText());
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Khôi phục mật khẩu")
+                .setView(emailInput)
+                .setPositiveButton("Gửi mã", (dialog, which) -> {
+                    String email = emailInput.getText().toString().trim();
+                    viewModel.forgotPassword(email, new RemoteCallback<Void>() {
+                        @Override public void onSuccess(Void value) {
+                            Toast.makeText(LoginActivity.this,
+                                    "Nếu email tồn tại, mã xác nhận đã được gửi.", Toast.LENGTH_LONG).show();
+                            showResetPassword(email);
+                        }
+                        @Override public void onError(ApiError error) {
+                            Toast.makeText(LoginActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void showResetPassword(String email) {
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        int padding = Math.round(24 * getResources().getDisplayMetrics().density);
+        form.setPadding(padding, 0, padding, 0);
+        EditText code = new EditText(this);
+        code.setHint("Mã 6 số");
+        code.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        EditText password = new EditText(this);
+        password.setHint("Mật khẩu mới (ít nhất 8 ký tự)");
+        password.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
+                android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        form.addView(code);
+        form.addView(password);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Đặt lại mật khẩu")
+                .setView(form)
+                .setPositiveButton(R.string.save, (dialog, which) ->
+                        viewModel.resetPassword(email, code.getText().toString().trim(),
+                                password.getText().toString(), new RemoteCallback<Void>() {
+                                    @Override public void onSuccess(Void value) {
+                                        Toast.makeText(LoginActivity.this,
+                                                "Đã đổi mật khẩu. Bạn có thể đăng nhập.", Toast.LENGTH_LONG).show();
+                                    }
+                                    @Override public void onError(ApiError error) {
+                                        Toast.makeText(LoginActivity.this,
+                                                error.getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                }))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private void validateSavedSession() {
@@ -92,7 +153,7 @@ public class LoginActivity extends AppCompatActivity {
         layoutPassword.setError(null);
 
         setLoading(true);
-        authRepository.login(email, password, new RemoteCallback<AuthResponseDto>() {
+        viewModel.login(email, password, new RemoteCallback<AuthResponseDto>() {
             @Override
             public void onSuccess(AuthResponseDto response) {
                 setLoading(false);
@@ -107,7 +168,9 @@ public class LoginActivity extends AppCompatActivity {
                         resolvedName,
                         resolvedEmail,
                         cbRememberMe.isChecked(),
-                        response.resolvedToken());
+                        response.resolvedToken(),
+                        response.resolvedRefreshToken(),
+                        response.expiresIn);
                 Toast.makeText(LoginActivity.this, R.string.login_success, Toast.LENGTH_SHORT).show();
                 navigateToMain();
             }

@@ -22,6 +22,7 @@ import java.util.List;
 import java.io.IOException;
 
 import okhttp3.MultipartBody;
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -38,13 +39,18 @@ public class ReceiptRepository {
         categoryRepository = new RemoteCategoryRepository(appContext);
     }
 
-    public void upload(Uri imageUri, RemoteCallback<ReceiptDto> callback) {
+    public void upload(Uri imageUri, String idempotencyKey, RemoteCallback<ReceiptDto> callback) {
         ContentUriRequestBody body = new ContentUriRequestBody(appContext, imageUri);
         MultipartBody.Part image = MultipartBody.Part.createFormData(
                 "file",
                 "receipt.jpg",
                 body);
-        enqueueReceipt(apiService.uploadReceipt(image), callback);
+        enqueueReceipt(apiService.uploadReceipt(idempotencyKey, image), callback);
+    }
+
+    /** Backward-compatible overload for callers that do not yet persist a key. */
+    public void upload(Uri imageUri, RemoteCallback<ReceiptDto> callback) {
+        upload(imageUri, null, callback);
     }
 
     public void process(String receiptId, RemoteCallback<ReceiptDto> callback) {
@@ -75,6 +81,44 @@ public class ReceiptRepository {
 
             @Override
             public void onFailure(Call<TransactionDto> call, Throwable throwable) {
+                callback.onError(ApiResponseHelper.fromFailure(throwable));
+            }
+        });
+    }
+
+    public void delete(String receiptId, RemoteCallback<Void> callback) {
+        apiService.deleteReceipt(receiptId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    callback.onSuccess(null);
+                } else {
+                    callback.onError(ApiResponseHelper.fromResponse(response));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable throwable) {
+                callback.onError(ApiResponseHelper.fromFailure(throwable));
+            }
+        });
+    }
+
+    public void downloadImage(
+            String receiptId,
+            RemoteCallback<ResponseBody> callback) {
+        apiService.downloadReceiptImage(receiptId).enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    callback.onSuccess(response.body());
+                } else {
+                    callback.onError(ApiResponseHelper.fromResponse(response));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable throwable) {
                 callback.onError(ApiResponseHelper.fromFailure(throwable));
             }
         });

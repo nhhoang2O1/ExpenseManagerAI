@@ -22,10 +22,8 @@ public class JwtInterceptor implements Interceptor {
                     .header("Authorization", "Bearer " + token)
                     .build();
         }
-        Response response = chain.proceed(request);
-        if (response.code() == 401 && token != null && !token.trim().isEmpty()) {
-            tokenStore.clear();
-        }
-        return response;
+        // The Authenticator owns 401 recovery and only clears the session
+        // after a refresh attempt has failed.
+        return chain.proceed(request);
     }
 }

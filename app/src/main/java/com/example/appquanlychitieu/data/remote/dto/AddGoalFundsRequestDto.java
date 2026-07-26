@@ -1,11 +1,10 @@
 package com.example.appquanlychitieu.data.remote.dto;
 
-import java.math.BigDecimal;
 
 public class AddGoalFundsRequestDto {
-    public BigDecimal amount;
+    public long amount;
 
-    public AddGoalFundsRequestDto(BigDecimal amount) {
+    public AddGoalFundsRequestDto(long amount) {
         this.amount = amount;
     }
 }

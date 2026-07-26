@@ -58,7 +58,8 @@ public sealed class ReceiptConfirmationService(AppDbContext db) : IReceiptConfir
                 x => x.Id == receiptId && x.UserId == userId, cancellationToken);
             if (receipt is null)
                 return new ConfirmationResult(ConfirmationOutcome.RECEIPT_NOT_FOUND);
-            if (receipt.Status is ReceiptStatus.UPLOADED or ReceiptStatus.PROCESSING)
+            if (receipt.Status is
+                ReceiptStatus.UPLOADED or ReceiptStatus.QUEUED or ReceiptStatus.PROCESSING)
                 return new ConfirmationResult(ConfirmationOutcome.INVALID_RECEIPT_STATE);
 
             var category = await db.Categories.SingleOrDefaultAsync(

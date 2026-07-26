@@ -4,12 +4,13 @@ public class Goal {
     private long id;
     
     private String name;
-    private double targetAmount;
-    private double currentAmount;
+    private long targetAmount;
+    private long currentAmount;
     private long userId;
     private String remoteId;
+    private long version = 1L;
 
-    public Goal(String name, double targetAmount, double currentAmount, long userId) {
+    public Goal(String name, long targetAmount, long currentAmount, long userId) {
         this.name = name;
         this.targetAmount = targetAmount;
         this.currentAmount = currentAmount;
@@ -22,15 +23,17 @@ public class Goal {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public double getTargetAmount() { return targetAmount; }
-    public void setTargetAmount(double targetAmount) { this.targetAmount = targetAmount; }
+    public long getTargetAmount() { return targetAmount; }
+    public void setTargetAmount(long targetAmount) { this.targetAmount = targetAmount; }
 
-    public double getCurrentAmount() { return currentAmount; }
-    public void setCurrentAmount(double currentAmount) { this.currentAmount = currentAmount; }
+    public long getCurrentAmount() { return currentAmount; }
+    public void setCurrentAmount(long currentAmount) { this.currentAmount = currentAmount; }
 
     public long getUserId() { return userId; }
     public void setUserId(long userId) { this.userId = userId; }
 
     public String getRemoteId() { return remoteId; }
     public void setRemoteId(String remoteId) { this.remoteId = remoteId; }
+    public long getVersion() { return version; }
+    public void setVersion(long version) { this.version = version; }
 }

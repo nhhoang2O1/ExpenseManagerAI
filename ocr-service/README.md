@@ -67,9 +67,18 @@ Detection remains pretrained unless the service is extended separately.
 
 ## Docker
 
+Image mặc định chạy bằng CPU và không yêu cầu NVIDIA runtime:
+
 ```powershell
 docker build -t expense-receipt-ocr ./ocr-service
 docker run --rm -p 8000:8000 expense-receipt-ocr
+```
+
+Trong stack đầy đủ, dùng `docker compose up --build -d`. Để dùng NVIDIA GPU
+với CUDA 12.6 và NVIDIA Container Toolkit:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build -d
 ```
 
 To use a local recognition model, mount its directory read-only and provide the

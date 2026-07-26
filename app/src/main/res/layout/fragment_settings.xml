@@ -24,6 +24,7 @@
             android:paddingBottom="32dp">
 
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_profile"
                 style="@style/Widget.App.CardView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -116,6 +117,36 @@
                 android:layout_marginTop="24dp"
                 android:text="@string/data_and_reports"
                 android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_categories"
+                style="@style/Widget.App.CardView"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginTop="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="14dp">
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_other"
+                        app:tint="@color/primary" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:text="Quản lý danh mục"
+                        android:textColor="@color/text_primary"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_reminders"
                 style="@style/Widget.App.CardView"

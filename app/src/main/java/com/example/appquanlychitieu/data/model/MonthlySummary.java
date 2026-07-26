@@ -2,17 +2,17 @@ package com.example.appquanlychitieu.data.model;
 
 public class MonthlySummary {
     private String monthYear;
-    private double totalIncome;
-    private double totalExpense;
+    private long totalIncome;
+    private long totalExpense;
 
     public String getMonthYear() { return monthYear; }
     public void setMonthYear(String monthYear) { this.monthYear = monthYear; }
 
-    public double getTotalIncome() { return totalIncome; }
-    public void setTotalIncome(double totalIncome) { this.totalIncome = totalIncome; }
+    public long getTotalIncome() { return totalIncome; }
+    public void setTotalIncome(long totalIncome) { this.totalIncome = totalIncome; }
 
-    public double getTotalExpense() { return totalExpense; }
-    public void setTotalExpense(double totalExpense) { this.totalExpense = totalExpense; }
+    public long getTotalExpense() { return totalExpense; }
+    public void setTotalExpense(long totalExpense) { this.totalExpense = totalExpense; }
 
-    public double getBalance() { return totalIncome - totalExpense; }
+    public long getBalance() { return totalIncome - totalExpense; }
 }

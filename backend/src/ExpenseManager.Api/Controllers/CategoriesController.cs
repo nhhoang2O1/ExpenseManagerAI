@@ -20,7 +20,7 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
         var items = await db.Categories.AsNoTracking()
             .Where(x => x.UserId == userContext.UserId)
             .OrderBy(x => x.Type).ThenBy(x => x.Name)
-            .Select(x => new CategoryResponse(x.Id, x.Name, x.Type, x.Color, x.Icon))
+            .Select(x => new CategoryResponse(x.Id, x.Name, x.Type, x.Color, x.Icon, x.Version))
             .ToListAsync(cancellationToken);
         return Ok(items);
     }
@@ -31,6 +31,9 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
         CancellationToken cancellationToken)
     {
         var name = request.Name.Trim();
+        if (name.Length == 0)
+            return BadRequest(new { message = "Tên danh mục không được để trống." });
+
         var duplicate = await db.Categories.AnyAsync(
             x => x.UserId == userContext.UserId && x.Name == name && x.Type == request.Type,
             cancellationToken);
@@ -46,7 +49,15 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
             Icon = request.Icon?.Trim()
         };
         db.Categories.Add(category);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new { message = "Danh mục đã tồn tại." });
+        }
+        OptimisticConcurrency.WriteEtag(this, category.Version);
         return CreatedAtAction(nameof(GetAll), category.ToResponse());
     }
 
@@ -56,12 +67,34 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
         CategoryRequest request,
         CancellationToken cancellationToken)
     {
-        var category = await db.Categories.SingleOrDefaultAsync(
-            x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
+        await using var databaseTransaction =
+            await FinanceDatabaseLocks.BeginIfPostgresAsync(db, cancellationToken);
+        var category = await FinanceDatabaseLocks.GetOwnedCategoryForMutationAsync(
+            db, id, userContext.UserId, cancellationToken);
         if (category is null)
             return NotFound();
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, category.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
 
         var name = request.Name.Trim();
+        if (name.Length == 0)
+            return BadRequest(new { message = "Tên danh mục không được để trống." });
+
+        if (category.Type != request.Type)
+        {
+            var isReferenced = await db.Transactions.AnyAsync(
+                    x => x.CategoryId == id && x.UserId == userContext.UserId,
+                    cancellationToken) ||
+                await db.Budgets.AnyAsync(
+                    x => x.CategoryId == id && x.UserId == userContext.UserId,
+                    cancellationToken);
+            if (isReferenced)
+                return Conflict(new
+                {
+                    message = "Không thể đổi loại danh mục đang được dùng bởi giao dịch hoặc ngân sách."
+                });
+        }
+
         var duplicate = await db.Categories.AnyAsync(
             x => x.UserId == userContext.UserId && x.Id != id &&
                  x.Name == name && x.Type == request.Type,
@@ -73,23 +106,65 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
         category.Type = request.Type;
         category.Color = request.Color?.Trim();
         category.Icon = request.Icon?.Trim();
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new { message = "Danh mục đã tồn tại." });
+        }
+        if (databaseTransaction is not null)
+            await databaseTransaction.CommitAsync(cancellationToken);
+        OptimisticConcurrency.WriteEtag(this, category.Version);
         return Ok(category.ToResponse());
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var category = await db.Categories.SingleOrDefaultAsync(
-            x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
+        await using var databaseTransaction =
+            await FinanceDatabaseLocks.BeginIfPostgresAsync(db, cancellationToken);
+        var category = await FinanceDatabaseLocks.GetOwnedCategoryForMutationAsync(
+            db, id, userContext.UserId, cancellationToken);
         if (category is null)
             return NotFound();
-        if (await db.Transactions.AnyAsync(
-                x => x.CategoryId == id && x.UserId == userContext.UserId, cancellationToken))
-            return Conflict(new { message = "Không thể xóa danh mục đang có giao dịch." });
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, category.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
+        var hasTransactions = await db.Transactions.AnyAsync(
+            x => x.CategoryId == id && x.UserId == userContext.UserId, cancellationToken);
+        var hasBudgets = await db.Budgets.AnyAsync(
+            x => x.CategoryId == id && x.UserId == userContext.UserId, cancellationToken);
+        if (hasTransactions || hasBudgets)
+            return Conflict(new
+            {
+                message = "Không thể xóa danh mục đang được dùng bởi giao dịch hoặc ngân sách."
+            });
 
         db.Categories.Remove(category);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        catch (DbUpdateException)
+        {
+            // A transaction or budget may have started referencing the category
+            // after the checks above. The database FK remains the final guard.
+            return Conflict(new
+            {
+                message = "Không thể xóa danh mục đang được dùng bởi giao dịch hoặc ngân sách."
+            });
+        }
+        if (databaseTransaction is not null)
+            await databaseTransaction.CommitAsync(cancellationToken);
         return NoContent();
     }
 }

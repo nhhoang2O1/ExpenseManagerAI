@@ -13,7 +13,15 @@ public sealed record LoginRequest(
     [Required] string Password);
 
 public sealed record UserResponse(Guid Id, string Name, string Email);
-public sealed record AuthResponse(string AccessToken, UserResponse User);
+/// <summary>
+/// Base login/register response retained for older clients. The new
+/// AuthSessionResponse derives from it and adds the refresh-token pair.
+/// </summary>
+public record AuthResponse(string AccessToken, UserResponse User)
+{
+    public string? RefreshToken { get; init; }
+    public int ExpiresIn { get; init; } = 900;
+}
 
 public sealed record CategoryRequest(
     [Required, StringLength(100)] string Name,
@@ -22,7 +30,8 @@ public sealed record CategoryRequest(
     [StringLength(50)] string? Icon);
 
 public sealed record CategoryResponse(
-    Guid Id, string Name, TransactionType Type, string? Color, string? Icon);
+    Guid Id, string Name, TransactionType Type, string? Color, string? Icon,
+    long Version = 1);
 
 public sealed record TransactionRequest(
     [Range(1, long.MaxValue)] long Amount,
@@ -45,7 +54,8 @@ public sealed record TransactionResponse(
     string? StoreName,
     Guid? ReceiptId,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    long Version = 1);
 
 public sealed record PagedResponse<T>(
     IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount, int TotalPages);
@@ -54,7 +64,8 @@ public sealed record ReceiptUploadResponse(
     Guid Id,
     ReceiptStatus Status,
     ReceiptClassification? Classification,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    long Version = 1);
 
 public sealed record ReceiptResponse(
     Guid Id,
@@ -67,7 +78,17 @@ public sealed record ReceiptResponse(
     decimal? OverallConfidence,
     IReadOnlyList<string> Warnings,
     string? RawText,
-    string? ModelVersion);
+    string? ModelVersion,
+    int ProcessingAttempts = 0,
+    DateTime? NextRetryAt = null,
+    string? LastError = null,
+    DateTime? CreatedAt = null,
+    DateTime? UpdatedAt = null,
+    long Version = 1,
+    Guid? SuggestedCategoryId = null,
+    string? SuggestedCategoryName = null,
+    decimal? CategoryConfidence = null,
+    string? CategoryReason = null);
 
 public sealed record ConfirmReceiptRequest(
     [Required, StringLength(200)] string StoreName,
@@ -106,7 +127,8 @@ public sealed record BudgetResponse(
     long Amount,
     string MonthYear,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    long Version = 1);
 
 public sealed record GoalRequest(
     [Required, StringLength(200, MinimumLength = 1)] string Name,
@@ -122,13 +144,16 @@ public sealed record GoalResponse(
     long TargetAmount,
     long CurrentAmount,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    long Version = 1);
 
 public sealed record GoalHistoryResponse(
     Guid Id,
     Guid GoalId,
     long AmountAdded,
-    DateTime Date);
+    DateTime Date,
+    long? RequestedAmount = null,
+    long? BalanceAfter = null);
 
 public sealed record ReminderRequest(
     [Required, StringLength(500, MinimumLength = 1)] string Content,
@@ -145,4 +170,5 @@ public sealed record ReminderResponse(
     int Minute,
     bool IsActive,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    long Version = 1);

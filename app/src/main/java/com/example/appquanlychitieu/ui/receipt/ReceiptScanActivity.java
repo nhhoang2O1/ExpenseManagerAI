@@ -11,6 +11,7 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.graphics.BitmapFactory;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -22,6 +23,8 @@ import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
 import com.example.appquanlychitieu.data.remote.dto.ConfirmReceiptRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ReceiptDto;
+import com.example.appquanlychitieu.data.remote.ApiError;
+import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.ui.transaction.AddEditTransactionActivity;
 import com.example.appquanlychitieu.util.SessionManager;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
@@ -80,6 +83,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private Uri cameraOutputUri;
     private String populatedReceiptId;
     private CategoryDto selectedCategory;
+    private ReceiptDto currentReceipt;
     private Bundle restoredDraft;
     private boolean draftApplied;
 
@@ -122,6 +126,10 @@ public class ReceiptScanActivity extends AppCompatActivity {
         }
 
         viewModel.getCategories().observe(this, this::showCategories);
+        viewModel.getServerImage().observe(this, bytes -> {
+            if (bytes != null && bytes.length > 0 && selectedImageUri == null)
+                ivReceipt.setImageBitmap(BitmapFactory.decodeByteArray(bytes, 0, bytes.length));
+        });
         viewModel.getState().observe(this, this::render);
     }
 
@@ -170,12 +178,22 @@ public class ReceiptScanActivity extends AppCompatActivity {
         btnConfirm.setOnClickListener(view -> confirmReceipt());
         btnRetry.setOnClickListener(view -> viewModel.retry());
         findViewById(R.id.btn_retake).setOnClickListener(view -> {
-            selectedImageUri = null;
-            populatedReceiptId = null;
-            ivReceipt.setImageResource(R.drawable.ic_bill);
-            btnStartOcr.setEnabled(false);
-            viewModel.reset();
-            launchCamera();
+            viewModel.deleteAndReset(new RemoteCallback<Void>() {
+                @Override public void onSuccess(Void value) {
+                    selectedImageUri = null;
+                    populatedReceiptId = null;
+                    currentReceipt = null;
+                    selectedCategory = null;
+                    categoryDropdown.setText("", false);
+                    layoutCategory.setHelperText(null);
+                    ivReceipt.setImageResource(R.drawable.ic_bill);
+                    btnStartOcr.setEnabled(false);
+                    launchCamera();
+                }
+                @Override public void onError(ApiError error) {
+                    Toast.makeText(ReceiptScanActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            });
         });
         findViewById(R.id.btn_manual).setOnClickListener(view -> openManualEntry());
     }
@@ -254,6 +272,8 @@ public class ReceiptScanActivity extends AppCompatActivity {
         renderSteps(state.phase);
 
         if (showReview) {
+            if (selectedImageUri == null && state.receipt.id != null)
+                viewModel.loadServerImage(state.receipt.id);
             populateReview(state.receipt);
             applyRestoredDraft();
             boolean ocrFailed = "OCR_FAILED".equalsIgnoreCase(state.receipt.status);
@@ -265,7 +285,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
                     || state.phase == ReceiptViewModel.Phase.ERROR
                     || "LOW_QUALITY".equalsIgnoreCase(classification)
                     || "UNRECOGNIZED".equalsIgnoreCase(classification);
-            btnConfirm.setEnabled(!busy && reviewRequired);
+            btnConfirm.setEnabled(!busy && (reviewRequired || ocrFailed));
             btnRetry.setVisibility(retrySuggested ? View.VISIBLE : View.GONE);
         }
     }
@@ -275,6 +295,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
             return;
         }
         populatedReceiptId = receipt.id;
+        currentReceipt = receipt;
         etStoreName.setText(receipt.storeName == null ? "" : receipt.storeName);
         etReceiptDate.setText(
                 receipt.receiptDate == null ? LocalDate.now().toString() : receipt.receiptDate);
@@ -293,10 +314,14 @@ public class ReceiptScanActivity extends AppCompatActivity {
             warning.append(getString(R.string.warning_low_quality));
         }
         for (String item : receipt.safeWarnings()) {
+            String userMessage = warningForCode(item);
+            if (userMessage == null || userMessage.isEmpty()) {
+                continue;
+            }
             if (warning.length() > 0) {
                 warning.append('\n');
             }
-            warning.append(item);
+            warning.append(userMessage);
         }
         tvWarning.setText(warning);
         tvWarning.setVisibility(warning.length() == 0 ? View.GONE : View.VISIBLE);
@@ -312,6 +337,39 @@ public class ReceiptScanActivity extends AppCompatActivity {
         tvRawText.setVisibility(
                 receipt.rawText == null || receipt.rawText.trim().isEmpty()
                         ? View.GONE : View.VISIBLE);
+        applySuggestedCategory();
+    }
+
+    private String warningForCode(String code) {
+        if (code == null) return null;
+        switch (code.toUpperCase(Locale.ROOT)) {
+            // Successful preprocessing steps are implementation details, not warnings.
+            case "DESKEWED":
+            case "PERSPECTIVE_CORRECTED":
+            case "ENHANCED_IMAGE_SELECTED":
+                return null;
+            case "STORE_NAME_NOT_FOUND":
+                return getString(R.string.warning_store_not_found);
+            case "RECEIPT_DATE_NOT_FOUND":
+                return getString(R.string.warning_date_not_found);
+            case "TOTAL_AMOUNT_NOT_FOUND":
+                return getString(R.string.warning_total_not_found);
+            case "IMAGE_TOO_DARK":
+                return getString(R.string.warning_image_too_dark);
+            case "IMAGE_OVEREXPOSED":
+                return getString(R.string.warning_image_overexposed);
+            case "LOW_CONTRAST":
+                return getString(R.string.warning_low_contrast);
+            case "BLURRY_IMAGE":
+                return getString(R.string.warning_blurry_image);
+            case "LOW_CONTENT":
+            case "NO_TEXT_DETECTED":
+                return getString(R.string.warning_no_text);
+            case "LOW_OCR_CONFIDENCE":
+                return getString(R.string.warning_low_ocr_confidence);
+            default:
+                return getString(R.string.warning_review_result);
+        }
     }
 
     private void showCategories(List<CategoryDto> value) {
@@ -332,8 +390,30 @@ public class ReceiptScanActivity extends AppCompatActivity {
             for (CategoryDto item : categories) {
                 if (item.id != null && item.id.equals(restoredId)) selectedCategory = item;
             }
-            if (selectedCategory == null) selectedCategory = categories.get(0);
-            categoryDropdown.setText(selectedCategory.toString(), false);
+            if (selectedCategory != null) {
+                categoryDropdown.setText(selectedCategory.toString(), false);
+            }
+        }
+        applySuggestedCategory();
+    }
+
+    private void applySuggestedCategory() {
+        if (selectedCategory != null || currentReceipt == null
+                || currentReceipt.suggestedCategoryId == null) return;
+        for (CategoryDto item : categories) {
+            if (currentReceipt.suggestedCategoryId.equals(item.id)) {
+                selectedCategory = item;
+                categoryDropdown.setText(item.toString(), false);
+                String confidence = currentReceipt.categoryConfidence == null ? ""
+                        : String.format(Locale.getDefault(), " (%.0f%%)",
+                                currentReceipt.categoryConfidence * 100d);
+                layoutCategory.setHelperText(getString(
+                        R.string.category_suggested,
+                        item.toString(),
+                        confidence,
+                        currentReceipt.categoryReason == null ? "" : currentReceipt.categoryReason));
+                return;
+            }
         }
     }
 

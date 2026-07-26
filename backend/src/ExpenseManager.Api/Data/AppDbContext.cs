@@ -14,7 +14,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Receipt> Receipts => Set<Receipt>();
+    public DbSet<ReceiptImage> ReceiptImages => Set<ReceiptImage>();
     public DbSet<OcrResult> OcrResults => Set<OcrResult>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AccountVerificationCode> AccountVerificationCodes => Set<AccountVerificationCode>();
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,6 +28,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Name).HasMaxLength(100);
             entity.Property(x => x.Email).HasMaxLength(320);
             entity.Property(x => x.PasswordHash).HasMaxLength(500);
+            entity.HasIndex(x => x.TokenVersion);
+            entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
         });
 
         modelBuilder.Entity<Category>(entity =>
@@ -33,6 +39,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Color).HasMaxLength(20);
             entity.Property(x => x.Icon).HasMaxLength(50);
+            entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Categories)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -41,10 +48,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.HasIndex(x => x.ReceiptId).IsUnique();
             entity.HasIndex(x => new { x.UserId, x.TransactionDate });
+            entity.HasIndex(x => new { x.UserId, x.TransactionDate, x.CreatedAt, x.Id });
             entity.Property(x => x.Amount).HasColumnType("numeric(18,0)");
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Note).HasMaxLength(1000);
             entity.Property(x => x.StoreName).HasMaxLength(200);
+            entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Transactions)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Category).WithMany(x => x.Transactions)
@@ -58,6 +67,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasIndex(x => new { x.UserId, x.CategoryId, x.MonthYear }).IsUnique();
             entity.Property(x => x.Amount).HasColumnType("numeric(18,0)");
             entity.Property(x => x.MonthYear).HasMaxLength(7);
+            entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Budgets)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Category).WithMany(x => x.Budgets)
@@ -70,6 +80,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Name).HasMaxLength(200);
             entity.Property(x => x.TargetAmount).HasColumnType("numeric(18,0)");
             entity.Property(x => x.CurrentAmount).HasColumnType("numeric(18,0)");
+            entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Goals)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -78,6 +89,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.HasIndex(x => new { x.GoalId, x.Date });
             entity.Property(x => x.AmountAdded).HasColumnType("numeric(18,0)");
+            entity.Property(x => x.RequestedAmount).HasColumnType("numeric(18,0)");
+            entity.Property(x => x.BalanceAfter).HasColumnType("numeric(18,0)");
             entity.HasOne(x => x.Goal).WithMany(x => x.History)
                 .HasForeignKey(x => x.GoalId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -86,6 +99,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.HasIndex(x => x.UserId);
             entity.Property(x => x.Content).HasMaxLength(500);
+            entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Reminders)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -95,11 +109,23 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasIndex(x => new { x.UserId, x.CreatedAt });
             entity.Property(x => x.OriginalFileName).HasMaxLength(255);
             entity.Property(x => x.ContentType).HasMaxLength(100);
-            entity.Property(x => x.FilePath).HasMaxLength(1000);
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
             entity.Property(x => x.Classification).HasConversion<string>().HasMaxLength(30);
+            entity.Property(x => x.ProcessingAttempts).HasDefaultValue(0);
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
+            entity.HasIndex(x => new { x.Status, x.NextRetryAt, x.LeaseExpiresAt, x.CreatedAt });
             entity.HasOne(x => x.User).WithMany(x => x.Receipts)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReceiptImage>(entity =>
+        {
+            entity.HasKey(x => x.ReceiptId);
+            entity.Property(x => x.Data).HasColumnType("bytea").IsRequired();
+            entity.HasOne(x => x.Receipt).WithOne(x => x.Image)
+                .HasForeignKey<ReceiptImage>(x => x.ReceiptId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<OcrResult>(entity =>
@@ -115,6 +141,20 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.ParserVersion).HasMaxLength(100);
             entity.HasOne(x => x.Receipt).WithOne(x => x.OcrResult)
                 .HasForeignKey<OcrResult>(x => x.ReceiptId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.ConfigureAuthSecurity();
+
+        modelBuilder.Entity<IdempotencyRecord>(entity =>
+        {
+            entity.HasIndex(x => new { x.UserId, x.Scope, x.Key }).IsUnique();
+            entity.HasIndex(x => x.ExpiresAt);
+            entity.Property(x => x.Scope).HasMaxLength(100);
+            entity.Property(x => x.Key).HasMaxLength(200);
+            entity.Property(x => x.RequestHash).HasMaxLength(128);
+            entity.Property(x => x.ResponseJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         ApplySnakeCaseNames(modelBuilder);
@@ -150,6 +190,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         foreach (var entry in ChangeTracker.Entries<Reminder>()
                      .Where(x => x.State == EntityState.Modified))
             entry.Entity.UpdatedAt = now;
+
+        // Every mutable aggregate carries a monotonically increasing version.
+        // Controllers may expose it as an ETag/If-Match value; EF also uses it
+        // as a concurrency token so a stale write cannot silently overwrite a
+        // newer change.
+        foreach (var entry in ChangeTracker.Entries()
+                     .Where(x => x.State == EntityState.Modified))
+        {
+            var version = entry.Properties.FirstOrDefault(x => x.Metadata.Name == "Version");
+            if (version is not null)
+                version.CurrentValue = Convert.ToInt64(version.OriginalValue) + 1L;
+        }
     }
 
     private static void ApplySnakeCaseNames(ModelBuilder modelBuilder)
@@ -166,7 +218,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 "reminder" => "reminders",
                 "transaction" => "transactions",
                 "receipt" => "receipts",
+                "receipt_image" => "receipt_images",
                 "ocr_result" => "ocr_results",
+                "refresh_token" => "refresh_tokens",
+                "account_verification_code" => "account_verification_codes",
+                "idempotency_record" => "idempotency_records",
                 var name => name
             });
         }

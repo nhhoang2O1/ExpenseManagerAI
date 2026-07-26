@@ -2,7 +2,8 @@ package com.example.appquanlychitieu.data.model;
 
 public class Transaction {
     private long id;
-    private double amount;
+    /** Whole Vietnamese đồng; persisted money never uses floating point. */
+    private long amount;
     private String note;
     private long date; 
     private Long categoryId; 
@@ -14,10 +15,11 @@ public class Transaction {
     private String remoteStoreName;
     private String remoteCategoryColor;
     private String remoteCategoryIcon;
+    private long version = 1L;
 
     public Transaction() {}
 
-    public Transaction(double amount, String note, long date, Long categoryId, TransactionType type, long userId) {
+    public Transaction(long amount, String note, long date, Long categoryId, TransactionType type, long userId) {
         this.amount = amount;
         this.note = note;
         this.date = date;
@@ -29,8 +31,8 @@ public class Transaction {
     public long getId() { return id; }
     public void setId(long id) { this.id = id; }
 
-    public double getAmount() { return amount; }
-    public void setAmount(double amount) { this.amount = amount; }
+    public long getAmount() { return amount; }
+    public void setAmount(long amount) { this.amount = amount; }
 
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
@@ -64,4 +66,6 @@ public class Transaction {
 
     public String getRemoteCategoryIcon() { return remoteCategoryIcon; }
     public void setRemoteCategoryIcon(String remoteCategoryIcon) { this.remoteCategoryIcon = remoteCategoryIcon; }
+    public long getVersion() { return version; }
+    public void setVersion(long version) { this.version = version; }
 }

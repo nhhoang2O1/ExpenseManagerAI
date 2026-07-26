@@ -32,6 +32,7 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
         var items = await query
             .OrderBy(x => x.MonthYear)
             .ThenBy(x => x.Category.Name)
+            .ThenBy(x => x.Id)
             .ToListAsync(cancellationToken);
         return Ok(items.Select(x => x.ToResponse()).ToList());
     }
@@ -44,9 +45,10 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
         if (!IsMonthYear(request.MonthYear))
             return BadRequest(new { message = "monthYear phai co dinh dang yyyy-MM." });
 
-        var category = await db.Categories.SingleOrDefaultAsync(
-            x => x.Id == request.CategoryId && x.UserId == userContext.UserId,
-            cancellationToken);
+        await using var databaseTransaction =
+            await FinanceDatabaseLocks.BeginIfPostgresAsync(db, cancellationToken);
+        var category = await FinanceDatabaseLocks.GetOwnedCategoryForReferenceAsync(
+            db, request.CategoryId, userContext.UserId, cancellationToken);
         if (category is null || category.Type != TransactionType.EXPENSE)
             return BadRequest(new { message = "Danh muc chi tieu khong hop le." });
 
@@ -72,11 +74,29 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
         }
         else
         {
+            if (!OptimisticConcurrency.IfMatchSatisfied(this, budget.Version))
+                return OptimisticConcurrency.PreconditionFailed(this);
             budget.Amount = request.Amount;
             budget.Category = category;
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        catch (DbUpdateException)
+        {
+            // The unique index is authoritative when two requests create the
+            // same category/month budget concurrently.
+            return Conflict(new { message = "Ngân sách cho danh mục và tháng này đã tồn tại." });
+        }
+        if (databaseTransaction is not null)
+            await databaseTransaction.CommitAsync(cancellationToken);
+        OptimisticConcurrency.WriteEtag(this, budget.Version);
         return created
             ? StatusCode(StatusCodes.Status201Created, budget.ToResponse())
             : Ok(budget.ToResponse());
@@ -91,14 +111,17 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
         if (!IsMonthYear(request.MonthYear))
             return BadRequest(new { message = "monthYear phai co dinh dang yyyy-MM." });
 
+        await using var databaseTransaction =
+            await FinanceDatabaseLocks.BeginIfPostgresAsync(db, cancellationToken);
         var budget = await db.Budgets.Include(x => x.Category).SingleOrDefaultAsync(
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (budget is null)
             return NotFound();
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, budget.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
 
-        var category = await db.Categories.SingleOrDefaultAsync(
-            x => x.Id == request.CategoryId && x.UserId == userContext.UserId,
-            cancellationToken);
+        var category = await FinanceDatabaseLocks.GetOwnedCategoryForReferenceAsync(
+            db, request.CategoryId, userContext.UserId, cancellationToken);
         if (category is null || category.Type != TransactionType.EXPENSE)
             return BadRequest(new { message = "Danh muc chi tieu khong hop le." });
 
@@ -115,7 +138,21 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
         budget.Category = category;
         budget.Amount = request.Amount;
         budget.MonthYear = request.MonthYear;
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new { message = "Ngân sách cho danh mục và tháng này đã tồn tại." });
+        }
+        if (databaseTransaction is not null)
+            await databaseTransaction.CommitAsync(cancellationToken);
+        OptimisticConcurrency.WriteEtag(this, budget.Version);
         return Ok(budget.ToResponse());
     }
 
@@ -126,9 +163,18 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (budget is null)
             return NotFound();
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, budget.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
 
         db.Budgets.Remove(budget);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
         return NoContent();
     }
 

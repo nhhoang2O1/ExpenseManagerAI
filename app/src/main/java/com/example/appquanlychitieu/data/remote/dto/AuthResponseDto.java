@@ -5,13 +5,22 @@ import com.google.gson.annotations.SerializedName;
 public class AuthResponseDto {
     public String token;
     public String accessToken;
+    public String refreshToken;
+    public int expiresIn;
     public String id;
     public String name;
     public String email;
     public UserDto user;
 
     public String resolvedToken() {
-        return token != null ? token : accessToken;
+        if (token != null && !token.trim().isEmpty()) {
+            return token;
+        }
+        return accessToken;
+    }
+
+    public String resolvedRefreshToken() {
+        return refreshToken;
     }
 
     public String resolvedId() {

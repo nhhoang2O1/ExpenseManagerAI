@@ -2,8 +2,10 @@ using ExpenseManager.Api.Contracts;
 using ExpenseManager.Api.Data;
 using ExpenseManager.Api.Domain;
 using ExpenseManager.Api.Infrastructure;
+using ExpenseManager.Api.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseManager.Api.Controllers;
@@ -13,7 +15,8 @@ namespace ExpenseManager.Api.Controllers;
 public sealed class AuthController(
     AppDbContext db,
     IPasswordHasher<User> passwordHasher,
-    IJwtTokenService tokenService) : ControllerBase
+    IAuthSessionService? sessionService,
+    IJwtTokenService? legacyTokenService) : ControllerBase
 {
     private static readonly (string Name, TransactionType Type, string Color, string Icon)[] DefaultCategories =
     [
@@ -34,7 +37,8 @@ public sealed class AuthController(
     ];
 
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponse>> Register(
+    [EnableRateLimiting(AuthRateLimitPolicies.General)]
+    public async Task<ActionResult<AuthSessionResponse>> Register(
         RegisterRequest request,
         CancellationToken cancellationToken)
     {
@@ -61,11 +65,13 @@ public sealed class AuthController(
             return Conflict(new { message = "Email đã được sử dụng." });
         }
 
-        return StatusCode(StatusCodes.Status201Created, CreateResponse(user));
+        var session = await CreateSessionAsync(user, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, session);
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResponse>> Login(
+    [EnableRateLimiting(AuthRateLimitPolicies.General)]
+    public async Task<ActionResult<AuthSessionResponse>> Login(
         LoginRequest request,
         CancellationToken cancellationToken)
     {
@@ -78,11 +84,28 @@ public sealed class AuthController(
 
         await EnsureDefaultCategoriesAsync(user.Id, cancellationToken);
 
-        return Ok(CreateResponse(user));
+        var session = await CreateSessionAsync(user, cancellationToken);
+        return Ok(session);
     }
 
-    private AuthResponse CreateResponse(User user) =>
-        new(tokenService.Create(user), new UserResponse(user.Id, user.Name, user.Email));
+    private Task<AuthSessionResponse> CreateSessionAsync(
+        User user,
+        CancellationToken cancellationToken)
+    {
+        if (sessionService is not null)
+            return sessionService.CreateAsync(user, ClientIp(), cancellationToken);
+
+        if (legacyTokenService is null)
+            throw new InvalidOperationException("Auth session service is not configured.");
+
+        return Task.FromResult(new AuthSessionResponse(
+            legacyTokenService.Create(user),
+            string.Empty,
+            900,
+            new UserResponse(user.Id, user.Name, user.Email)));
+    }
+
+    private string? ClientIp() => HttpContext?.Connection.RemoteIpAddress?.ToString();
 
     private async Task EnsureDefaultCategoriesAsync(Guid userId, CancellationToken cancellationToken)
     {
