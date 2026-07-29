@@ -28,6 +28,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Name).HasMaxLength(100);
             entity.Property(x => x.Email).HasMaxLength(320);
             entity.Property(x => x.PasswordHash).HasMaxLength(500);
+            entity.Property(x => x.IsEmailVerified).HasDefaultValue(true);
             entity.HasIndex(x => x.TokenVersion);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
         });

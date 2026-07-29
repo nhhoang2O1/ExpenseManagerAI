@@ -22,8 +22,13 @@ public final class AuthViewModel extends AndroidViewModel {
     }
 
     public void register(String name, String email, String password,
-                         RemoteCallback<AuthResponseDto> callback) {
+                         RemoteCallback<Void> callback) {
         repository.register(name, email, password, callback);
+    }
+
+    public void confirmRegistration(String email, String code,
+                                    RemoteCallback<AuthResponseDto> callback) {
+        repository.confirmRegistration(email, code, callback);
     }
 
     public void forgotPassword(String email, RemoteCallback<Void> callback) {

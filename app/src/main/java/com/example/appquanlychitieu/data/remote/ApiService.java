@@ -10,6 +10,7 @@ import com.example.appquanlychitieu.data.remote.dto.GoalRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.LoginRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ReceiptDto;
 import com.example.appquanlychitieu.data.remote.dto.RegisterRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.RegistrationConfirmationRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ReminderDto;
 import com.example.appquanlychitieu.data.remote.dto.ReminderRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.TransactionDto;
@@ -49,7 +50,10 @@ public interface ApiService {
     Call<AuthResponseDto> login(@Body LoginRequestDto request);
 
     @POST("api/auth/register")
-    Call<AuthResponseDto> register(@Body RegisterRequestDto request);
+    Call<Void> register(@Body RegisterRequestDto request);
+
+    @POST("api/auth/confirm-registration")
+    Call<AuthResponseDto> confirmRegistration(@Body RegistrationConfirmationRequestDto request);
 
     @POST("api/auth/refresh")
     Call<AuthResponseDto> refresh(@Body RefreshTokenRequestDto request);

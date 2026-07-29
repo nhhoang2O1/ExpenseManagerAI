@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.EditText;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
@@ -16,6 +17,7 @@ import com.example.appquanlychitieu.data.remote.dto.AuthResponseDto;
 import com.example.appquanlychitieu.util.SessionManager;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -85,38 +87,60 @@ public class RegisterActivity extends AppCompatActivity {
         layoutPassword.setError(null);
         layoutConfirmPassword.setError(null);
         setLoading(true);
-        viewModel.register(name, email, password, new RemoteCallback<AuthResponseDto>() {
+        viewModel.register(name, email, password, new RemoteCallback<Void>() {
             @Override
-            public void onSuccess(AuthResponseDto response) {
+            public void onSuccess(Void ignored) {
                 setLoading(false);
-                String remoteId = response.resolvedId();
-                String resolvedEmail = response.resolvedEmail() == null
-                        ? email : response.resolvedEmail();
-                String resolvedName = response.resolvedName() == null
-                        ? name : response.resolvedName();
-                sessionManager.createRemoteLoginSession(
-                        stableCacheUserId(remoteId == null ? resolvedEmail : remoteId),
-                        remoteId,
-                        resolvedName,
-                        resolvedEmail,
-                        true,
-                        response.resolvedToken(),
-                        response.resolvedRefreshToken(),
-                        response.expiresIn);
-                Toast.makeText(
-                        RegisterActivity.this,
-                        R.string.register_success,
-                        Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finish();
+                showConfirmation(email, name);
             }
 
             @Override
             public void onError(ApiError error) {
                 setLoading(false);
                 layoutConfirmPassword.setError(error.getMessage());
+            }
+        });
+    }
+
+    private void showConfirmation(String email, String name) {
+        EditText code = new EditText(this);
+        code.setHint("Ma xac thuc 6 so");
+        code.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Xac thuc email")
+                .setMessage("Ma xac thuc da duoc gui toi " + email)
+                .setView(code)
+                .setPositiveButton("Xac nhan", (dialog, which) -> confirmRegistration(
+                        email, name, code.getText().toString().trim()))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void confirmRegistration(String email, String name, String code) {
+        if (!code.matches("[0-9]{6}")) {
+            Toast.makeText(this, "Nhap ma gom 6 chu so.", Toast.LENGTH_SHORT).show();
+            showConfirmation(email, name);
+            return;
+        }
+        setLoading(true);
+        viewModel.confirmRegistration(email, code, new RemoteCallback<AuthResponseDto>() {
+            @Override public void onSuccess(AuthResponseDto response) {
+                setLoading(false);
+                String remoteId = response.resolvedId();
+                String resolvedEmail = response.resolvedEmail() == null ? email : response.resolvedEmail();
+                String resolvedName = response.resolvedName() == null ? name : response.resolvedName();
+                sessionManager.createRemoteLoginSession(
+                        stableCacheUserId(remoteId == null ? resolvedEmail : remoteId), remoteId,
+                        resolvedName, resolvedEmail, true, response.resolvedToken(),
+                        response.resolvedRefreshToken(), response.expiresIn);
+                startActivity(new Intent(RegisterActivity.this, MainActivity.class)
+                        .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                finish();
+            }
+            @Override public void onError(ApiError error) {
+                setLoading(false);
+                Toast.makeText(RegisterActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
+                showConfirmation(email, name);
             }
         });
     }

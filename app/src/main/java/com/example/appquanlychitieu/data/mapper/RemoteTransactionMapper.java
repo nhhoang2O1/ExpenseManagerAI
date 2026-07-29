@@ -29,6 +29,7 @@ public final class RemoteTransactionMapper {
         local.setRemoteStoreName(remote.storeName);
         local.setRemoteCategoryColor(remote.resolvedCategoryColor());
         local.setRemoteCategoryIcon(remote.resolvedCategoryIcon());
+        local.setRemoteReceiptId(remote.receiptId);
         local.setVersion(remote.version);
         return local;
     }

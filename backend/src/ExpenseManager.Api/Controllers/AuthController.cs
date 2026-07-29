@@ -15,6 +15,10 @@ namespace ExpenseManager.Api.Controllers;
 public sealed class AuthController(
     AppDbContext db,
     IPasswordHasher<User> passwordHasher,
+    ISecurityTokenGenerator tokenGenerator,
+    IAuthSecretHasher secretHasher,
+    IAccountCodeSender codeSender,
+    TimeProvider timeProvider,
     IAuthSessionService? sessionService,
     IJwtTokenService? legacyTokenService) : ControllerBase
 {
@@ -43,14 +47,24 @@ public sealed class AuthController(
         CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
-        if (await db.Users.AnyAsync(x => x.Email == email, cancellationToken))
+        var existing = await db.Users.SingleOrDefaultAsync(x => x.Email == email, cancellationToken);
+        if (existing is not null && existing.IsEmailVerified)
             return Conflict(new { message = "Email đã được sử dụng." });
+
+        if (existing is not null)
+        {
+            if (passwordHasher.VerifyHashedPassword(existing, existing.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
+                return Conflict(new { message = "Email is already in use." });
+            await SendRegistrationCodeAsync(existing, cancellationToken);
+            return Accepted(new { email, message = "Verification code sent." });
+        }
 
         var user = new User
         {
             Name = request.Name.Trim(),
             Email = email,
-            PasswordHash = string.Empty
+            PasswordHash = string.Empty,
+            IsEmailVerified = false
         };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         db.Users.Add(user);
@@ -65,8 +79,37 @@ public sealed class AuthController(
             return Conflict(new { message = "Email đã được sử dụng." });
         }
 
-        var session = await CreateSessionAsync(user, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, session);
+        await SendRegistrationCodeAsync(user, cancellationToken);
+        return Accepted(new { email, message = "Verification code sent." });
+    }
+
+    [HttpPost("confirm-registration")]
+    [EnableRateLimiting(AuthRateLimitPolicies.PasswordResetVerify)]
+    public async Task<ActionResult<AuthSessionResponse>> ConfirmRegistration(
+        RegistrationConfirmationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.SingleOrDefaultAsync(
+            x => x.Email == request.Email.Trim().ToLowerInvariant(), cancellationToken);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var challenge = user is null ? null : await db.AccountVerificationCodes
+            .Where(x => x.UserId == user.Id && x.Purpose == AccountCodePurpose.REGISTRATION && x.UsedAt == null && x.ExpiresAt > now)
+            .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(cancellationToken);
+        if (user is null || user.IsEmailVerified || challenge is null || challenge.FailedAttempts >= 5 ||
+            !secretHasher.Verify(CodeScope(user.Id), request.Code, challenge.CodeHash))
+        {
+            if (challenge is not null)
+            {
+                challenge.FailedAttempts++;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            return BadRequest(new { message = "Verification code is invalid or expired." });
+        }
+
+        challenge.UsedAt = now;
+        user.IsEmailVerified = true;
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(await CreateSessionAsync(user, cancellationToken));
     }
 
     [HttpPost("login")]
@@ -77,7 +120,7 @@ public sealed class AuthController(
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email, cancellationToken);
-        if (user is null ||
+        if (user is null || !user.IsEmailVerified ||
             passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password)
             == PasswordVerificationResult.Failed)
             return Unauthorized(new { message = "Email hoặc mật khẩu không đúng." });
@@ -106,6 +149,29 @@ public sealed class AuthController(
     }
 
     private string? ClientIp() => HttpContext?.Connection.RemoteIpAddress?.ToString();
+
+    private async Task SendRegistrationCodeAsync(User user, CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var outstanding = await db.AccountVerificationCodes
+            .Where(x => x.UserId == user.Id && x.Purpose == AccountCodePurpose.REGISTRATION && x.UsedAt == null)
+            .ToListAsync(cancellationToken);
+        foreach (var item in outstanding) item.UsedAt = now;
+
+        var code = tokenGenerator.CreateSixDigitCode();
+        db.AccountVerificationCodes.Add(new AccountVerificationCode
+        {
+            UserId = user.Id,
+            Purpose = AccountCodePurpose.REGISTRATION,
+            CodeHash = secretHasher.Hash(CodeScope(user.Id), code),
+            CreatedAt = now,
+            ExpiresAt = now.AddMinutes(10)
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        await codeSender.SendRegistrationCodeAsync(user.Email, code, cancellationToken);
+    }
+
+    private static string CodeScope(Guid userId) => $"registration:{userId}";
 
     private async Task EnsureDefaultCategoriesAsync(Guid userId, CancellationToken cancellationToken)
     {

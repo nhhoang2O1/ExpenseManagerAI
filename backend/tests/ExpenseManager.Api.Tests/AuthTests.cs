@@ -24,9 +24,14 @@ public sealed class AuthTests
                 ["Jwt:Audience"] = "tests"
             })
             .Build();
+        var codeSender = new CapturingCodeSender();
         var controller = new AuthController(
             db,
             new PasswordHasher<User>(),
+            new SecurityTokenGenerator(),
+            new HmacAuthSecretHasher(configuration),
+            codeSender,
+            TimeProvider.System,
             new StubSessionService(new JwtTokenService(configuration)),
             null);
 
@@ -34,8 +39,11 @@ public sealed class AuthTests
             new RegisterRequest("Nguyen Van A", "USER@EXAMPLE.COM", "strong-password"),
             CancellationToken.None);
 
-        var created = Assert.IsType<ObjectResult>(registered.Result);
-        Assert.Equal(201, created.StatusCode);
+        Assert.IsType<AcceptedResult>(registered.Result);
+        var confirmation = await controller.ConfirmRegistration(
+            new RegistrationConfirmationRequest("user@example.com", codeSender.Code!),
+            CancellationToken.None);
+        var created = Assert.IsType<OkObjectResult>(confirmation.Result);
         var auth = Assert.IsType<AuthSessionResponse>(created.Value);
         Assert.False(string.IsNullOrWhiteSpace(auth.AccessToken));
         Assert.False(string.IsNullOrWhiteSpace(auth.RefreshToken));
@@ -75,6 +83,18 @@ public sealed class AuthTests
             x => x.UserId == auth.User.Id &&
                  x.Type == TransactionType.INCOME &&
                  x.Name == "Khác"));
+    }
+
+    private sealed class CapturingCodeSender : IAccountCodeSender
+    {
+        public string? Code { get; private set; }
+        public Task SendRegistrationCodeAsync(string email, string code, CancellationToken cancellationToken)
+        {
+            Code = code;
+            return Task.CompletedTask;
+        }
+        public Task SendPasswordResetCodeAsync(string email, string code, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SendEmailChangeCodeAsync(string email, string code, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class StubSessionService(IJwtTokenService jwtTokenService)

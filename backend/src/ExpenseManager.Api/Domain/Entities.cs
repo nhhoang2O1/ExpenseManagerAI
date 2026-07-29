@@ -30,6 +30,7 @@ public sealed class User
     public required string Name { get; set; }
     public required string Email { get; set; }
     public required string PasswordHash { get; set; }
+    public bool IsEmailVerified { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     /// <summary>Incremented whenever all access tokens must be invalidated.</summary>
     public int TokenVersion { get; set; }

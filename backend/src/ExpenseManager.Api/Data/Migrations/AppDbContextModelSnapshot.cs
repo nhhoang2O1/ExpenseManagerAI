@@ -734,6 +734,12 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("password_hash");
 
+                    b.Property<bool>("IsEmailVerified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_email_verified");
+
                     b.Property<int>("TokenVersion")
                         .HasColumnType("integer")
                         .HasColumnName("token_version");

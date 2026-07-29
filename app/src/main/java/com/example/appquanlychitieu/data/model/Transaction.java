@@ -15,6 +15,7 @@ public class Transaction {
     private String remoteStoreName;
     private String remoteCategoryColor;
     private String remoteCategoryIcon;
+    private String remoteReceiptId;
     private long version = 1L;
 
     public Transaction() {}
@@ -66,6 +67,8 @@ public class Transaction {
 
     public String getRemoteCategoryIcon() { return remoteCategoryIcon; }
     public void setRemoteCategoryIcon(String remoteCategoryIcon) { this.remoteCategoryIcon = remoteCategoryIcon; }
+    public String getRemoteReceiptId() { return remoteReceiptId; }
+    public void setRemoteReceiptId(String remoteReceiptId) { this.remoteReceiptId = remoteReceiptId; }
     public long getVersion() { return version; }
     public void setVersion(long version) { this.version = version; }
 }

@@ -17,6 +17,7 @@ public class ReceiptDto {
     public List<String> warnings;
     public String rawText;
     public String modelVersion;
+    public List<OcrLineDto> lines;
     public int processingAttempts;
     public String nextRetryAt;
     public String lastError;

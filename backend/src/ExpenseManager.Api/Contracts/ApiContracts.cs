@@ -12,6 +12,10 @@ public sealed record LoginRequest(
     [Required, EmailAddress, StringLength(320)] string Email,
     [Required] string Password);
 
+public sealed record RegistrationConfirmationRequest(
+    [Required, EmailAddress, StringLength(320)] string Email,
+    [Required, RegularExpression("^[0-9]{6}$")] string Code);
+
 public sealed record UserResponse(Guid Id, string Name, string Email);
 /// <summary>
 /// Base login/register response retained for older clients. The new
@@ -79,6 +83,7 @@ public sealed record ReceiptResponse(
     IReadOnlyList<string> Warnings,
     string? RawText,
     string? ModelVersion,
+    IReadOnlyList<OcrLineResponse>? Lines = null,
     int ProcessingAttempts = 0,
     DateTime? NextRetryAt = null,
     string? LastError = null,
@@ -89,6 +94,8 @@ public sealed record ReceiptResponse(
     string? SuggestedCategoryName = null,
     decimal? CategoryConfidence = null,
     string? CategoryReason = null);
+
+public sealed record OcrLineResponse(string Text);
 
 public sealed record ConfirmReceiptRequest(
     [Required, StringLength(200)] string StoreName,

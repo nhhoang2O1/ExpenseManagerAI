@@ -16,6 +16,7 @@ public class TransactionDto {
     public String categoryName;
     public String categoryColor;
     public String categoryIcon;
+    public String receiptId;
     public CategoryDto category;
     public long version = 1L;
 

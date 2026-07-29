@@ -68,6 +68,8 @@ public sealed class HmacAuthSecretHasher : IAuthSecretHasher
 
 public interface IAccountCodeSender
 {
+    Task SendRegistrationCodeAsync(string email, string code, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
     Task SendPasswordResetCodeAsync(
         string email,
         string code,
@@ -89,6 +91,9 @@ public sealed class SmtpAccountCodeSender(
     IHostEnvironment environment,
     ILogger<SmtpAccountCodeSender> logger) : IAccountCodeSender
 {
+    public Task SendRegistrationCodeAsync(string email, string code, CancellationToken cancellationToken) =>
+        SendAsync(email, "Xac thuc tai khoan", $"Ma xac thuc tai khoan Expense Manager cua ban la {code}. Ma co hieu luc trong 10 phut.", code, cancellationToken);
+
     public Task SendPasswordResetCodeAsync(
         string email,
         string code,

@@ -13,6 +13,7 @@ import com.example.appquanlychitieu.data.remote.dto.LogoutRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ForgotPasswordRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ResetPasswordRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.RegisterRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.RegistrationConfirmationRequestDto;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -33,8 +34,12 @@ public class AuthRepository {
             String name,
             String email,
             String password,
-            RemoteCallback<AuthResponseDto> callback) {
-        enqueue(apiService.register(new RegisterRequestDto(name, email, password)), callback);
+            RemoteCallback<Void> callback) {
+        enqueueVoid(apiService.register(new RegisterRequestDto(name, email, password)), callback);
+    }
+
+    public void confirmRegistration(String email, String code, RemoteCallback<AuthResponseDto> callback) {
+        enqueue(apiService.confirmRegistration(new RegistrationConfirmationRequestDto(email, code)), callback);
     }
 
     public void logout(String refreshToken) {

@@ -2,6 +2,7 @@ namespace ExpenseManager.Api.Domain;
 
 public enum AccountCodePurpose
 {
+    REGISTRATION,
     PASSWORD_RESET,
     EMAIL_CHANGE
 }

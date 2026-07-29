@@ -71,6 +71,7 @@ public static class Mappings
         var warnings = result is null
             ? []
             : JsonSerializer.Deserialize<List<string>>(result.WarningsJson) ?? [];
+        var lines = result is null ? [] : ReadOcrLines(result.LinesJson);
 
         return new ReceiptResponse(
             receipt.Id,
@@ -84,11 +85,29 @@ public static class Mappings
             warnings,
             result?.RawText,
             result?.ModelVersion,
+            lines,
             receipt.ProcessingAttempts,
             receipt.NextRetryAt,
             receipt.LastError,
             receipt.CreatedAt,
             receipt.UpdatedAt,
             receipt.Version);
+    }
+
+    private static IReadOnlyList<OcrLineResponse> ReadOcrLines(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.EnumerateArray()
+                .Where(x => x.TryGetProperty("text", out _))
+                .Select(x => new OcrLineResponse(x.GetProperty("text").GetString() ?? string.Empty))
+                .Where(x => !string.IsNullOrWhiteSpace(x.Text))
+                .ToList();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 }

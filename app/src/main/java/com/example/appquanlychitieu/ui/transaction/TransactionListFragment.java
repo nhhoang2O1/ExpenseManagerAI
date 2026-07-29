@@ -147,6 +147,10 @@ public class TransactionListFragment extends Fragment {
     }
 
     private void openTransaction(Transaction transaction) {
+        OcrReceiptDetails.show(requireContext(), transaction);
+    }
+
+    private void editTransaction(Transaction transaction) {
         Intent intent = new Intent(requireContext(), AddEditTransactionActivity.class);
         intent.putExtra(AddEditTransactionActivity.EXTRA_REMOTE_TRANSACTION_ID, transaction.getRemoteId());
         intent.putExtra(AddEditTransactionActivity.EXTRA_REMOTE_CATEGORY_ID, transaction.getRemoteCategoryId());
