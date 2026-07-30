@@ -24,18 +24,23 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     {
         modelBuilder.Entity<User>(entity =>
         {
+            entity.ToTable(table =>
+                table.HasCheckConstraint("ck_users_email_lowercase", "email = lower(email)"));
             entity.HasIndex(x => x.Email).IsUnique();
             entity.Property(x => x.Name).HasMaxLength(100);
             entity.Property(x => x.Email).HasMaxLength(320);
             entity.Property(x => x.PasswordHash).HasMaxLength(500);
-            entity.Property(x => x.IsEmailVerified).HasDefaultValue(true);
-            entity.HasIndex(x => x.TokenVersion);
+            entity.Property(x => x.IsEmailVerified).HasDefaultValue(false);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
         });
 
         modelBuilder.Entity<Category>(entity =>
         {
+            entity.ToTable(table =>
+                table.HasCheckConstraint("ck_categories_type", "type IN ('INCOME', 'EXPENSE')"));
             entity.HasIndex(x => new { x.UserId, x.Name, x.Type }).IsUnique();
+            entity.HasAlternateKey(x => new { x.Id, x.UserId });
+            entity.HasAlternateKey(x => new { x.Id, x.UserId, x.Type });
             entity.Property(x => x.Name).HasMaxLength(100);
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Color).HasMaxLength(20);
@@ -47,10 +52,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.Entity<Transaction>(entity =>
         {
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("ck_transactions_amount_positive", "amount > 0");
+                table.HasCheckConstraint("ck_transactions_type", "type IN ('INCOME', 'EXPENSE')");
+            });
             entity.HasIndex(x => x.ReceiptId).IsUnique();
-            entity.HasIndex(x => new { x.UserId, x.TransactionDate });
             entity.HasIndex(x => new { x.UserId, x.TransactionDate, x.CreatedAt, x.Id });
-            entity.Property(x => x.Amount).HasColumnType("numeric(18,0)");
+            entity.Property(x => x.Amount).HasColumnType("bigint");
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Note).HasMaxLength(1000);
             entity.Property(x => x.StoreName).HasMaxLength(200);
@@ -58,29 +67,42 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasOne(x => x.User).WithMany(x => x.Transactions)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Category).WithMany(x => x.Transactions)
-                .HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+                .HasForeignKey(x => new { x.CategoryId, x.UserId, x.Type })
+                .HasPrincipalKey(x => new { x.Id, x.UserId, x.Type })
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Receipt).WithOne(x => x.Transaction)
-                .HasForeignKey<Transaction>(x => x.ReceiptId).OnDelete(DeleteBehavior.SetNull);
+                .HasForeignKey<Transaction>(x => new { x.ReceiptId, x.UserId })
+                .HasPrincipalKey<Receipt>(x => new { x.Id, x.UserId })
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<Budget>(entity =>
         {
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("ck_budgets_amount_positive", "amount > 0");
+                table.HasCheckConstraint("ck_budgets_month_year", "month_year ~ '^\\d{4}-(0[1-9]|1[0-2])$'");
+            });
             entity.HasIndex(x => new { x.UserId, x.CategoryId, x.MonthYear }).IsUnique();
-            entity.Property(x => x.Amount).HasColumnType("numeric(18,0)");
+            entity.Property(x => x.Amount).HasColumnType("bigint");
             entity.Property(x => x.MonthYear).HasMaxLength(7);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Budgets)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Category).WithMany(x => x.Budgets)
-                .HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+                .HasForeignKey(x => new { x.CategoryId, x.UserId })
+                .HasPrincipalKey(x => new { x.Id, x.UserId })
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Goal>(entity =>
         {
+            entity.ToTable(table =>
+                table.HasCheckConstraint("ck_goals_amounts", "target_amount > 0 AND current_amount >= 0 AND current_amount <= target_amount"));
             entity.HasIndex(x => new { x.UserId, x.Name });
             entity.Property(x => x.Name).HasMaxLength(200);
-            entity.Property(x => x.TargetAmount).HasColumnType("numeric(18,0)");
-            entity.Property(x => x.CurrentAmount).HasColumnType("numeric(18,0)");
+            entity.Property(x => x.TargetAmount).HasColumnType("bigint");
+            entity.Property(x => x.CurrentAmount).HasColumnType("bigint");
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Goals)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
@@ -88,16 +110,20 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.Entity<GoalHistory>(entity =>
         {
+            entity.ToTable(table =>
+                table.HasCheckConstraint("ck_goal_histories_amounts", "amount_added > 0 AND (requested_amount IS NULL OR requested_amount > 0) AND (balance_after IS NULL OR balance_after >= 0)"));
             entity.HasIndex(x => new { x.GoalId, x.Date });
-            entity.Property(x => x.AmountAdded).HasColumnType("numeric(18,0)");
-            entity.Property(x => x.RequestedAmount).HasColumnType("numeric(18,0)");
-            entity.Property(x => x.BalanceAfter).HasColumnType("numeric(18,0)");
+            entity.Property(x => x.AmountAdded).HasColumnType("bigint");
+            entity.Property(x => x.RequestedAmount).HasColumnType("bigint");
+            entity.Property(x => x.BalanceAfter).HasColumnType("bigint");
             entity.HasOne(x => x.Goal).WithMany(x => x.History)
                 .HasForeignKey(x => x.GoalId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Reminder>(entity =>
         {
+            entity.ToTable(table =>
+                table.HasCheckConstraint("ck_reminders_schedule", "day_of_month BETWEEN 1 AND 31 AND hour BETWEEN 0 AND 23 AND minute BETWEEN 0 AND 59"));
             entity.HasIndex(x => x.UserId);
             entity.Property(x => x.Content).HasMaxLength(500);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
@@ -107,6 +133,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.Entity<Receipt>(entity =>
         {
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("ck_receipts_file_size_positive", "file_size > 0");
+                table.HasCheckConstraint("ck_receipts_processing_attempts", "processing_attempts >= 0");
+            });
+            entity.HasAlternateKey(x => new { x.Id, x.UserId });
             entity.HasIndex(x => new { x.UserId, x.CreatedAt });
             entity.Property(x => x.OriginalFileName).HasMaxLength(255);
             entity.Property(x => x.ContentType).HasMaxLength(100);
@@ -131,13 +163,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.Entity<OcrResult>(entity =>
         {
+            entity.ToTable(table =>
+                table.HasCheckConstraint("ck_ocr_results_amounts_and_confidence", "overall_confidence BETWEEN 0 AND 1 AND (total_amount IS NULL OR total_amount > 0) AND (vat_amount IS NULL OR vat_amount >= 0) AND (total_amount IS NULL OR vat_amount IS NULL OR vat_amount <= total_amount)"));
             entity.HasIndex(x => x.ReceiptId).IsUnique();
             entity.Property(x => x.LinesJson).HasColumnType("jsonb");
             entity.Property(x => x.WarningsJson).HasColumnType("jsonb");
             entity.Property(x => x.StoreName).HasMaxLength(200);
             entity.Property(x => x.OverallConfidence).HasPrecision(8, 6);
-            entity.Property(x => x.TotalAmount).HasColumnType("numeric(18,0)");
-            entity.Property(x => x.VatAmount).HasColumnType("numeric(18,0)");
+            entity.Property(x => x.TotalAmount).HasColumnType("bigint");
+            entity.Property(x => x.VatAmount).HasColumnType("bigint");
             entity.Property(x => x.ModelVersion).HasMaxLength(100);
             entity.Property(x => x.ParserVersion).HasMaxLength(100);
             entity.HasOne(x => x.Receipt).WithOne(x => x.OcrResult)
@@ -233,7 +267,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             foreach (var property in entity.GetProperties())
                 property.SetColumnName(ToSnakeCase(property.Name));
             foreach (var key in entity.GetKeys())
-                key.SetName($"pk_{entity.GetTableName()}");
+            {
+                var columns = string.Join('_', key.Properties.Select(x => ToSnakeCase(x.Name)));
+                key.SetName(key.IsPrimaryKey()
+                    ? $"pk_{entity.GetTableName()}"
+                    : $"ak_{entity.GetTableName()}_{columns}");
+            }
             foreach (var index in entity.GetIndexes())
                 index.SetDatabaseName($"ix_{entity.GetTableName()}_{string.Join('_', index.Properties.Select(x => ToSnakeCase(x.Name)))}");
             foreach (var foreignKey in entity.GetForeignKeys())
