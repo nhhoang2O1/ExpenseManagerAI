@@ -16,6 +16,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Goal;
+import com.example.appquanlychitieu.data.remote.ApiError;
+import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.ui.planning.PlanningFragment;
 import com.example.appquanlychitieu.util.NumberTextWatcher;
@@ -102,8 +104,10 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
                         amountLayout.setError(getString(R.string.amount_must_be_positive));
                         return;
                     }
-                    viewModel.insertGoal(new Goal(goalName, target, 0L, viewModel.getUserId()));
-                    dialog.dismiss();
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                    viewModel.insertGoal(
+                            new Goal(goalName, target, 0L, viewModel.getUserId()),
+                            dialogCallback(dialog, amountLayout));
                 }));
         dialog.show();
     }
@@ -130,8 +134,8 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
                         amountLayout.setError(getString(R.string.amount_must_be_positive));
                         return;
                     }
-                    viewModel.addFunds(goal, value);
-                    dialog.dismiss();
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                    viewModel.addFunds(goal, value, dialogCallback(dialog, amountLayout));
                 }));
         dialog.show();
     }
@@ -173,10 +177,9 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
                         amountLayout.setError(getString(R.string.amount_must_be_positive));
                         return;
                     }
-                    goal.setName(goalName);
-                    goal.setTargetAmount(target);
-                    viewModel.updateGoal(goal);
-                    dialog.dismiss();
+                    Goal update = copyForUpdate(goal, goalName, target);
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                    viewModel.updateGoal(update, dialogCallback(dialog, amountLayout));
                 }));
         dialog.show();
     }
@@ -198,5 +201,29 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
     private long parseAmount(TextInputEditText input) {
         try { return Long.parseLong(text(input).replace(".", "").replace(",", "")); }
         catch (RuntimeException ignored) { return 0L; }
+    }
+
+    private Goal copyForUpdate(Goal source, String name, long target) {
+        Goal update = new Goal(name, target, source.getCurrentAmount(), source.getUserId());
+        update.setId(source.getId());
+        update.setRemoteId(source.getRemoteId());
+        update.setVersion(source.getVersion());
+        return update;
+    }
+
+    private RemoteCallback<Goal> dialogCallback(
+            AlertDialog dialog,
+            TextInputLayout errorLayout) {
+        return new RemoteCallback<Goal>() {
+            @Override public void onSuccess(Goal value) {
+                if (dialog.isShowing()) dialog.dismiss();
+            }
+
+            @Override public void onError(ApiError error) {
+                if (!dialog.isShowing()) return;
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                errorLayout.setError(error.getMessage());
+            }
+        };
     }
 }

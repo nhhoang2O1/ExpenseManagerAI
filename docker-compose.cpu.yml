@@ -1,0 +1,10 @@
+services:
+  ocr-service:
+    image: expense-manager-ocr-cpu:local
+    build:
+      context: ./ocr-service
+      dockerfile: Dockerfile
+    gpus: !reset []
+    environment:
+      OCR_DEVICE: cpu
+      PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: "False"

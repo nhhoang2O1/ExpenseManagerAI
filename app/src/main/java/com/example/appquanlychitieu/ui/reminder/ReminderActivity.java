@@ -1,6 +1,5 @@
 package com.example.appquanlychitieu.ui.reminder;
 
-import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.app.TimePickerDialog;
 import android.content.pm.PackageManager;
@@ -29,6 +28,8 @@ import com.example.appquanlychitieu.util.SessionManager;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.snackbar.Snackbar;
+
+import java.util.Locale;
 
 public class ReminderActivity extends AppCompatActivity {
     private static final int NOTIFICATION_PERMISSION_CODE = 1001;
@@ -109,7 +110,7 @@ public class ReminderActivity extends AppCompatActivity {
                     public void onError(ApiError error) {
                         reminder.setActive(previous);
                         runOnUiThread(() -> {
-                            adapter.notifyDataSetChanged();
+                            adapter.notifyReminderChanged(reminder);
                             Toast.makeText(ReminderActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
                         });
                     }
@@ -161,7 +162,6 @@ public class ReminderActivity extends AppCompatActivity {
         }
     }
 
-    @SuppressLint("DefaultLocale")
     private void showAddEditDialog(Reminder reminder) {
         Dialog dialog = new BottomSheetDialog(this);
         dialog.setContentView(R.layout.dialog_add_reminder);
@@ -190,13 +190,15 @@ public class ReminderActivity extends AppCompatActivity {
             selectedMinute = 0;
         }
 
-        tvSelectedTime.setText(String.format("%02d:%02d", selectedHour, selectedMinute));
+        tvSelectedTime.setText(String.format(Locale.ROOT,
+                "%02d:%02d", selectedHour, selectedMinute));
         tvSelectedTime.setOnClickListener(v -> new TimePickerDialog(
                 this,
                 (view, hourOfDay, minute) -> {
                     selectedHour = hourOfDay;
                     selectedMinute = minute;
-                    tvSelectedTime.setText(String.format("%02d:%02d", selectedHour, selectedMinute));
+                    tvSelectedTime.setText(String.format(Locale.ROOT,
+                            "%02d:%02d", selectedHour, selectedMinute));
                 },
                 selectedHour,
                 selectedMinute,

@@ -17,6 +17,7 @@ import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -85,7 +86,7 @@ public class RemoteStatisticsRepository {
                     for (JsonElement item : resolveArray(response.body())) {
                         MonthlyStatisticDto dto = gson.fromJson(item, MonthlyStatisticDto.class);
                         MonthlySummary summary = new MonthlySummary();
-                        summary.setMonthYear(String.format("%04d-%02d", dto.year, dto.month));
+                        summary.setMonthYear(String.format(Locale.ROOT, "%04d-%02d", dto.year, dto.month));
                         summary.setTotalIncome(amount(dto.income));
                         summary.setTotalExpense(amount(dto.expense));
                         summaries.add(summary);

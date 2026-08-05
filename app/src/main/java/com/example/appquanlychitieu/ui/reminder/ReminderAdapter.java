@@ -1,12 +1,12 @@
 package com.example.appquanlychitieu.ui.reminder;
 
-import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
@@ -32,10 +32,39 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.Remind
         this.listener = listener;
     }
 
-    @SuppressLint("NotifyDataSetChanged")
     public void setReminders(List<Reminder> reminders) {
-        this.reminders = reminders;
-        notifyDataSetChanged();
+        List<Reminder> next = reminders == null ? new ArrayList<>() : new ArrayList<>(reminders);
+        List<Reminder> previous = this.reminders;
+        DiffUtil.DiffResult result = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override public int getOldListSize() { return previous.size(); }
+            @Override public int getNewListSize() { return next.size(); }
+            @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
+                Reminder oldItem = previous.get(oldPosition);
+                Reminder newItem = next.get(newPosition);
+                if (oldItem.getRemoteId() != null || newItem.getRemoteId() != null) {
+                    return java.util.Objects.equals(oldItem.getRemoteId(), newItem.getRemoteId());
+                }
+                return oldItem.getId() == newItem.getId();
+            }
+            @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
+                Reminder oldItem = previous.get(oldPosition);
+                Reminder newItem = next.get(newPosition);
+                return oldItem.getDayOfMonth() == newItem.getDayOfMonth()
+                        && oldItem.getHour() == newItem.getHour()
+                        && oldItem.getMinute() == newItem.getMinute()
+                        && oldItem.getUserId() == newItem.getUserId()
+                        && oldItem.isActive() == newItem.isActive()
+                        && oldItem.getVersion() == newItem.getVersion()
+                        && java.util.Objects.equals(oldItem.getContent(), newItem.getContent());
+            }
+        });
+        this.reminders = next;
+        result.dispatchUpdatesTo(this);
+    }
+
+    public void notifyReminderChanged(Reminder reminder) {
+        int position = reminders.indexOf(reminder);
+        if (position >= 0) notifyItemChanged(position);
     }
 
     @NonNull
@@ -100,7 +129,6 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.Remind
             });
         }
 
-        @SuppressLint("SetTextI18n")
         public void bind(Reminder reminder) {
             tvContent.setText(reminder.getContent());
             String timeText = itemView.getContext().getString(

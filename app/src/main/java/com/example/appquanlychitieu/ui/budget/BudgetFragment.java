@@ -34,6 +34,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 public class BudgetFragment extends Fragment {
     private BudgetViewModel viewModel;
@@ -183,7 +184,7 @@ public class BudgetFragment extends Fragment {
                     }
                     int[] month = viewModel.getSelectedMonthYear().getValue();
                     if (month == null) return;
-                    String key = String.format("%04d-%02d", month[0], month[1] + 1);
+                    String key = String.format(Locale.ROOT, "%04d-%02d", month[0], month[1] + 1);
                     Budget budget = new Budget(selected[0].id.hashCode(), value, key, viewModel.getUserId());
                     budget.setRemoteCategoryId(selected[0].id);
                     budget.setRemoteCategoryName(selected[0].name);

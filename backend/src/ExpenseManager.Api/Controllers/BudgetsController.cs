@@ -24,7 +24,7 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
 
         if (!string.IsNullOrWhiteSpace(monthYear))
         {
-            if (!IsMonthYear(monthYear))
+            if (!BudgetRules.IsValidMonthYear(monthYear))
                 return BadRequest(new { message = "monthYear phai co dinh dang yyyy-MM." });
             query = query.Where(x => x.MonthYear == monthYear);
         }
@@ -42,14 +42,14 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
         BudgetRequest request,
         CancellationToken cancellationToken)
     {
-        if (!IsMonthYear(request.MonthYear))
+        if (!BudgetRules.IsValidMonthYear(request.MonthYear))
             return BadRequest(new { message = "monthYear phai co dinh dang yyyy-MM." });
 
         await using var databaseTransaction =
             await FinanceDatabaseLocks.BeginIfPostgresAsync(db, cancellationToken);
         var category = await FinanceDatabaseLocks.GetOwnedCategoryForReferenceAsync(
             db, request.CategoryId, userContext.UserId, cancellationToken);
-        if (category is null || category.Type != TransactionType.EXPENSE)
+        if (category is null || !BudgetRules.CanUseCategory(category.Type))
             return BadRequest(new { message = "Danh muc chi tieu khong hop le." });
 
         var budget = await db.Budgets.Include(x => x.Category).SingleOrDefaultAsync(
@@ -108,7 +108,7 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
         BudgetRequest request,
         CancellationToken cancellationToken)
     {
-        if (!IsMonthYear(request.MonthYear))
+        if (!BudgetRules.IsValidMonthYear(request.MonthYear))
             return BadRequest(new { message = "monthYear phai co dinh dang yyyy-MM." });
 
         await using var databaseTransaction =
@@ -122,7 +122,7 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
 
         var category = await FinanceDatabaseLocks.GetOwnedCategoryForReferenceAsync(
             db, request.CategoryId, userContext.UserId, cancellationToken);
-        if (category is null || category.Type != TransactionType.EXPENSE)
+        if (category is null || !BudgetRules.CanUseCategory(category.Type))
             return BadRequest(new { message = "Danh muc chi tieu khong hop le." });
 
         var duplicate = await db.Budgets.AnyAsync(
@@ -178,10 +178,4 @@ public sealed class BudgetsController(AppDbContext db, IUserContext userContext)
         return NoContent();
     }
 
-    private static bool IsMonthYear(string value) =>
-        value.Length == 7 &&
-        value[4] == '-' &&
-        int.TryParse(value[..4], out _) &&
-        int.TryParse(value[5..], out var month) &&
-        month is >= 1 and <= 12;
 }

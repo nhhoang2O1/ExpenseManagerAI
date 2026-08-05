@@ -58,6 +58,7 @@ class PaddleOCREngine:
 
                 options: dict[str, Any] = {
                     "lang": self.settings.language,
+                    "device": self.settings.device,
                     "use_doc_orientation_classify": (
                         self.settings.use_doc_orientation_classify
                     ),

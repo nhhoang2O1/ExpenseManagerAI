@@ -109,9 +109,11 @@ public class HomeFragment extends Fragment {
         viewModel.getBalance().observe(getViewLifecycleOwner(), value ->
                 balance.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getDailyIncome().observe(getViewLifecycleOwner(), value ->
-                dailyIncome.setText("+ " + CurrencyFormatter.format(value == null ? 0L : value)));
+                dailyIncome.setText(getString(R.string.positive_amount,
+                        CurrencyFormatter.format(value == null ? 0L : value))));
         viewModel.getDailyExpense().observe(getViewLifecycleOwner(), value ->
-                dailyExpense.setText("- " + CurrencyFormatter.format(value == null ? 0L : value)));
+                dailyExpense.setText(getString(R.string.negative_amount,
+                        CurrencyFormatter.format(value == null ? 0L : value))));
         viewModel.getSelectedDate().observe(getViewLifecycleOwner(), value ->
                 dailyDate.setText(DateUtils.formatDate(value == null ? System.currentTimeMillis() : value)));
         viewModel.getRecentTransactions().observe(getViewLifecycleOwner(), adapter::setTransactions);
@@ -146,7 +148,7 @@ public class HomeFragment extends Fragment {
     }
 
     private void openTransaction(Transaction transaction) {
-        OcrReceiptDetails.show(requireContext(), transaction);
+        OcrReceiptDetails.show(requireContext(), transaction, () -> editTransaction(transaction));
     }
 
     private void editTransaction(Transaction transaction) {

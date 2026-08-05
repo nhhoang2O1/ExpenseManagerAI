@@ -13,6 +13,7 @@ import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
+import com.example.appquanlychitieu.ui.common.LatestRequest;
 import com.example.appquanlychitieu.util.DateUtils;
 import com.example.appquanlychitieu.util.SessionManager;
 
@@ -35,6 +36,7 @@ public class StatisticsViewModel extends AndroidViewModel {
     private final MutableLiveData<String> remoteError = new MutableLiveData<>();
     private boolean categoryLoaded;
     private boolean monthlyLoaded;
+    private final LatestRequest requests = new LatestRequest();
 
     public StatisticsViewModel(@NonNull Application application) {
         super(application);
@@ -74,27 +76,32 @@ public class StatisticsViewModel extends AndroidViewModel {
         if (month == null) return;
         categoryLoaded = false;
         monthlyLoaded = false;
+        final int generation = requests.begin();
         loadState.setValue(LoadState.LOADING);
         String from = toIsoDate(DateUtils.getStartOfMonth(month[0], month[1]));
         String to = toIsoDate(DateUtils.getEndOfMonth(month[0], month[1]));
         repository.getCategorySummary(from, to, new RemoteCallback<List<CategorySummary>>() {
             @Override public void onSuccess(List<CategorySummary> value) {
+                if (!requests.isCurrent(generation)) return;
                 categoryLoaded = true;
                 categorySummary.setValue(value == null ? new ArrayList<>() : value);
                 finishLoad();
             }
             @Override public void onError(ApiError error) {
+                if (!requests.isCurrent(generation)) return;
                 remoteError.setValue(error.getMessage());
                 loadState.setValue(LoadState.ERROR);
             }
         });
         repository.getMonthlySummary(month[0], new RemoteCallback<List<MonthlySummary>>() {
             @Override public void onSuccess(List<MonthlySummary> value) {
+                if (!requests.isCurrent(generation)) return;
                 monthlyLoaded = true;
                 monthlySummary.setValue(value == null ? new ArrayList<>() : value);
                 finishLoad();
             }
             @Override public void onError(ApiError error) {
+                if (!requests.isCurrent(generation)) return;
                 remoteError.setValue(error.getMessage());
                 loadState.setValue(LoadState.ERROR);
             }

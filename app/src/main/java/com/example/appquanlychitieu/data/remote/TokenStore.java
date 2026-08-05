@@ -1,5 +1,6 @@
 package com.example.appquanlychitieu.data.remote;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 
@@ -9,6 +10,7 @@ import androidx.security.crypto.MasterKey;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
+@SuppressLint("ApplySharedPref") // Authentication state must be durable before requests continue.
 public class TokenStore {
     private static final String PREF_NAME = "secure_backend_session";
     private static final String KEY_ACCESS_TOKEN = "jwt_access_token";

@@ -32,6 +32,7 @@ import com.google.android.material.snackbar.Snackbar;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 public class StatisticsFragment extends Fragment {
     private StatisticsViewModel viewModel;
@@ -126,8 +127,9 @@ public class StatisticsFragment extends Fragment {
             View item = LayoutInflater.from(requireContext()).inflate(
                     R.layout.item_category_summary, categoryList, false);
             ((TextView) item.findViewById(R.id.tv_category_name)).setText(summary.getCategoryName());
-            ((TextView) item.findViewById(R.id.tv_transaction_count)).setText(getString(
-                    R.string.transactions_count, summary.getTransactionCount()));
+            int count = summary.getTransactionCount();
+            ((TextView) item.findViewById(R.id.tv_transaction_count)).setText(
+                    getResources().getQuantityString(R.plurals.transactions_count, count, count));
             ((TextView) item.findViewById(R.id.tv_amount)).setText(
                     CurrencyFormatter.format(summary.getTotalAmount()));
             View dot = item.findViewById(R.id.view_color);
@@ -163,10 +165,10 @@ public class StatisticsFragment extends Fragment {
                 calendar.set(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]) - 1, 1);
                 month.setText(DateUtils.formatDisplayMonth(calendar.getTimeInMillis()));
             } catch (RuntimeException ignored) { month.setText(summary.getMonthYear()); }
-            ((TextView) item.findViewById(R.id.tv_income)).setText(
-                    "+ " + CurrencyFormatter.format(summary.getTotalIncome()));
-            ((TextView) item.findViewById(R.id.tv_expense)).setText(
-                    "- " + CurrencyFormatter.format(summary.getTotalExpense()));
+            ((TextView) item.findViewById(R.id.tv_income)).setText(getString(
+                    R.string.positive_amount, CurrencyFormatter.format(summary.getTotalIncome())));
+            ((TextView) item.findViewById(R.id.tv_expense)).setText(getString(
+                    R.string.negative_amount, CurrencyFormatter.format(summary.getTotalExpense())));
             TextView itemBalance = item.findViewById(R.id.tv_balance);
             itemBalance.setText(CurrencyFormatter.format(summary.getBalance()));
             itemBalance.setTextColor(requireContext().getColor(summary.getBalance() >= 0
@@ -177,7 +179,7 @@ public class StatisticsFragment extends Fragment {
 
     private void updateKpis(List<MonthlySummary> summaries) {
         MonthlySummary selected = null;
-        String key = String.format("%04d-%02d", selectedYear, selectedMonth + 1);
+        String key = String.format(Locale.ROOT, "%04d-%02d", selectedYear, selectedMonth + 1);
         if (summaries != null) {
             for (MonthlySummary summary : summaries) {
                 if (key.equals(summary.getMonthYear())) { selected = summary; break; }

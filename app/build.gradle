@@ -49,6 +49,11 @@ android {
         viewBinding true
         buildConfig true
     }
+    lint {
+        // Dependency upgrades are reviewed separately from code-quality lint because
+        // major AGP/library changes require their own migration and regression pass.
+        disable 'AndroidGradlePluginVersion', 'GradleDependency'
+    }
 }
 
 dependencies {

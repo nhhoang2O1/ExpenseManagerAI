@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,9 +14,10 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "receipt-ocr-service"
-    model_version: str = "paddleocr-v3-vi-pretrained"
+    model_version: str = "paddleocr-v6-medium-vi"
     parser_version: str = "receipt-parser-v1"
     language: str = "vi"
+    device: Literal["cpu", "gpu"] = "cpu"
     recognition_model_dir: Path | None = None
     preload_model: bool = False
     use_doc_orientation_classify: bool = True

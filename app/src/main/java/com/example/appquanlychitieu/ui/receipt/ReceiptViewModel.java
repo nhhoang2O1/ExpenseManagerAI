@@ -48,6 +48,7 @@ public class ReceiptViewModel extends AndroidViewModel {
     private int pollAttempts;
     private Runnable pendingPoll;
     private long operationToken;
+    private long canceledUploadToken = -1L;
     @Nullable private String receiptId;
     @Nullable private String imageUri;
     @Nullable private String idempotencyKey;
@@ -108,9 +109,13 @@ public class ReceiptViewModel extends AndroidViewModel {
             @Override
             public void onSuccess(ReceiptDto receipt) {
                 if (token != operationToken) {
-                    // The user cancelled while the multipart request was in
-                    // flight. If the server accepted it, clean up the orphan.
-                    deleteLateReceipt(receipt);
+                    // Only an explicit cancel may clean up an upload accepted
+                    // after the UI moved on. Lifecycle changes must leave the
+                    // durable draft and remote receipt recoverable.
+                    if (ReceiptCallbackPolicy.shouldDeleteLateUpload(
+                            token, operationToken, canceledUploadToken)) {
+                        deleteLateReceipt(receipt);
+                    }
                     return;
                 }
                 if (receipt == null || receipt.id == null) {
@@ -187,6 +192,10 @@ public class ReceiptViewModel extends AndroidViewModel {
      */
     public void deleteAndReset(@Nullable RemoteCallback<Void> callback) {
         cancelPolling();
+        UiState stateBeforeCancel = state.getValue();
+        if (stateBeforeCancel != null && stateBeforeCancel.phase == Phase.UPLOADING) {
+            canceledUploadToken = operationToken;
+        }
         long token = ++operationToken;
         String id = receiptId;
         if (id == null) {
@@ -244,10 +253,9 @@ public class ReceiptViewModel extends AndroidViewModel {
         return new RemoteCallback<ReceiptDto>() {
             @Override
             public void onSuccess(ReceiptDto receipt) {
-                if (token != operationToken) {
-                    deleteLateReceipt(receipt);
-                    return;
-                }
+                // Process/retry/poll responses are read-side observations.
+                // A stale observation must never mutate server state.
+                if (token != operationToken) return;
                 handleReceipt(receipt, token);
             }
 
@@ -352,7 +360,10 @@ public class ReceiptViewModel extends AndroidViewModel {
                 @Override
                 public void onSuccess(ReceiptDto receipt) {
                     if (token != operationToken) {
-                        deleteLateReceipt(receipt);
+                        if (ReceiptCallbackPolicy.shouldDeleteLateUpload(
+                                token, operationToken, canceledUploadToken)) {
+                            deleteLateReceipt(receipt);
+                        }
                         return;
                     }
                     if (receipt == null || receipt.id == null) {

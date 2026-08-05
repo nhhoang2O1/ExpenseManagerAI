@@ -43,6 +43,25 @@ public final class CategoryVisualResolver {
         return parseColor(rawColor, fallback(categoryId));
     }
 
+    public static int resolveIcon(String rawIcon) {
+        if (rawIcon == null) return R.drawable.ic_other;
+        switch (rawIcon.trim().toLowerCase(Locale.ROOT)) {
+            case "ic_food": return R.drawable.ic_food;
+            case "ic_transport": return R.drawable.ic_transport;
+            case "ic_shopping": return R.drawable.ic_shopping;
+            case "ic_house": return R.drawable.ic_house;
+            case "ic_entertainment": return R.drawable.ic_entertainment;
+            case "ic_health": return R.drawable.ic_health;
+            case "ic_education": return R.drawable.ic_education;
+            case "ic_bill": return R.drawable.ic_bill;
+            case "ic_salary": return R.drawable.ic_salary;
+            case "ic_gift": return R.drawable.ic_gift;
+            case "ic_invest": return R.drawable.ic_invest;
+            case "ic_freelance": return R.drawable.ic_freelance;
+            default: return R.drawable.ic_other;
+        }
+    }
+
     private static int parseColor(String rawColor, int fallback) {
         if (rawColor == null) return fallback;
         String value = rawColor.trim().toUpperCase(Locale.ROOT);

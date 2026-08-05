@@ -22,18 +22,22 @@ services:
       start_period: 10s
 
   ocr-service:
+    image: expense-manager-ocr-gpu:local
     build:
       context: ./ocr-service
+      dockerfile: Dockerfile.gpu
+    gpus: all
     restart: unless-stopped
     expose:
       - "8000"
     environment:
       OCR_HOST: 0.0.0.0
       OCR_PORT: "8000"
+      OCR_DEVICE: gpu
       OCR_PRELOAD_MODEL: "true"
       OCR_USE_DOC_ORIENTATION_CLASSIFY: "true"
-      OCR_USE_DOC_UNWARPING: "false"
-      OCR_USE_TEXTLINE_ORIENTATION: "false"
+      OCR_USE_DOC_UNWARPING: "true"
+      OCR_USE_TEXTLINE_ORIENTATION: "true"
       OCR_MAX_IMAGE_SIDE: "1600"
     healthcheck:
       test:

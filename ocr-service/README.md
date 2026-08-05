@@ -50,7 +50,8 @@ All settings use the `OCR_` environment prefix.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `OCR_LANGUAGE` | `vi` | PaddleOCR language |
-| `OCR_MODEL_VERSION` | `paddleocr-v3-vi-pretrained` | Response model metadata |
+| `OCR_DEVICE` | `cpu` | PaddleOCR runtime device (`cpu` or `gpu`) |
+| `OCR_MODEL_VERSION` | `paddleocr-v6-medium-vi` | Response model metadata |
 | `OCR_PARSER_VERSION` | `receipt-parser-v1` | Response parser metadata |
 | `OCR_RECOGNITION_MODEL_DIR` | unset | Local Paddle recognition inference model |
 | `OCR_PRELOAD_MODEL` | `false` | Load model during FastAPI startup |
@@ -67,18 +68,21 @@ Detection remains pretrained unless the service is extended separately.
 
 ## Docker
 
-Image mặc định chạy bằng CPU và không yêu cầu NVIDIA runtime:
+Trong stack đầy đủ, image mặc định là CUDA 12.6/Paddle GPU và yêu cầu NVIDIA
+GPU được Docker nhận diện:
 
 ```powershell
-docker build -t expense-receipt-ocr ./ocr-service
-docker run --rm -p 8000:8000 expense-receipt-ocr
+docker compose up --build -d
 ```
 
-Trong stack đầy đủ, dùng `docker compose up --build -d`. Để dùng NVIDIA GPU
-với CUDA 12.6 và NVIDIA Container Toolkit:
+Entrypoint kiểm tra Paddle được biên dịch với CUDA và có ít nhất một GPU. Nếu
+không thấy GPU, container dừng thay vì âm thầm chạy CPU. `/health` trả
+`device=gpu` để xác nhận cấu hình.
+
+Chỉ khi muốn dùng CPU mới chạy file override riêng:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build -d
+docker compose -f docker-compose.yml -f docker-compose.cpu.yml up --build -d
 ```
 
 To use a local recognition model, mount its directory read-only and provide the

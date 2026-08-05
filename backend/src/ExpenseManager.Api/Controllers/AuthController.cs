@@ -46,7 +46,7 @@ public sealed class AuthController(
         RegisterRequest request,
         CancellationToken cancellationToken)
     {
-        var email = request.Email.Trim().ToLowerInvariant();
+        var email = AuthInputRules.NormalizeEmail(request.Email);
         var existing = await db.Users.SingleOrDefaultAsync(x => x.Email == email, cancellationToken);
         if (existing is not null && existing.IsEmailVerified)
             return Conflict(new { message = "Email đã được sử dụng." });
@@ -61,7 +61,7 @@ public sealed class AuthController(
 
         var user = new User
         {
-            Name = request.Name.Trim(),
+            Name = AuthInputRules.NormalizeName(request.Name),
             Email = email,
             PasswordHash = string.Empty,
             IsEmailVerified = false
@@ -89,8 +89,9 @@ public sealed class AuthController(
         RegistrationConfirmationRequest request,
         CancellationToken cancellationToken)
     {
+        var email = AuthInputRules.NormalizeEmail(request.Email);
         var user = await db.Users.SingleOrDefaultAsync(
-            x => x.Email == request.Email.Trim().ToLowerInvariant(), cancellationToken);
+            x => x.Email == email, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var challenge = user is null ? null : await db.AccountVerificationCodes
             .Where(x => x.UserId == user.Id && x.Purpose == AccountCodePurpose.REGISTRATION && x.UsedAt == null && x.ExpiresAt > now)
@@ -118,7 +119,7 @@ public sealed class AuthController(
         LoginRequest request,
         CancellationToken cancellationToken)
     {
-        var email = request.Email.Trim().ToLowerInvariant();
+        var email = AuthInputRules.NormalizeEmail(request.Email);
         var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email, cancellationToken);
         if (user is null || !user.IsEmailVerified ||
             passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password)

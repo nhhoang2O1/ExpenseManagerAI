@@ -8,7 +8,8 @@ backend; `ocr-service` chi truy cap duoc ben trong Docker network.
 Can cai:
 
 - Docker Desktop co Docker Compose V2.
-- Cau hinh mac dinh chay OCR bang CPU, khong can NVIDIA GPU.
+- NVIDIA GPU, driver NVIDIA va Docker co quyen truy cap GPU. Cau hinh mac dinh
+  chay OCR bang GPU.
 - .NET 8 SDK neu muon chay migration tu host.
 - Android Studio va Android emulator cho luong mobile.
 
@@ -34,12 +35,13 @@ docker compose ps
 docker compose logs -f backend ocr-service
 ```
 
-Lan khoi dong OCR dau tien co the lau hon vi PaddleOCR can tai model.
+Lan khoi dong OCR dau tien co the lau hon vi PaddleOCR can tai model. Health OCR
+phai tra `device=gpu`.
 
-Neu may co NVIDIA GPU va da cai NVIDIA Container Toolkit, dung image GPU:
+Neu muon chay OCR bang CPU, dung file override rieng:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build -d
+docker compose -f docker-compose.yml -f docker-compose.cpu.yml up --build -d
 ```
 
 Cong local:
@@ -97,9 +99,13 @@ http://10.0.2.2:8080
 Thiet bi Android vat ly phai dung IP LAN cua may chay Docker, vi du
 `http://192.168.1.20:8080`, va firewall phai cho phep TCP 8080.
 
-## 5. CPU va OCR
+## 5. GPU, CPU va OCR
 
-Scaffold mac dinh khong yeu cau GPU. PaddleOCR tren CPU co the:
+Cau hinh mac dinh dung CUDA 12.6 va Paddle GPU. Entrypoint se dung container
+neu Paddle khong duoc build voi CUDA hoac Docker khong cap GPU, tranh truong hop
+am tham roi ve CPU.
+
+Ban CPU chi duoc kich hoat bang `docker-compose.cpu.yml`. PaddleOCR tren CPU co the:
 
 - Tai model va khoi tao cham o lan chay dau.
 - Can nhieu RAM hon cac service con lai.
@@ -115,6 +121,7 @@ Theo doi tai nguyen va log:
 ```powershell
 docker stats
 docker compose logs -f ocr-service
+docker compose exec ocr-service python -c "import paddle; print(paddle.device.get_device())"
 ```
 
 Khong dung thoi gian cua request dau tien lam benchmark. Warm up model, sau do

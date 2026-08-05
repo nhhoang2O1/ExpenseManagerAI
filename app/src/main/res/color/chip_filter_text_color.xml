@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Khi chip được chọn (checked): dùng màu tối để đọc rõ trên nền sáng của chip -->
-    <item android:state_checked="true" android:color="?attr/colorOnSecondaryContainer" />
-    <!-- Khi chip chưa được chọn: dùng màu OnSurfaceVariant để đọc rõ trên nền sáng của chip -->
-    <item android:color="?attr/colorOnSurfaceVariant" />
-</selector>

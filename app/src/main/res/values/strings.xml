@@ -5,19 +5,14 @@
     <string name="nav_home">Tổng quan</string>
     <string name="nav_transactions">Giao dịch</string>
     <string name="nav_statistics">Thống kê</string>
-    <string name="nav_goals">Mục tiêu</string>
     <string name="nav_planning">Kế hoạch</string>
     <string name="nav_settings">Cài đặt</string>
 
     <!-- Home -->
-    <string name="total_balance">Tổng số dư</string>
     <string name="income">Thu nhập</string>
     <string name="expense">Chi tiêu</string>
     <string name="recent_transactions">Giao dịch gần đây</string>
     <string name="see_all">Xem tất cả</string>
-    <string name="this_month">Tháng này</string>
-    <string name="no_transactions">Chưa có giao dịch nào</string>
-    <string name="quick_action_budget">Lên ngân sách</string>
 
     <!-- Transaction -->
     <string name="add_transaction">Thêm giao dịch</string>
@@ -26,7 +21,6 @@
     <string name="transaction_note">Ghi chú</string>
     <string name="transaction_date">Ngày</string>
     <string name="transaction_category">Danh mục</string>
-    <string name="transaction_type">Loại giao dịch</string>
     <string name="type_expense">Chi tiêu</string>
     <string name="type_income">Thu nhập</string>
     <string name="search_transactions">Tìm kiếm theo ghi chú hoặc danh mục</string>
@@ -39,14 +33,10 @@
     <!-- Statistics -->
     <string name="statistics_title">Thống kê</string>
     <string name="expense_by_category">Chi tiêu theo danh mục</string>
-    <string name="no_data">Chưa có dữ liệu</string>
 
     <!-- Budget -->
     <string name="budget_title">Ngân sách</string>
     <string name="add_budget">Thêm ngân sách</string>
-    <string name="budget_remaining">Còn lại</string>
-    <string name="budget_exceeded">Vượt hạn mức!</string>
-    <string name="no_budget">Chưa có ngân sách</string>
 
     <!-- Settings -->
     <string name="settings_title">Cài đặt</string>
@@ -56,53 +46,30 @@
     <string name="export_report_success">Đã xuất báo cáo</string>
     <string name="export_report_error">Không thể xuất báo cáo</string>
     <string name="app_version">Phiên bản 1.0</string>
-    <string name="reset_data">Xóa toàn bộ dữ liệu</string>
-    <string name="confirm_reset">Bạn có chắc muốn xóa tất cả dữ liệu? Hành động này không thể hoàn tác.</string>
 
     <!-- Default Categories - Expense -->
-    <string name="cat_food">Ăn uống</string>
-    <string name="cat_transport">Di chuyển</string>
-    <string name="cat_shopping">Mua sắm</string>
-    <string name="cat_house">Nhà ở</string>
-    <string name="cat_entertainment">Giải trí</string>
-    <string name="cat_health">Sức khỏe</string>
-    <string name="cat_education">Giáo dục</string>
-    <string name="cat_bill">Hóa đơn</string>
-    <string name="cat_other">Khác</string>
 
     <!-- Default Categories - Income -->
-    <string name="cat_salary">Lương</string>
-    <string name="cat_gift">Quà tặng</string>
-    <string name="cat_invest">Đầu tư</string>
-    <string name="cat_freelance">Làm thêm</string>
 
     <!-- Common -->
     <string name="yes">Có</string>
     <string name="no">Không</string>
-    <string name="success">Thành công</string>
     <string name="all">Tất cả</string>
     <string name="please_enter_amount">Vui lòng nhập số tiền</string>
     <string name="please_select_category">Vui lòng chọn danh mục</string>
-    <string name="transaction_saved">Đã lưu giao dịch</string>
 
     <!-- Empty State — Home -->
     <string name="empty_home_title">Hành trình tiết kiệm bắt đầu từ đây!</string>
-    <string name="empty_home_desc">Hãy ghi lại giao dịch chi tiêu hoặc thu nhập đầu tiên của bạn để chúng tôi giúp bạn thống kê nhé.</string>
-    <string name="empty_home_cta">+ Thêm giao dịch đầu tiên</string>
 
     <!-- Empty State — Transaction List -->
     <string name="empty_transaction_title">Chưa có giao dịch nào</string>
     <string name="empty_transaction_desc">Bắt đầu theo dõi tài chính bằng cách thêm giao dịch đầu tiên của bạn.</string>
-    <string name="empty_transaction_cta">+ Thêm giao dịch</string>
 
     <!-- Empty State — Budget -->
     <string name="empty_budget_title">Chưa có ngân sách nào</string>
     <string name="empty_budget_desc">Thiết lập ngân sách để kiểm soát chi tiêu hiệu quả hơn mỗi tháng.</string>
-    <string name="empty_budget_cta">+ Thiết lập ngân sách ngay</string>
     <!-- Backend and receipt OCR -->
-    <string name="back">Quay lại</string>
     <string name="scan_receipt">Quét hóa đơn</string>
-    <string name="receipt_image">Ảnh hóa đơn</string>
     <string name="choose_gallery">Thư viện</string>
     <string name="take_photo">Chụp ảnh</string>
     <string name="upload_and_process">Tải lên và nhận diện</string>
@@ -121,7 +88,8 @@
     <string name="confirm_receipt">Xác nhận và tạo giao dịch</string>
     <string name="retry_ocr">Thử OCR lại</string>
     <string name="retake_photo">Chụp lại</string>
-    <string name="manual_entry">Nhập giao dịch thủ công</string>
+    <string name="manual_entry">Nhập thủ công trên hóa đơn</string>
+    <string name="manual_entry_hint">Điền hoặc sửa các trường bên trên, sau đó xác nhận để tạo một giao dịch duy nhất.</string>
     <string name="camera_unavailable">Không thể mở camera</string>
     <string name="backend_login_required">Cần đăng nhập backend để quét hóa đơn</string>
     <string name="warning_generic">Mẫu hóa đơn chưa được hỗ trợ riêng. Hãy kiểm tra kỹ kết quả.</string>
@@ -137,19 +105,12 @@
     <string name="warning_no_text">Không đọc được đủ nội dung hóa đơn.</string>
     <string name="warning_low_ocr_confidence">Độ tin cậy nhận diện thấp; vui lòng kiểm tra kỹ.</string>
     <string name="warning_review_result">Có thông tin cần kiểm tra lại trước khi xác nhận.</string>
-    <string name="category_suggested">Gợi ý: %1$s%2$s. %3$s</string>
-    <string name="ocr_confidence">Độ tin cậy OCR: %1$s</string>
     <string name="invalid_store_name">Vui lòng nhập tên cửa hàng</string>
     <string name="invalid_receipt_date">Ngày hóa đơn phải có dạng yyyy-MM-dd</string>
     <string name="invalid_total_amount">Tổng tiền phải là số nguyên VND lớn hơn 0</string>
     <string name="invalid_vat_amount">VAT phải từ 0 đến tổng tiền</string>
     <string name="remote_transaction">Giao dịch trực tuyến</string>
-    <string name="room_cache_notice">Không kết nối được backend. Đang hiển thị dữ liệu lưu trên thiết bị.</string>
-    <string name="remote_read_only">Giao dịch từ backend chỉ đọc trong màn hình này</string>
-    <string name="remote_category_managed_online">Danh mục online được quản lý từ máy chủ</string>
     <string name="login_success">Đăng nhập thành công</string>
-    <string name="register_success">Đăng ký thành công</string>
-    <string name="backend_connection_error">Không thể kết nối backend</string>
     <string name="invalid_name">Vui lòng nhập họ tên</string>
     <string name="invalid_email">Email không hợp lệ</string>
     <string name="invalid_password">Vui lòng nhập mật khẩu</string>
@@ -183,18 +144,13 @@
     <string name="budget_exceeded_label">Đã vượt hạn mức</string>
     <string name="budget_amount_hint">Hạn mức (VND)</string>
     <string name="select_expense_category">Chọn danh mục chi tiêu</string>
-    <string name="all_transactions">Tất cả giao dịch</string>
     <string name="select_date">Chọn ngày</string>
     <string name="date_range_title">Chọn khoảng ngày</string>
     <string name="date_range_limit">Chỉ được chọn tối đa 15 ngày</string>
-    <string name="transaction_menu">Tùy chọn giao dịch</string>
     <string name="edit">Sửa</string>
     <string name="server_unavailable">Không thể cập nhật dữ liệu</string>
     <string name="server_unavailable_detail">Kiểm tra kết nối rồi thử lại.</string>
     <string name="retry">Thử lại</string>
-    <string name="loading">Đang tải dữ liệu…</string>
-    <string name="saving">Đang lưu…</string>
-    <string name="request_failed">Yêu cầu chưa thành công</string>
     <string name="data_may_be_stale">Dữ liệu đang hiển thị có thể chưa phải mới nhất.</string>
     <string name="amount_must_be_positive">Số tiền phải lớn hơn 0</string>
     <string name="category_load_failed">Không thể tải danh mục</string>
@@ -202,12 +158,12 @@
     <string name="receipt_process_step">Nhận diện</string>
     <string name="receipt_confirm_step">Xác nhận</string>
     <string name="receipt_preview">Xem trước hóa đơn</string>
-    <string name="receipt_raw_text">Văn bản OCR</string>
-    <string name="statistics_income">Thu nhập tháng</string>
-    <string name="statistics_expense">Chi tiêu tháng</string>
     <string name="statistics_balance">Số dư tháng</string>
     <string name="financial_history">Lịch sử tài chính</string>
-    <string name="transactions_count">%1$d giao dịch</string>
+    <plurals name="transactions_count">
+        <item quantity="one">%1$d giao dịch</item>
+        <item quantity="other">%1$d giao dịch</item>
+    </plurals>
     <string name="no_category_data">Chưa có chi tiêu theo danh mục</string>
     <string name="no_history_data">Chưa có dữ liệu lịch sử</string>
     <string name="reminder_schedule">Ngày %1$d hằng tháng · %2$02d:%3$02d</string>
@@ -242,16 +198,26 @@
     <string name="have_account">Đã có tài khoản?</string>
     <string name="login_action">Đăng nhập</string>
     <string name="register_action">Đăng ký</string>
+    <string name="forgot_password">Quên mật khẩu?</string>
+    <string name="manage_categories">Quản lý danh mục</string>
+    <string name="add_category">Thêm danh mục</string>
+    <string name="edit_category">Sửa danh mục</string>
+    <string name="category_name_hint">Tên danh mục</string>
+    <string name="percentage_format">%1$d%%</string>
+    <string name="positive_amount">+ %1$s</string>
+    <string name="negative_amount">- %1$s</string>
     <string name="content_description_previous_month">Tháng trước</string>
     <string name="content_description_next_month">Tháng sau</string>
     <string name="content_description_more">Tùy chọn</string>
     <string name="content_description_category">Danh mục</string>
-    <string name="content_description_back">Quay lại</string>
     <string name="content_description_profile">Tài khoản</string>
     <string name="empty_goal_title">Chưa có mục tiêu nào</string>
     <string name="empty_goal_desc">Hãy tạo mục tiêu để theo dõi tiến độ tiết kiệm.</string>
     <string name="no_reminders">Chưa có nhắc nhở nào</string>
     <string name="reminder_day_hint">Ngày trong tháng (1–31)</string>
+    <string name="reminder_channel_name">Nhắc nhở hóa đơn</string>
+    <string name="reminder_channel_description">Kênh thông báo nhắc nhở hằng tháng</string>
+    <string name="reminder_notification_title">Đến hạn thanh toán</string>
     <string name="time_label">Thời gian</string>
     <string name="zero_currency">0 ₫</string>
     <string name="default_time">08:00</string>

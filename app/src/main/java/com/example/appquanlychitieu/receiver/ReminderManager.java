@@ -1,5 +1,6 @@
 package com.example.appquanlychitieu.receiver;
 
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -24,6 +25,22 @@ public class ReminderManager {
     private static final Gson GSON = new Gson();
 
     public static void scheduleReminder(Context context, Reminder reminder) {
+        scheduleReminder(context, reminder, false);
+    }
+
+    /** Schedules the next monthly occurrence after the current alarm was delivered. */
+    static void rescheduleAfterDelivery(Context context, Reminder reminder) {
+        scheduleReminder(context, reminder, true);
+    }
+
+    private static void scheduleReminder(
+            Context context,
+            Reminder reminder,
+            boolean afterDelivery) {
+        if (reminder.getUserId() <= 0) {
+            Log.w("ReminderManager", "Skipping schedule because reminder has no valid owner");
+            return;
+        }
         persistSchedule(context, reminder);
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
@@ -35,11 +52,9 @@ public class ReminderManager {
         intent.putExtra("reminder_hour", reminder.getHour());
         intent.putExtra("reminder_minute", reminder.getMinute());
         intent.putExtra("reminder_active", reminder.isActive());
+        intent.putExtra("reminder_user_id", reminder.getUserId());
 
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            flags |= PendingIntent.FLAG_IMMUTABLE;
-        }
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -48,33 +63,15 @@ public class ReminderManager {
                 flags
         );
 
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(System.currentTimeMillis());
-
-        int currentDay = calendar.get(Calendar.DAY_OF_MONTH);
-        int currentMonth = calendar.get(Calendar.MONTH);
-        int currentYear = calendar.get(Calendar.YEAR);
-        
-        calendar.set(Calendar.HOUR_OF_DAY, reminder.getHour());
-        calendar.set(Calendar.MINUTE, reminder.getMinute());
-        calendar.set(Calendar.SECOND, 0);
-
-        int maxDaysInCurrentMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
-        int targetDay = Math.min(reminder.getDayOfMonth(), maxDaysInCurrentMonth);
-        calendar.set(Calendar.DAY_OF_MONTH, targetDay);
-
-        // Nếu thời gian hẹn nằm trong quá khứ hơn 1 phút thì mới đẩy sang tháng sau
-        // Còn nếu vừa mới cài trùng phút hiện tại thì cho phép chạy luôn (thông báo ngay)
-        if (calendar.getTimeInMillis() < System.currentTimeMillis() - 60000) {
-            calendar.add(Calendar.MONTH, 1);
-            
-            int maxDaysInNextMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
-            int targetDayNextMonth = Math.min(reminder.getDayOfMonth(), maxDaysInNextMonth);
-            calendar.set(Calendar.DAY_OF_MONTH, targetDayNextMonth);
-        }
-
-        long alarmTime = calendar.getTimeInMillis();
-        Log.d("ReminderManager", "Scheduled alarm for reminder " + reminder.getId() + " at " + calendar.getTime().toString());
+        Calendar now = Calendar.getInstance();
+        long alarmTime = ReminderScheduleCalculator.nextTriggerMillis(
+                now,
+                reminder.getDayOfMonth(),
+                reminder.getHour(),
+                reminder.getMinute(),
+                afterDelivery);
+        Log.d("ReminderManager", "Scheduled alarm for reminder "
+                + reminder.getId() + " at " + alarmTime);
 
         try {
             boolean canScheduleExact = true;
@@ -82,10 +79,8 @@ public class ReminderManager {
                 canScheduleExact = alarmManager.canScheduleExactAlarms();
             }
 
-            if (canScheduleExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (canScheduleExact) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTime, pendingIntent);
-            } else if (canScheduleExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, alarmTime, pendingIntent);
             } else {
                 alarmManager.set(AlarmManager.RTC_WAKEUP, alarmTime, pendingIntent);
             }
@@ -101,10 +96,7 @@ public class ReminderManager {
         if (alarmManager == null) return;
 
         Intent intent = new Intent(context, ReminderReceiver.class);
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            flags |= PendingIntent.FLAG_IMMUTABLE;
-        }
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -158,6 +150,7 @@ public class ReminderManager {
     }
 
     /** Cancels and removes only the alarms owned by the specified user. */
+    @SuppressLint("ApplySharedPref") // User isolation requires cleanup before session switching.
     public static void clearForUser(Context context, long userId) {
         if (userId <= 0) return;
         SharedPreferences preferences = preferences(context, userId);
@@ -179,8 +172,7 @@ public class ReminderManager {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
         Intent intent = new Intent(context, ReminderReceiver.class);
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context, (int) reminder.getId(), intent, flags);
         alarmManager.cancel(pendingIntent);

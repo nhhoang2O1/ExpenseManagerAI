@@ -57,9 +57,6 @@ class ReceiptOCRService:
         ):
             classification = Classification.LOW_QUALITY
 
-        overall_confidence = (
-            0.65 * ocr_confidence + 0.35 * parsed.confidence if lines else 0.0
-        )
         elapsed_ms = max(0, round((perf_counter() - started) * 1000))
         logger.info(
             "ocr_timing preprocess_ms=%s recognition_ms=%s parser_ms=%s "
@@ -76,7 +73,7 @@ class ReceiptOCRService:
             raw_text=raw_text,
             lines=lines,
             fields=parsed.fields,
-            overall_confidence=round(min(overall_confidence, 1.0), 4),
+            overall_confidence=round(ocr_confidence, 4),
             model_version=self.settings.model_version,
             parser_version=self.settings.parser_version,
             warnings=deduplicate_warnings(warnings),

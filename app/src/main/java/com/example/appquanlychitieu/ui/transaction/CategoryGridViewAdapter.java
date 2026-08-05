@@ -60,9 +60,7 @@ public class CategoryGridViewAdapter extends BaseAdapter {
         CategoryVisualResolver.CategoryVisual visual = CategoryVisualResolver.resolve(
                 context, String.valueOf(category.getId()), category.getColor());
         holder.name.setText(category.getName());
-        int icon = context.getResources().getIdentifier(
-                category.getIcon(), "drawable", context.getPackageName());
-        holder.icon.setImageResource(icon == 0 ? R.drawable.ic_other : icon);
+        holder.icon.setImageResource(CategoryVisualResolver.resolveIcon(category.getIcon()));
         boolean selected = position == selectedPosition;
         holder.card.setCardBackgroundColor(selected
                 ? context.getColor(R.color.primary_container) : context.getColor(R.color.surface));

@@ -60,3 +60,8 @@ def test_schema_rejects_values_outside_the_api_contract(model: type, payload: di
 def test_settings_reject_unsafe_processing_limits(field: str, value: int | float) -> None:
     with pytest.raises(ValidationError):
         Settings(**{field: value})
+
+
+def test_settings_rejects_unsupported_ocr_device() -> None:
+    with pytest.raises(ValidationError):
+        Settings(device="cuda")

@@ -53,6 +53,7 @@ def test_health_does_not_initialize_real_model() -> None:
         "status": "ok",
         "service": "receipt-ocr-service",
         "modelVersion": "test-model",
+        "device": "cpu",
         "modelLoaded": True,
     }
 
@@ -78,7 +79,7 @@ def test_receipt_endpoint_returns_camel_case_contract() -> None:
     assert payload["modelVersion"] == "test-model"
     assert payload["parserVersion"] == "test-parser"
     assert payload["lines"][0]["box"]
-    assert "overallConfidence" in payload
+    assert payload["overallConfidence"] == 0.95
     assert "processingTimeMs" in payload
     assert all("_" not in key for key in payload)
 
@@ -115,6 +116,7 @@ def test_low_confidence_response_keeps_raw_text() -> None:
     assert response.status_code == 200
     assert response.json()["classification"] == "LOW_QUALITY"
     assert response.json()["rawText"] == "raw but uncertain text"
+    assert response.json()["overallConfidence"] == 0.2
     assert "LOW_OCR_CONFIDENCE" in response.json()["warnings"]
 
 

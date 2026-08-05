@@ -46,7 +46,8 @@ public class GoalHistoryAdapter extends ArrayAdapter<GoalHistory> {
 
         if (history != null) {
             tvDate.setText(DateUtils.formatDate(history.getDate()));
-            tvAmount.setText("+ " + CurrencyFormatter.format(history.getAmountAdded()));
+            tvAmount.setText(context.getString(R.string.positive_amount,
+                    CurrencyFormatter.format(history.getAmountAdded())));
         }
 
         return convertView;

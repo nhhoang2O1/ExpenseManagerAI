@@ -25,7 +25,6 @@ import com.example.appquanlychitieu.data.remote.dto.ConfirmReceiptRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ReceiptDto;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
-import com.example.appquanlychitieu.ui.transaction.AddEditTransactionActivity;
 import com.example.appquanlychitieu.util.SessionManager;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.google.android.material.button.MaterialButton;
@@ -58,8 +57,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private TextView tvStatus;
     private TextView tvError;
     private TextView tvWarning;
-    private TextView tvConfidence;
-    private TextView tvRawText;
     private TextInputEditText etStoreName;
     private TextInputEditText etReceiptDate;
     private TextInputEditText etTotalAmount;
@@ -143,8 +140,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
         tvStatus = findViewById(R.id.tv_status);
         tvError = findViewById(R.id.tv_error);
         tvWarning = findViewById(R.id.tv_warning);
-        tvConfidence = findViewById(R.id.tv_confidence);
-        tvRawText = findViewById(R.id.tv_raw_text);
         etStoreName = findViewById(R.id.et_store_name);
         etReceiptDate = findViewById(R.id.et_receipt_date);
         etTotalAmount = findViewById(R.id.et_total_amount);
@@ -326,17 +321,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
         tvWarning.setText(warning);
         tvWarning.setVisibility(warning.length() == 0 ? View.GONE : View.VISIBLE);
 
-        if (receipt.overallConfidence == null) {
-            tvConfidence.setText("");
-        } else {
-            tvConfidence.setText(getString(
-                    R.string.ocr_confidence,
-                    String.format(Locale.getDefault(), "%.0f%%", receipt.overallConfidence * 100d)));
-        }
-        tvRawText.setText(receipt.rawText == null ? "" : receipt.rawText);
-        tvRawText.setVisibility(
-                receipt.rawText == null || receipt.rawText.trim().isEmpty()
-                        ? View.GONE : View.VISIBLE);
         applySuggestedCategory();
     }
 
@@ -404,14 +388,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
             if (currentReceipt.suggestedCategoryId.equals(item.id)) {
                 selectedCategory = item;
                 categoryDropdown.setText(item.toString(), false);
-                String confidence = currentReceipt.categoryConfidence == null ? ""
-                        : String.format(Locale.getDefault(), " (%.0f%%)",
-                                currentReceipt.categoryConfidence * 100d);
-                layoutCategory.setHelperText(getString(
-                        R.string.category_suggested,
-                        item.toString(),
-                        confidence,
-                        currentReceipt.categoryReason == null ? "" : currentReceipt.categoryReason));
                 return;
             }
         }
@@ -518,12 +494,19 @@ public class ReceiptScanActivity extends AppCompatActivity {
     }
 
     private void openManualEntry() {
-        Intent intent = new Intent(this, AddEditTransactionActivity.class);
-        intent.putExtra(AddEditTransactionActivity.EXTRA_TRANSACTION_TYPE, "EXPENSE");
-        intent.putExtra(AddEditTransactionActivity.EXTRA_PREFILL_AMOUNT, textOf(etTotalAmount));
-        intent.putExtra(AddEditTransactionActivity.EXTRA_PREFILL_NOTE, textOf(etStoreName));
-        intent.putExtra(AddEditTransactionActivity.EXTRA_PREFILL_DATE, textOf(etReceiptDate));
-        startActivity(intent);
+        // Manual entry stays inside the receipt confirmation flow so one
+        // receipt can produce at most one, receipt-linked transaction.
+        if (textOf(etStoreName).isEmpty()) {
+            etStoreName.requestFocus();
+        } else if (textOf(etTotalAmount).isEmpty()) {
+            etTotalAmount.requestFocus();
+        } else if (selectedCategory == null) {
+            categoryDropdown.requestFocus();
+            categoryDropdown.showDropDown();
+        } else {
+            etStoreName.requestFocus();
+        }
+        Toast.makeText(this, R.string.manual_entry_hint, Toast.LENGTH_LONG).show();
     }
 
     private String textOf(TextInputEditText input) {

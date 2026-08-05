@@ -1,0 +1,9 @@
+services:
+  backend:
+    environment:
+      # Development-only: SmtpAccountCodeSender writes the one-time code to
+      # container logs so the local E2E runner can complete without real mail.
+      Email__Smtp__Host: ""
+      Email__Smtp__FromAddress: ""
+      Email__Smtp__Username: ""
+      Email__Smtp__Password: ""

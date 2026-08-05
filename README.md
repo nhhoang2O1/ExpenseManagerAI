@@ -5,8 +5,8 @@ PostgreSQL và dịch vụ OCR hóa đơn bằng PaddleOCR.
 
 ## Chạy nhanh bằng Docker
 
-Yêu cầu: Git và Docker Desktop có Docker Compose V2. Cấu hình mặc định chạy OCR
-trên CPU, không yêu cầu GPU NVIDIA.
+Yêu cầu: Git, Docker Desktop có Docker Compose V2, NVIDIA GPU, driver NVIDIA và
+khả năng cấp GPU cho Linux container. Cấu hình mặc định chạy OCR bằng GPU.
 
 ```powershell
 Copy-Item .env.example .env
@@ -31,11 +31,13 @@ Backend có tại `http://localhost:8080`; Swagger có tại
 `http://localhost:8080/swagger`. Lần khởi động OCR đầu tiên có thể lâu hơn vì
 PaddleOCR cần tải model.
 
-Để dùng NVIDIA GPU đã cài NVIDIA Container Toolkit:
+Nếu cần chạy bản CPU, phải chỉ định file override riêng:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build -d
+docker compose -f docker-compose.yml -f docker-compose.cpu.yml up --build -d
 ```
+
+Health OCR trả `device=gpu` hoặc `device=cpu` để xác nhận runtime đang dùng.
 
 Dừng stack mà không xóa dữ liệu:
 

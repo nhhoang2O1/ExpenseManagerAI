@@ -26,22 +26,34 @@ public final class OcrReceiptDetails {
     private OcrReceiptDetails() { }
 
     public static void show(Context context, Transaction transaction) {
+        show(context, transaction, null);
+    }
+
+    public static void show(Context context, Transaction transaction, Runnable onEdit) {
         String receiptId = transaction.getRemoteReceiptId();
         if (receiptId == null || receiptId.trim().isEmpty()) {
-            new MaterialAlertDialogBuilder(context)
+            MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
                     .setTitle("Chi tiet giao dich")
-                    .setMessage("Giao dich nay khong co chi tiet OCR.")
-                    .setPositiveButton("Dong", null)
-                    .show();
+                    .setMessage("Giao dich nay khong co chi tiet OCR.");
+            if (onEdit != null) {
+                builder.setPositiveButton("Sua", (dialog, which) -> onEdit.run())
+                        .setNegativeButton("Dong", null);
+            } else {
+                builder.setPositiveButton("Dong", null);
+            }
+            builder.show();
             return;
         }
         new ReceiptRepository(context).get(receiptId, new RemoteCallback<ReceiptDto>() {
             @Override public void onSuccess(ReceiptDto receipt) {
-                new MaterialAlertDialogBuilder(context)
+                MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
                         .setTitle("Ket qua xu ly OCR")
                         .setView(createReceiptView(context, receipt))
-                        .setPositiveButton("Dong", null)
-                        .show();
+                        .setPositiveButton("Dong", null);
+                if (onEdit != null) {
+                    builder.setNeutralButton("Sua giao dich", (dialog, which) -> onEdit.run());
+                }
+                builder.show();
             }
             @Override public void onError(ApiError error) {
                 new MaterialAlertDialogBuilder(context)

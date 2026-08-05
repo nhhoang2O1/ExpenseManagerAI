@@ -4,7 +4,6 @@
     android:id="@+id/root_receipt_scan"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
     android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
@@ -167,19 +166,6 @@
                     android:padding="12dp"
                     android:textColor="@color/warning_color"
                     android:visibility="gone" />
-                <TextView
-                    android:id="@+id/tv_confidence"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:background="@color/info_bg"
-                    android:paddingStart="10dp"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="10dp"
-                    android:paddingBottom="6dp"
-                    android:textColor="@color/info_color"
-                    android:textSize="12sp" />
-
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/layout_store_name"
                     style="@style/Widget.App.TextInput"
@@ -270,18 +256,6 @@
                         android:inputType="textCapSentences"
                         android:maxLines="3" />
                 </com.google.android.material.textfield.TextInputLayout>
-
-                <TextView
-                    android:id="@+id/tv_raw_text"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:background="@color/surface_container"
-                    android:maxLines="8"
-                    android:padding="12dp"
-                    android:textColor="@color/text_secondary"
-                    android:textIsSelectable="true"
-                    android:visibility="gone" />
 
                 <LinearLayout
                     android:layout_width="match_parent"

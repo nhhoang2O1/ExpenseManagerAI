@@ -35,7 +35,8 @@ public sealed class StatisticsController(AppDbContext db, IUserContext userConte
             .OrderBy(x => x.Date)
             .ToListAsync(cancellationToken);
         return Ok(rows.Select(x =>
-            new DailyStatisticResponse(x.Date, x.Income, x.Expense, x.Income - x.Expense)));
+            new DailyStatisticResponse(
+                x.Date, x.Income, x.Expense, StatisticsRules.Balance(x.Income, x.Expense))));
     }
 
     [HttpGet("monthly")]
@@ -58,7 +59,8 @@ public sealed class StatisticsController(AppDbContext db, IUserContext userConte
             .OrderBy(x => x.Month)
             .ToListAsync(cancellationToken);
         return Ok(rows.Select(x =>
-            new MonthlyStatisticResponse(x.Year, x.Month, x.Income, x.Expense, x.Income - x.Expense)));
+            new MonthlyStatisticResponse(
+                x.Year, x.Month, x.Income, x.Expense, StatisticsRules.Balance(x.Income, x.Expense))));
     }
 
     [HttpGet("by-category")]

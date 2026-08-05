@@ -30,7 +30,10 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
         CategoryRequest request,
         CancellationToken cancellationToken)
     {
-        var name = request.Name.Trim();
+        if (!CategoryRules.IsSupportedType(request.Type))
+            return BadRequest(new { message = "Loại danh mục không hợp lệ." });
+
+        var name = CategoryRules.NormalizeName(request.Name);
         if (name.Length == 0)
             return BadRequest(new { message = "Tên danh mục không được để trống." });
 
@@ -45,8 +48,8 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
             UserId = userContext.UserId,
             Name = name,
             Type = request.Type,
-            Color = request.Color?.Trim(),
-            Icon = request.Icon?.Trim()
+            Color = CategoryRules.NormalizeOptionalText(request.Color),
+            Icon = CategoryRules.NormalizeOptionalText(request.Icon)
         };
         db.Categories.Add(category);
         try
@@ -76,7 +79,10 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
         if (!OptimisticConcurrency.IfMatchSatisfied(this, category.Version))
             return OptimisticConcurrency.PreconditionFailed(this);
 
-        var name = request.Name.Trim();
+        if (!CategoryRules.IsSupportedType(request.Type))
+            return BadRequest(new { message = "Loại danh mục không hợp lệ." });
+
+        var name = CategoryRules.NormalizeName(request.Name);
         if (name.Length == 0)
             return BadRequest(new { message = "Tên danh mục không được để trống." });
 
@@ -104,8 +110,8 @@ public sealed class CategoriesController(AppDbContext db, IUserContext userConte
 
         category.Name = name;
         category.Type = request.Type;
-        category.Color = request.Color?.Trim();
-        category.Icon = request.Icon?.Trim();
+        category.Color = CategoryRules.NormalizeOptionalText(request.Color);
+        category.Icon = CategoryRules.NormalizeOptionalText(request.Icon);
         try
         {
             await db.SaveChangesAsync(cancellationToken);

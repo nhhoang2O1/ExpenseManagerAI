@@ -17,6 +17,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.example.appquanlychitieu.MainActivity;
 import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Reminder;
+import com.example.appquanlychitieu.util.SessionManager;
 
 public class ReminderReceiver extends BroadcastReceiver {
     private static final String CHANNEL_ID = "reminder_channel";
@@ -29,15 +30,25 @@ public class ReminderReceiver extends BroadcastReceiver {
         int hour = intent.getIntExtra("reminder_hour", 8);
         int minute = intent.getIntExtra("reminder_minute", 0);
         boolean active = intent.getBooleanExtra("reminder_active", true);
+        long userId = intent.getLongExtra("reminder_user_id", -1);
+
+        // Alarms created before this field existed do not contain userId.
+        // Recover the active user when possible, but never persist under -1.
+        if (userId <= 0) {
+            userId = new SessionManager(context.getApplicationContext()).getUserId();
+        }
 
         if (reminderId != -1 && content != null) {
             showNotification(context, (int) reminderId, content);
 
-            if (active) {
-                Reminder reminder = new Reminder(content, day, hour, minute, -1, true);
+            if (active && userId > 0) {
+                Reminder reminder = new Reminder(content, day, hour, minute, userId, true);
                 reminder.setId(reminderId);
-                ReminderManager.scheduleReminder(context, reminder);
+                ReminderManager.rescheduleAfterDelivery(context, reminder);
                 Log.d("ReminderReceiver", "Rescheduled reminder " + reminderId);
+            } else if (active) {
+                Log.w("ReminderReceiver",
+                        "Skipping reschedule because the reminder owner is unavailable");
             }
         }
     }
@@ -48,16 +59,13 @@ public class ReminderReceiver extends BroadcastReceiver {
         Intent intent = new Intent(context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            flags |= PendingIntent.FLAG_IMMUTABLE;
-        }
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
         
         PendingIntent pendingIntent = PendingIntent.getActivity(context, notificationId, intent, flags);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_budget) 
-                .setContentTitle("Đến hạn thanh toán")
+                .setContentTitle(context.getString(R.string.reminder_notification_title))
                 .setContentText(content)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
@@ -75,16 +83,14 @@ public class ReminderReceiver extends BroadcastReceiver {
     }
 
     private void createNotificationChannel(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = "Nhắc nhở hoá đơn";
-            String description = "Kênh thông báo nhắc nhở hằng tháng";
-            int importance = NotificationManager.IMPORTANCE_HIGH;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-            channel.setDescription(description);
-            NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
-            if (notificationManager != null) {
-                notificationManager.createNotificationChannel(channel);
-            }
+        CharSequence name = context.getString(R.string.reminder_channel_name);
+        String description = context.getString(R.string.reminder_channel_description);
+        int importance = NotificationManager.IMPORTANCE_HIGH;
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+        channel.setDescription(description);
+        NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
+        if (notificationManager != null) {
+            notificationManager.createNotificationChannel(channel);
         }
     }
 }

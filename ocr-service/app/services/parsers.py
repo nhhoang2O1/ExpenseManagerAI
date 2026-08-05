@@ -65,7 +65,6 @@ ADDRESS_SIGNALS = (
 class ParseResult:
     classification: Classification
     fields: ExtractedFields
-    confidence: float
     warnings: list[str]
 
 
@@ -79,7 +78,6 @@ class _AmountCandidate:
 @dataclass(frozen=True)
 class _StoreMatch:
     name: str
-    confidence: float
 
 
 class GenericReceiptParser:
@@ -112,8 +110,8 @@ class GenericReceiptParser:
 
         if not candidates:
             return None
-        score, name = max(candidates, key=lambda candidate: candidate[0])
-        return _StoreMatch(name=name, confidence=min(0.85, score))
+        _, name = max(candidates, key=lambda candidate: candidate[0])
+        return _StoreMatch(name=name)
 
 
 class ReceiptParser:
@@ -122,10 +120,10 @@ class ReceiptParser:
 
     def parse(self, lines: list[OCRLine]) -> ParseResult:
         normalized = [_normalize(line.text) for line in lines]
-        store_name, store_confidence = self._extract_store(lines, normalized)
-        receipt_date, date_confidence = self._extract_date(lines, normalized)
-        total_amount, total_confidence = self._extract_total(lines, normalized)
-        vat_amount, vat_confidence = self._extract_vat(lines, normalized)
+        store_name = self._extract_store(lines, normalized)
+        receipt_date = self._extract_date(lines, normalized)
+        total_amount = self._extract_total(lines, normalized)
+        vat_amount = self._extract_vat(lines, normalized)
 
         fields = ExtractedFields(
             store_name=store_name,
@@ -147,38 +145,25 @@ class ReceiptParser:
             receipt_date=receipt_date,
             total_amount=total_amount,
         )
-        required_confidences = [
-            store_confidence,
-            date_confidence,
-            total_confidence,
-        ]
-        present_confidences = [value for value in required_confidences if value > 0]
-        field_confidence = (
-            sum(present_confidences) / 3.0 if present_confidences else 0.0
-        )
-        if vat_amount is not None:
-            field_confidence = min(1.0, 0.9 * field_confidence + 0.1 * vat_confidence)
-
         return ParseResult(
             classification=classification,
             fields=fields,
-            confidence=round(field_confidence, 4),
             warnings=warnings,
         )
 
     def _extract_store(
         self,
         lines: list[OCRLine], normalized: list[str]
-    ) -> tuple[str | None, float]:
+    ) -> str | None:
         match = self.generic_parser.match_store(lines, normalized)
         if match is not None:
-            return match.name, match.confidence
-        return None, 0.0
+            return match.name
+        return None
 
     @staticmethod
     def _extract_date(
         lines: list[OCRLine], normalized: list[str]
-    ) -> tuple[date | None, float]:
+    ) -> date | None:
         candidates: list[tuple[date, float]] = []
         for index, (line, text) in enumerate(zip(lines, normalized)):
             for pattern_index, pattern in enumerate(DATE_PATTERNS):
@@ -199,11 +184,11 @@ class ReceiptParser:
                     candidates.append(
                         (parsed, min(0.96, 0.82 + keyword_bonus + position_bonus))
                     )
-        return max(candidates, key=lambda item: item[1]) if candidates else (None, 0.0)
+        return max(candidates, key=lambda item: item[1])[0] if candidates else None
 
     def _extract_total(
         self, lines: list[OCRLine], normalized: list[str]
-    ) -> tuple[int | None, float]:
+    ) -> int | None:
         candidates: list[_AmountCandidate] = []
         line_count = max(len(lines), 1)
         for index, text in enumerate(normalized):
@@ -236,15 +221,14 @@ class ReceiptParser:
                     )
 
         if not candidates:
-            return None, 0.0
+            return None
         best = max(candidates, key=lambda item: (item.score, item.amount))
-        confidence = min(0.96, 0.48 + best.score / 220)
-        return best.amount, confidence
+        return best.amount
 
     @staticmethod
     def _extract_vat(
         lines: list[OCRLine], normalized: list[str]
-    ) -> tuple[int | None, float]:
+    ) -> int | None:
         candidates: list[_AmountCandidate] = []
         for index, text in enumerate(normalized):
             if not any(keyword in text for keyword in VAT_KEYWORDS):
@@ -257,9 +241,9 @@ class ReceiptParser:
                     _AmountCandidate(amount=amount, score=90, line_index=index)
                 )
         if not candidates:
-            return None, 0.0
+            return None
         best = max(candidates, key=lambda item: (item.score, item.line_index))
-        return best.amount, 0.88
+        return best.amount
 
     @staticmethod
     def _classify(

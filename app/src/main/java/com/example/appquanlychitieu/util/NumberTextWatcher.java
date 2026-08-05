@@ -49,7 +49,7 @@ public class NumberTextWatcher implements TextWatcher {
                 StringBuilder trailingZeros = new StringBuilder();
                 while (trailingZeroCount-- > 0)
                     trailingZeros.append('0');
-                et.setText(df.format(n) + trailingZeros.toString());
+                et.setText(new StringBuilder(df.format(n)).append(trailingZeros).toString());
             } else {
                 et.setText(dfnd.format(n));
             }

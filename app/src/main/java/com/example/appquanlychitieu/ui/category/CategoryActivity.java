@@ -32,11 +32,11 @@ public final class CategoryActivity extends AppCompatActivity {
         int padding = Math.round(16 * getResources().getDisplayMetrics().density);
         root.setPadding(padding, padding, padding, padding);
         TextView title = new TextView(this);
-        title.setText("Quản lý danh mục");
+        title.setText(R.string.manage_categories);
         title.setTextSize(24);
         title.setPadding(0, 0, 0, padding);
         Button add = new Button(this);
-        add.setText("Thêm danh mục");
+        add.setText(R.string.add_category);
         ListView list = new ListView(this);
         root.addView(title);
         root.addView(add);
@@ -53,7 +53,8 @@ public final class CategoryActivity extends AppCompatActivity {
                 CategoryDto item = getItem(position);
                 ((TextView) row.findViewById(android.R.id.text1)).setText(item.name);
                 ((TextView) row.findViewById(android.R.id.text2)).setText(
-                        "INCOME".equals(item.type) ? "Thu nhập" : "Chi tiêu");
+                        getString("INCOME".equals(item.type)
+                                ? R.string.type_income : R.string.type_expense));
                 return row;
             }
         };
@@ -82,9 +83,9 @@ public final class CategoryActivity extends AppCompatActivity {
 
     private void showEditor(CategoryDto category) {
         EditText name = new EditText(this);
-        name.setHint("Tên danh mục");
+        name.setHint(R.string.category_name_hint);
         Spinner type = new Spinner(this);
-        String[] types = {"Chi tiêu", "Thu nhập"};
+        String[] types = {getString(R.string.type_expense), getString(R.string.type_income)};
         type.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, types));
         if (category != null) {
             name.setText(category.name);
@@ -96,7 +97,8 @@ public final class CategoryActivity extends AppCompatActivity {
         form.setPadding(padding, 0, padding, 0);
         form.addView(name);
         form.addView(type);
-        new AlertDialog.Builder(this).setTitle(category == null ? "Thêm danh mục" : "Sửa danh mục")
+        new AlertDialog.Builder(this).setTitle(category == null
+                        ? R.string.add_category : R.string.edit_category)
                 .setView(form).setPositiveButton(R.string.save, (d, w) -> {
                     String value = name.getText().toString().trim();
                     if (value.isEmpty()) return;

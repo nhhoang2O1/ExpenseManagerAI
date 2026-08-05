@@ -75,4 +75,5 @@ class HealthResponse(CamelModel):
     status: str
     service: str
     model_version: str
+    device: str
     model_loaded: bool

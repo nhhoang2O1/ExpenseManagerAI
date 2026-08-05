@@ -1,6 +1,0 @@
-services:
-  ocr-service:
-    build:
-      context: ./ocr-service
-      dockerfile: Dockerfile.gpu
-    gpus: all

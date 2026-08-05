@@ -1,11 +1,14 @@
 package com.example.appquanlychitieu.ui.receipt;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 
 import com.example.appquanlychitieu.util.SessionManager;
 
 import androidx.annotation.Nullable;
+
+import java.util.Locale;
 
 /**
  * Small durable store for the receipt workflow.  Receipt images themselves
@@ -29,6 +32,7 @@ public final class ReceiptDraftStore {
                 .getSharedPreferences(PREFS + "_" + userKey, Context.MODE_PRIVATE);
     }
 
+    @SuppressLint("ApplySharedPref") // The draft must survive process death immediately after upload.
     public synchronized void save(
             @Nullable String receiptId,
             String phase,
@@ -60,6 +64,7 @@ public final class ReceiptDraftStore {
                 emptyToNull(preferences.getString(KEY_STATUS, null)));
     }
 
+    @SuppressLint("ApplySharedPref") // Clear must finish before a new user can open a draft store.
     public synchronized void clear() {
         preferences.edit().clear().commit();
     }
@@ -72,7 +77,7 @@ public final class ReceiptDraftStore {
         }
         String email = session.getUserEmail();
         if (email != null && !email.trim().isEmpty()) {
-            return safeKey(email.toLowerCase());
+            return safeKey(email.toLowerCase(Locale.ROOT));
         }
         return "anonymous";
     }

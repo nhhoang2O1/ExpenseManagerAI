@@ -182,6 +182,46 @@ public sealed class FinancialControllerBehaviorTests
         Assert.IsType<BadRequestObjectResult>(month.Result);
     }
 
+    [Fact]
+    public async Task Category_create_rejects_unknown_transaction_type()
+    {
+        await using var db = TestSupport.CreateDb();
+        var user = User("owner");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var controller = WithHttpContext(
+            new CategoriesController(db, new TestUserContext(user.Id)));
+
+        var result = await controller.Create(
+            new CategoryRequest("Unknown", (TransactionType)999, null, null),
+            CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Empty(await db.Categories.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Category_create_normalizes_name_color_and_icon()
+    {
+        await using var db = TestSupport.CreateDb();
+        var user = User("owner");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var controller = WithHttpContext(
+            new CategoriesController(db, new TestUserContext(user.Id)));
+
+        var result = await controller.Create(
+            new CategoryRequest(
+                "  Ăn uống  ", TransactionType.EXPENSE, "  #FF0000  ", "  ic_food  "),
+            CancellationToken.None);
+
+        Assert.IsType<CreatedAtActionResult>(result.Result);
+        var category = Assert.Single(await db.Categories.ToListAsync());
+        Assert.Equal("Ăn uống", category.Name);
+        Assert.Equal("#FF0000", category.Color);
+        Assert.Equal("ic_food", category.Icon);
+    }
+
     private static T WithHttpContext<T>(T controller) where T : ControllerBase
     {
         controller.ControllerContext = new ControllerContext

@@ -47,7 +47,7 @@ public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.Vie
     public void setSpentMap(Map<Long, Long> spent) {
         spentMap.clear();
         if (spent != null) spentMap.putAll(spent);
-        notifyDataSetChanged();
+        notifyItemRangeChanged(0, getItemCount());
     }
 
     @NonNull
@@ -95,7 +95,7 @@ public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.Vie
             remaining.setText(context.getString(left >= 0
                     ? R.string.budget_remaining_value : R.string.budget_over_value,
                     CurrencyFormatter.format(Math.abs(left))));
-            percentage.setText(percent + "%");
+            percentage.setText(context.getString(R.string.percentage_format, percent));
             progress.setProgressCompat(Math.min(100, Math.max(0, percent)), false);
 
             int stateColor;
@@ -123,9 +123,8 @@ public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.Vie
             bg.setColor(visual.baseColor);
             iconBackground.setBackground(bg);
             icon.setColorFilter(visual.onBaseColor);
-            int iconRes = context.getResources().getIdentifier(
-                    budget.getRemoteCategoryIcon(), "drawable", context.getPackageName());
-            icon.setImageResource(iconRes == 0 ? R.drawable.ic_other : iconRes);
+            icon.setImageResource(CategoryVisualResolver.resolveIcon(
+                    budget.getRemoteCategoryIcon()));
             more.setOnClickListener(v -> {
                 PopupMenu menu = new PopupMenu(context, v);
                 menu.getMenu().add(R.string.edit).setOnMenuItemClickListener(item -> {

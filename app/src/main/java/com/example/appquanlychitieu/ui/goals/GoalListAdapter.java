@@ -78,7 +78,7 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
             current.setText(CurrencyFormatter.format(goal.getCurrentAmount()));
             target.setText(context.getString(R.string.budget_limit,
                     CurrencyFormatter.format(goal.getTargetAmount())));
-            percent.setText(value + "%");
+            percent.setText(context.getString(R.string.percentage_format, value));
             progress.setProgressCompat(value, false);
             completed.setVisibility(value >= 100 ? View.VISIBLE : View.GONE);
             addFunds.setVisibility(value >= 100 ? View.GONE : View.VISIBLE);

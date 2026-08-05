@@ -16,6 +16,7 @@ import com.example.appquanlychitieu.data.repository.RemoteBudgetRepository;
 import com.example.appquanlychitieu.data.repository.RemoteCategoryRepository;
 import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
+import com.example.appquanlychitieu.ui.common.LatestRequest;
 import com.example.appquanlychitieu.util.SessionManager;
 
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 public class BudgetViewModel extends AndroidViewModel {
     private final RemoteBudgetRepository repository;
@@ -38,6 +40,8 @@ public class BudgetViewModel extends AndroidViewModel {
     private final MutableLiveData<List<CategoryDto>> categories = new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<Map<Long, Long>> spentByCategory = new MutableLiveData<>(new HashMap<>());
     private boolean hasLoaded;
+    private final LatestRequest budgetRequests = new LatestRequest();
+    private final LatestRequest spentRequests = new LatestRequest();
 
     public BudgetViewModel(@NonNull Application application) {
         super(application);
@@ -75,7 +79,6 @@ public class BudgetViewModel extends AndroidViewModel {
         selectedMonthYear.setValue(new int[]{calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH)});
         hasLoaded = false;
         refreshBudgets();
-        loadSpent(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH));
     }
 
     public void loadCategories() {
@@ -88,20 +91,23 @@ public class BudgetViewModel extends AndroidViewModel {
     }
 
     public void loadSpent(int year, int monthIndex) {
-        String from = String.format("%04d-%02d-01", year, monthIndex + 1);
+        final int generation = spentRequests.begin();
+        String from = String.format(Locale.ROOT, "%04d-%02d-01", year, monthIndex + 1);
         Calendar calendar = Calendar.getInstance();
         calendar.set(year, monthIndex, 1);
-        String to = String.format("%04d-%02d-%02d", year, monthIndex + 1,
+        String to = String.format(Locale.ROOT, "%04d-%02d-%02d", year, monthIndex + 1,
                 calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
         statisticsRepository.getCategorySummary(from, to,
                 new RemoteCallback<List<CategorySummary>>() {
                     @Override public void onSuccess(List<CategorySummary> value) {
+                        if (!spentRequests.isCurrent(generation)) return;
                         Map<Long, Long> totals = new HashMap<>();
                         if (value != null) for (CategorySummary item : value)
                             totals.put(item.getCategoryId(), item.getTotalAmount());
                         spentByCategory.setValue(totals);
                     }
                     @Override public void onError(ApiError apiError) {
+                        if (!spentRequests.isCurrent(generation)) return;
                         error.setValue(apiError.getMessage());
                     }
                 });
@@ -152,10 +158,12 @@ public class BudgetViewModel extends AndroidViewModel {
         int[] month = selectedMonthYear.getValue();
         if (month == null) return;
         if (!hasLoaded) loadState.setValue(LoadState.LOADING);
-        String key = String.format("%04d-%02d", month[0], month[1] + 1);
+        String key = String.format(Locale.ROOT, "%04d-%02d", month[0], month[1] + 1);
+        final int generation = budgetRequests.begin();
         repository.getBudgets(key, userId, new RemoteCallback<List<Budget>>() {
             @Override
             public void onSuccess(List<Budget> value) {
+                if (!budgetRequests.isCurrent(generation)) return;
                 hasLoaded = true;
                 List<Budget> result = value == null ? new ArrayList<>() : value;
                 budgets.setValue(result);
@@ -165,6 +173,7 @@ public class BudgetViewModel extends AndroidViewModel {
 
             @Override
             public void onError(ApiError apiError) {
+                if (!budgetRequests.isCurrent(generation)) return;
                 error.setValue(apiError.getMessage());
                 if (!hasLoaded) loadState.setValue(LoadState.ERROR);
             }

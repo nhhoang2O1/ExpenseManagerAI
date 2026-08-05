@@ -46,15 +46,27 @@ public class GoalViewModel extends AndroidViewModel {
     public LiveData<String> getFeedback() { return feedback; }
 
     public void insertGoal(Goal goal) {
-        repository.create(goal, new RefreshCallback("Đã tạo mục tiêu"));
+        insertGoal(goal, null);
+    }
+
+    public void insertGoal(Goal goal, RemoteCallback<Goal> callback) {
+        repository.create(goal, new RefreshCallback("Đã tạo mục tiêu", callback));
     }
 
     public void updateGoal(Goal goal) {
-        repository.update(goal, new RefreshCallback("Đã cập nhật mục tiêu"));
+        updateGoal(goal, null);
+    }
+
+    public void updateGoal(Goal goal, RemoteCallback<Goal> callback) {
+        repository.update(goal, new RefreshCallback("Đã cập nhật mục tiêu", callback));
     }
 
     public void addFunds(Goal goal, long amount) {
-        repository.addFunds(goal, amount, new RefreshCallback("Đã cập nhật tiến độ"));
+        addFunds(goal, amount, null);
+    }
+
+    public void addFunds(Goal goal, long amount, RemoteCallback<Goal> callback) {
+        repository.addFunds(goal, amount, new RefreshCallback("Đã cập nhật tiến độ", callback));
     }
 
     public void deleteGoal(Goal goal) {
@@ -113,11 +125,19 @@ public class GoalViewModel extends AndroidViewModel {
 
     private final class RefreshCallback implements RemoteCallback<Goal> {
         private final String message;
-        RefreshCallback(String message) { this.message = message; }
+        private final RemoteCallback<Goal> downstream;
+        RefreshCallback(String message, RemoteCallback<Goal> downstream) {
+            this.message = message;
+            this.downstream = downstream;
+        }
         @Override public void onSuccess(Goal value) {
             feedback.setValue(message);
             refreshGoals();
+            if (downstream != null) downstream.onSuccess(value);
         }
-        @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }
+        @Override public void onError(ApiError apiError) {
+            error.setValue(apiError.getMessage());
+            if (downstream != null) downstream.onError(apiError);
+        }
     }
 }

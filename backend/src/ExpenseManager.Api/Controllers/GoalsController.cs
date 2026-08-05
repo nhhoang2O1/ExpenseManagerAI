@@ -108,6 +108,9 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         AddGoalFundsRequest request,
         CancellationToken cancellationToken)
     {
+        if (request.Amount <= 0)
+            return BadRequest(new { message = "Amount must be greater than zero." });
+
         if (!IdempotencySupport.TryCreate(
                 this, $"goals:{id}:add-funds", request, out var idempotency, out var keyError))
             return keyError!;
@@ -138,11 +141,12 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
             return OptimisticConcurrency.PreconditionFailed(this);
 
-        var remaining = Math.Max(0, goal.TargetAmount - goal.CurrentAmount);
-        if (remaining == 0)
+        var funding = GoalFundingRules.Calculate(
+            goal.TargetAmount, goal.CurrentAmount, request.Amount);
+        if (funding.WasAlreadyFunded)
             return Conflict(new { message = "This goal is already fully funded." });
-        var appliedAmount = Math.Min(request.Amount, remaining);
-        goal.CurrentAmount += appliedAmount;
+        var appliedAmount = funding.AppliedAmount;
+        goal.CurrentAmount = funding.BalanceAfter;
         if (appliedAmount > 0)
         {
             db.GoalHistories.Add(new GoalHistory

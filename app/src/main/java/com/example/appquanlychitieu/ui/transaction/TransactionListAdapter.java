@@ -55,7 +55,7 @@ public class TransactionListAdapter
     public void setCategoryCache(Map<Long, Category> cache) {
         categoryCache.clear();
         if (cache != null) categoryCache.putAll(cache);
-        notifyDataSetChanged();
+        notifyItemRangeChanged(0, getItemCount());
     }
 
     @NonNull
@@ -120,8 +120,7 @@ public class TransactionListAdapter
             background.setColor(visual.baseColor);
             viewIconBg.setBackground(background);
             ivCategoryIcon.setColorFilter(visual.onBaseColor);
-            int icon = iconResource(categoryIcon);
-            ivCategoryIcon.setImageResource(icon == 0 ? R.drawable.ic_other : icon);
+            ivCategoryIcon.setImageResource(CategoryVisualResolver.resolveIcon(categoryIcon));
 
             boolean newDay = previous == null
                     || !DateUtils.formatDate(previous.getDate()).equals(DateUtils.formatDate(transaction.getDate()));
@@ -154,10 +153,6 @@ public class TransactionListAdapter
             menu.show();
         }
 
-        private int iconResource(String name) {
-            if (name == null || name.trim().isEmpty()) return 0;
-            return context.getResources().getIdentifier(name, "drawable", context.getPackageName());
-        }
     }
 
     private static final DiffUtil.ItemCallback<Transaction> DIFF_CALLBACK =

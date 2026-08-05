@@ -2,8 +2,34 @@
 
 ## API smoke test
 
+Khởi động stack kiểm thử cục bộ bằng OCR GPU mặc định. File override E2E chỉ
+tắt SMTP trong môi trường Development để backend ghi mã xác nhận vào log;
+production không sử dụng file này:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+```
+
+Nếu cần kiểm thử bằng CPU:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.cpu.yml `
+    -f docker-compose.e2e.yml up -d --build
+```
+
+Chạy toàn bộ use case API với PP-OCRv6 và ảnh hóa đơn chụp từ điện thoại:
+
+```powershell
+.\scripts\e2e_smoke.ps1 `
+    -ReadVerificationCodeFromDockerLogs `
+    -ReceiptImagePath C:\fixtures\receipt-real.jpg
+```
+
 `e2e_smoke.ps1` luôn kiểm tra health, auth, category, transaction, pagination và
-statistics. OCR chỉ được chạy khi truyền một ảnh fixture thật:
+statistics. Script còn kiểm tra đăng nhập, idempotency khi nạp mục tiêu, logout
+thu hồi refresh token và transaction được tạo từ kết quả OCR. OCR chỉ được chạy
+khi truyền một ảnh fixture. `receipt-smoke.png` là ảnh tổng hợp, chỉ phù hợp để
+kiểm tra pipeline. Kết quả E2E nghiệp vụ phải dùng ảnh chụp hóa đơn từ điện thoại:
 
 ```powershell
 .\scripts\e2e_smoke.ps1 -ReceiptImagePath C:\fixtures\receipt-real.jpg
