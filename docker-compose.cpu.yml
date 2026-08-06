@@ -8,3 +8,17 @@ services:
     environment:
       OCR_DEVICE: cpu
       PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: "False"
+      OCR_USE_DOC_UNWARPING: "false"
+      OCR_USE_DOC_ORIENTATION_CLASSIFY: "false"
+      OCR_RECOGNITION_MODEL_DIR: ./models/my_receipt_rec_model
+    volumes:
+      - ./ocr-service/models:/service/models
+
+  backend:
+    depends_on: !reset
+      postgres:
+        condition: service_healthy
+    environment:
+      OCR_SERVICE_BASE_URL: http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

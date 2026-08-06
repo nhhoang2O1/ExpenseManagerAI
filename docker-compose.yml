@@ -22,23 +22,28 @@ services:
       start_period: 10s
 
   ocr-service:
-    image: expense-manager-ocr-gpu:local
+    image: expense-manager-ocr-cpu:local
     build:
       context: ./ocr-service
-      dockerfile: Dockerfile.gpu
-    gpus: all
+      dockerfile: Dockerfile
     restart: unless-stopped
     expose:
       - "8000"
+    ports:
+      - "8000:8000"
     environment:
       OCR_HOST: 0.0.0.0
       OCR_PORT: "8000"
-      OCR_DEVICE: gpu
+      OCR_DEVICE: cpu
       OCR_PRELOAD_MODEL: "true"
-      OCR_USE_DOC_ORIENTATION_CLASSIFY: "true"
-      OCR_USE_DOC_UNWARPING: "true"
+      OCR_USE_DOC_ORIENTATION_CLASSIFY: "false"
+      OCR_USE_DOC_UNWARPING: "false"
       OCR_USE_TEXTLINE_ORIENTATION: "true"
       OCR_MAX_IMAGE_SIDE: "1600"
+      OCR_RECOGNITION_MODEL_DIR: ./models/my_receipt_rec_model
+      PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT: "False"
+    volumes:
+      - ./ocr-service/models:/service/models
     healthcheck:
       test:
         [
@@ -50,7 +55,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 60s
+      start_period: 30s
 
   backend:
     build:
@@ -62,7 +67,7 @@ services:
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-expense_manager};Username=${POSTGRES_USER:-expense_manager};Password=${POSTGRES_PASSWORD}
       Database__ApplyMigrations: "true"
       Jwt__Secret: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      OCR_SERVICE_BASE_URL: http://ocr-service:8000
+      OCR_SERVICE_BASE_URL: http://host.docker.internal:8000
       LegacyReceiptPath: /app/storage/receipts
       Email__Smtp__Host: ${SMTP_HOST:-smtp.gmail.com}
       Email__Smtp__Port: ${SMTP_PORT:-587}
@@ -74,13 +79,11 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Read-only compatibility mount used only to import receipts created by
-      # older versions. New uploads are stored in PostgreSQL receipt_images.
       - receipt-storage:/app/storage/receipts:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
-        condition: service_healthy
-      ocr-service:
         condition: service_healthy
     healthcheck:
       test:
