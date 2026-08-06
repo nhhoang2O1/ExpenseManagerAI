@@ -97,13 +97,36 @@ public final class CategoryActivity extends AppCompatActivity {
         form.setPadding(padding, 0, padding, 0);
         form.addView(name);
         form.addView(type);
-        new AlertDialog.Builder(this).setTitle(category == null
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(category == null
                         ? R.string.add_category : R.string.edit_category)
-                .setView(form).setPositiveButton(R.string.save, (d, w) -> {
-                    String value = name.getText().toString().trim();
-                    if (value.isEmpty()) return;
-                    viewModel.save(category, value, type.getSelectedItemPosition() == 1
-                            ? "INCOME" : "EXPENSE");
-                }).setNegativeButton(R.string.cancel, null).show();
+                .setView(form).setPositiveButton(R.string.save, null)
+                .setNegativeButton(R.string.cancel, null).create();
+        dialog.setOnShowListener(ignored -> {
+            android.widget.Button save = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            Runnable updateButtonState = () -> save.setEnabled(
+                    name.getText() != null && !name.getText().toString().trim().isEmpty());
+            updateButtonState.run();
+            name.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
+
+                @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
+                    name.setError(null);
+                    updateButtonState.run();
+                }
+
+                @Override public void afterTextChanged(android.text.Editable value) { }
+            });
+            save.setOnClickListener(view -> {
+                String value = name.getText() == null ? "" : name.getText().toString().trim();
+                if (value.isEmpty()) {
+                    name.setError(getString(R.string.invalid_name));
+                    return;
+                }
+                viewModel.save(category, value, type.getSelectedItemPosition() == 1
+                        ? "INCOME" : "EXPENSE");
+                dialog.dismiss();
+            });
+        });
+        dialog.show();
     }
 }

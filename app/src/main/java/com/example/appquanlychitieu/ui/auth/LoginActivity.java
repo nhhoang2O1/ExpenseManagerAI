@@ -2,6 +2,9 @@ package com.example.appquanlychitieu.ui.auth;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.TextWatcher;
 import android.widget.CheckBox;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -9,6 +12,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.appquanlychitieu.MainActivity;
@@ -74,10 +78,10 @@ public class LoginActivity extends AppCompatActivity {
         EditText emailInput = new EditText(this);
         emailInput.setHint("Email");
         emailInput.setText(etEmail.getText());
-        new MaterialAlertDialogBuilder(this)
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle("Khôi phục mật khẩu")
-                .setView(emailInput)
-                .setPositiveButton("Gửi mã", (dialog, which) -> {
+                .setView(form(emailInput))
+                .setPositiveButton("Gửi mã", (ignoredDialog, which) -> {
                     String email = emailInput.getText().toString().trim();
                     viewModel.forgotPassword(email, new RemoteCallback<Void>() {
                         @Override public void onSuccess(Void value) {
@@ -91,7 +95,14 @@ public class LoginActivity extends AppCompatActivity {
                     });
                 })
                 .setNegativeButton(R.string.cancel, null)
-                .show();
+                .create();
+        dialog.setOnShowListener(ignored -> {
+            android.widget.Button sendCode = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            sendCode.setEnabled(isValidEmail(emailInput));
+            emailInput.addTextChangedListener(buttonStateWatcher(
+                    () -> sendCode.setEnabled(isValidEmail(emailInput))));
+        });
+        dialog.show();
     }
 
     private void showResetPassword(String email) {
@@ -102,16 +113,17 @@ public class LoginActivity extends AppCompatActivity {
         EditText code = new EditText(this);
         code.setHint("Mã 6 số");
         code.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        code.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)});
         EditText password = new EditText(this);
         password.setHint("Mật khẩu mới (ít nhất 8 ký tự)");
         password.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
                 android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         form.addView(code);
         form.addView(password);
-        new MaterialAlertDialogBuilder(this)
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle("Đặt lại mật khẩu")
                 .setView(form)
-                .setPositiveButton(R.string.save, (dialog, which) ->
+                .setPositiveButton(R.string.save, (ignoredDialog, which) ->
                         viewModel.resetPassword(email, code.getText().toString().trim(),
                                 password.getText().toString(), new RemoteCallback<Void>() {
                                     @Override public void onSuccess(Void value) {
@@ -122,9 +134,20 @@ public class LoginActivity extends AppCompatActivity {
                                         Toast.makeText(LoginActivity.this,
                                                 error.getMessage(), Toast.LENGTH_LONG).show();
                                     }
-                                }))
+                                 }))
                 .setNegativeButton(R.string.cancel, null)
-                .show();
+                .create();
+        dialog.setOnShowListener(ignored -> {
+            android.widget.Button save = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            Runnable updateButtonState = () -> save.setEnabled(
+                    code.getText() != null && code.getText().toString().matches("\\d{6}")
+                            && password.getText() != null
+                            && password.getText().toString().length() >= 8);
+            updateButtonState.run();
+            code.addTextChangedListener(buttonStateWatcher(updateButtonState));
+            password.addTextChangedListener(buttonStateWatcher(updateButtonState));
+        });
+        dialog.show();
     }
 
     private void validateSavedSession() {
@@ -195,6 +218,32 @@ public class LoginActivity extends AppCompatActivity {
     private long stableCacheUserId(String identity) {
         long hash = identity == null ? 1L : identity.hashCode();
         return Math.max(1L, Math.abs(hash));
+    }
+
+    private boolean isValidEmail(EditText input) {
+        return input.getText() != null
+                && android.util.Patterns.EMAIL_ADDRESS.matcher(input.getText().toString().trim()).matches();
+    }
+
+    private TextWatcher buttonStateWatcher(Runnable updateButtonState) {
+        return new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
+
+            @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
+                updateButtonState.run();
+            }
+
+            @Override public void afterTextChanged(Editable value) { }
+        };
+    }
+
+    private LinearLayout form(EditText... fields) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int padding = Math.round(24 * getResources().getDisplayMetrics().density);
+        layout.setPadding(padding, 0, padding, 0);
+        for (EditText field : fields) layout.addView(field);
+        return layout;
     }
 
     private void navigateToMain() {

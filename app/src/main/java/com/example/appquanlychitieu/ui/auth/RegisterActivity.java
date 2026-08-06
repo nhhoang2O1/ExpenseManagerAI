@@ -1,7 +1,17 @@
 package com.example.appquanlychitieu.ui.auth;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
+import android.graphics.Typeface;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.TextWatcher;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.EditText;
@@ -17,7 +27,10 @@ import com.example.appquanlychitieu.data.remote.dto.AuthResponseDto;
 import com.example.appquanlychitieu.util.SessionManager;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.shape.MaterialShapeDrawable;
+import com.google.android.material.shape.ShapeAppearanceModel;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -103,22 +116,101 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void showConfirmation(String email, String name) {
+        int horizontalPadding = dp(20);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(horizontalPadding, dp(20), horizontalPadding, dp(12));
+
+        TextView title = new TextView(this);
+        title.setText("Xác thực email");
+        title.setTextColor(MaterialColors.getColor(content,
+                com.google.android.material.R.attr.colorOnSurface));
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        content.addView(title);
+
+        TextView message = new TextView(this);
+        message.setText("Mã xác thực đã được gửi tới " + email);
+        message.setTextColor(MaterialColors.getColor(content,
+                com.google.android.material.R.attr.colorOnSurfaceVariant));
+        message.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        LinearLayout.LayoutParams messageParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        messageParams.topMargin = dp(8);
+        content.addView(message, messageParams);
+
         EditText code = new EditText(this);
-        code.setHint("Ma xac thuc 6 so");
+        code.setHint("Nhập mã xác thực 6 số");
         code.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Xac thuc email")
-                .setMessage("Ma xac thuc da duoc gui toi " + email)
-                .setView(code)
-                .setPositiveButton("Xac nhan", (dialog, which) -> confirmRegistration(
-                        email, name, code.getText().toString().trim()))
-                .setNegativeButton(R.string.cancel, null)
-                .show();
+        code.setSingleLine(true);
+        code.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)});
+        code.setPadding(dp(12), dp(12), dp(12), dp(12));
+        LinearLayout.LayoutParams codeParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        codeParams.topMargin = dp(16);
+        content.addView(code, codeParams);
+
+        LinearLayout buttonRow = new LinearLayout(this);
+        buttonRow.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+
+        MaterialButton cancel = new MaterialButton(this, null,
+                com.google.android.material.R.attr.borderlessButtonStyle);
+        cancel.setText(R.string.cancel);
+        buttonRow.addView(cancel);
+
+        MaterialButton confirm = new MaterialButton(this, null,
+                com.google.android.material.R.attr.borderlessButtonStyle);
+        confirm.setText("Xác nhận");
+        confirm.setEnabled(false);
+        LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        confirmParams.setMarginStart(dp(12));
+        buttonRow.addView(confirm, confirmParams);
+
+        LinearLayout.LayoutParams buttonRowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        buttonRowParams.topMargin = dp(16);
+        content.addView(buttonRow, buttonRowParams);
+
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setView(content, 0, 0, 0, 0)
+                .create();
+        cancel.setOnClickListener(view -> dialog.dismiss());
+        confirm.setOnClickListener(view -> {
+            dialog.dismiss();
+            confirmRegistration(email, name, code.getText().toString().trim());
+        });
+        code.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
+
+            @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
+                confirm.setEnabled(value != null && value.toString().matches("\\d{6}"));
+            }
+
+            @Override public void afterTextChanged(Editable value) { }
+        });
+        dialog.show();
+
+        Window window = dialog.getWindow();
+        if (window != null) {
+            MaterialShapeDrawable background = new MaterialShapeDrawable(ShapeAppearanceModel.builder()
+                    .setAllCornerSizes(dp(20))
+                    .build());
+            background.setFillColor(ColorStateList.valueOf(MaterialColors.getColor(content,
+                    com.google.android.material.R.attr.colorSurface)));
+            window.setBackgroundDrawable(background);
+            window.setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.9f),
+                    WindowManager.LayoutParams.WRAP_CONTENT);
+        }
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void confirmRegistration(String email, String name, String code) {
         if (!code.matches("[0-9]{6}")) {
-            Toast.makeText(this, "Nhap ma gom 6 chu so.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Nhập mã gồm 6 chữ số.", Toast.LENGTH_SHORT).show();
             showConfirmation(email, name);
             return;
         }

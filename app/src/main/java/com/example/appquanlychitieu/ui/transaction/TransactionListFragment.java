@@ -147,7 +147,7 @@ public class TransactionListFragment extends Fragment {
     }
 
     private void openTransaction(Transaction transaction) {
-        OcrReceiptDetails.show(requireContext(), transaction, () -> editTransaction(transaction));
+        editTransaction(transaction);
     }
 
     private void editTransaction(Transaction transaction) {

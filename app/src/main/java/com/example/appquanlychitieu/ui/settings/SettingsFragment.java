@@ -5,6 +5,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -154,6 +157,8 @@ public class SettingsFragment extends Fragment {
     private EditText input(String hint, boolean password) {
         EditText value = new EditText(requireContext());
         value.setHint(hint);
+        int padding = Math.round(12 * getResources().getDisplayMetrics().density);
+        value.setPadding(padding, padding, padding, padding);
         if (password) value.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
                 android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         return value;
@@ -203,10 +208,27 @@ public class SettingsFragment extends Fragment {
     private void confirmEmailCode() {
         EditText code = input("Mã xác nhận 6 số", false);
         code.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        new AlertDialog.Builder(requireContext()).setTitle("Xác nhận email").setView(code)
+        code.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)});
+        AlertDialog dialog = new AlertDialog.Builder(requireContext()).setTitle("Xác nhận email").setView(code)
                 .setPositiveButton(R.string.save, (d, w) -> viewModel.confirmEmailChange(
                         code.getText().toString().trim(), profileCallback()))
-                .setNegativeButton(R.string.cancel, null).show();
+                .setNegativeButton(R.string.cancel, null).create();
+        dialog.setOnShowListener(ignored -> {
+            android.widget.Button save = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            Runnable updateButtonState = () -> save.setEnabled(
+                    code.getText() != null && code.getText().toString().matches("\\d{6}"));
+            updateButtonState.run();
+            code.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
+
+                @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
+                    updateButtonState.run();
+                }
+
+                @Override public void afterTextChanged(Editable value) { }
+            });
+        });
+        dialog.show();
     }
 
     private void deleteAccount() {

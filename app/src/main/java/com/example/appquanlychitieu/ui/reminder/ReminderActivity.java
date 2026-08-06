@@ -169,6 +169,8 @@ public class ReminderActivity extends AppCompatActivity {
             dialog.getWindow().setLayout(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            dialog.getWindow().setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
         tvDialogTitle = dialog.findViewById(R.id.tv_dialog_title);

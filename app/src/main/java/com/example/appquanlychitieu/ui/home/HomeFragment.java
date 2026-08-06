@@ -21,7 +21,6 @@ import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.ui.receipt.ReceiptScanActivity;
 import com.example.appquanlychitieu.ui.reminder.ReminderActivity;
 import com.example.appquanlychitieu.ui.transaction.AddEditTransactionActivity;
-import com.example.appquanlychitieu.ui.transaction.OcrReceiptDetails;
 import com.example.appquanlychitieu.ui.transaction.TransactionListAdapter;
 import com.example.appquanlychitieu.util.CurrencyFormatter;
 import com.example.appquanlychitieu.util.DateUtils;
@@ -148,7 +147,7 @@ public class HomeFragment extends Fragment {
     }
 
     private void openTransaction(Transaction transaction) {
-        OcrReceiptDetails.show(requireContext(), transaction, () -> editTransaction(transaction));
+        editTransaction(transaction);
     }
 
     private void editTransaction(Transaction transaction) {
