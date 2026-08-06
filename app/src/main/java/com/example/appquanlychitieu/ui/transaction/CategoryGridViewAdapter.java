@@ -1,7 +1,6 @@
 package com.example.appquanlychitieu.ui.transaction;
 
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -60,7 +59,6 @@ public class CategoryGridViewAdapter extends BaseAdapter {
         CategoryVisualResolver.CategoryVisual visual = CategoryVisualResolver.resolve(
                 context, String.valueOf(category.getId()), category.getColor());
         holder.name.setText(category.getName());
-        holder.icon.setImageResource(CategoryVisualResolver.resolveIcon(category.getIcon()));
         boolean selected = position == selectedPosition;
         holder.card.setCardBackgroundColor(selected
                 ? context.getColor(R.color.primary_container) : context.getColor(R.color.surface));
@@ -69,7 +67,7 @@ public class CategoryGridViewAdapter extends BaseAdapter {
         holder.card.setStrokeWidth(context.getResources().getDimensionPixelSize(
                 selected ? R.dimen.stroke_width : R.dimen.stroke_width));
         holder.name.setTextColor(context.getColor(selected ? R.color.primary : R.color.text_primary));
-        holder.icon.setImageTintList(ColorStateList.valueOf(visual.baseColor));
+        CategoryVisualResolver.bindIcon(holder.icon, category.getIcon(), visual.baseColor);
         return convertView;
     }
 

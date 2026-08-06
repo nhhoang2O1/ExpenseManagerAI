@@ -39,10 +39,10 @@ public final class CategoryViewModel extends AndroidViewModel {
         });
     }
 
-    public void save(CategoryDto existing, String name, String type) {
+    public void save(CategoryDto existing, String name, String type, String icon) {
         CategoryRequestDto request = new CategoryRequestDto(name, type,
                 existing == null ? "#607D8B" : existing.color,
-                existing == null ? "ic_other" : existing.icon);
+                icon);
         RemoteCallback<CategoryDto> callback = new RemoteCallback<CategoryDto>() {
             @Override public void onSuccess(CategoryDto value) { refresh(); }
             @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }

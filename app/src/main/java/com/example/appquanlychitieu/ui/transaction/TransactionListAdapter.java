@@ -36,12 +36,18 @@ public class TransactionListAdapter
     }
 
     private final Context context;
+    private final boolean insetItems;
     private final Map<Long, Category> categoryCache = new HashMap<>();
     private OnItemClickListener listener;
 
     public TransactionListAdapter(Context context) {
+        this(context, true);
+    }
+
+    public TransactionListAdapter(Context context, boolean insetItems) {
         super(DIFF_CALLBACK);
         this.context = context;
+        this.insetItems = insetItems;
     }
 
     public void setOnItemClickListener(OnItemClickListener listener) {
@@ -74,6 +80,7 @@ public class TransactionListAdapter
 
     final class ViewHolder extends RecyclerView.ViewHolder {
         final View viewIconBg;
+        final View card;
         final ImageView ivCategoryIcon;
         final TextView tvDateGroup;
         final TextView tvNote;
@@ -84,12 +91,24 @@ public class TransactionListAdapter
         ViewHolder(View view) {
             super(view);
             tvDateGroup = view.findViewById(R.id.tv_date_group);
+            card = view.findViewById(R.id.card_transaction);
             viewIconBg = view.findViewById(R.id.view_icon_bg);
             ivCategoryIcon = view.findViewById(R.id.iv_category_icon);
             tvNote = view.findViewById(R.id.tv_note);
             tvCategory = view.findViewById(R.id.tv_category);
             tvAmount = view.findViewById(R.id.tv_amount);
             btnMore = view.findViewById(R.id.btn_more);
+            if (!insetItems) removeOuterInsets();
+        }
+
+        private void removeOuterInsets() {
+            ViewGroup.MarginLayoutParams params =
+                    (ViewGroup.MarginLayoutParams) card.getLayoutParams();
+            params.setMarginStart(0);
+            params.setMarginEnd(0);
+            card.setLayoutParams(params);
+            tvDateGroup.setPaddingRelative(0, tvDateGroup.getPaddingTop(),
+                    0, tvDateGroup.getPaddingBottom());
         }
 
         void bind(Transaction transaction, Transaction previous) {
@@ -119,8 +138,7 @@ public class TransactionListAdapter
             background.setShape(GradientDrawable.OVAL);
             background.setColor(visual.baseColor);
             viewIconBg.setBackground(background);
-            ivCategoryIcon.setColorFilter(visual.onBaseColor);
-            ivCategoryIcon.setImageResource(CategoryVisualResolver.resolveIcon(categoryIcon));
+            CategoryVisualResolver.bindIcon(ivCategoryIcon, categoryIcon, visual.onBaseColor);
 
             boolean newDay = previous == null
                     || !DateUtils.formatDate(previous.getDate()).equals(DateUtils.formatDate(transaction.getDate()));

@@ -3,8 +3,18 @@ package com.example.appquanlychitieu.ui.common;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.content.res.ColorStateList;
+import android.widget.ImageView;
 
 import androidx.annotation.ColorInt;
+import androidx.appcompat.content.res.AppCompatResources;
+import androidx.core.widget.ImageViewCompat;
 import androidx.core.graphics.ColorUtils;
 
 import com.example.appquanlychitieu.R;
@@ -12,6 +22,7 @@ import com.example.appquanlychitieu.R;
 import java.util.Locale;
 
 public final class CategoryVisualResolver {
+    private static final String EMOJI_PREFIX = "emoji:";
     private static final int[] FALLBACK_COLORS = {
             0xFF2563EB,
             0xFF0B6B53,
@@ -60,6 +71,69 @@ public final class CategoryVisualResolver {
             case "ic_freelance": return R.drawable.ic_freelance;
             default: return R.drawable.ic_other;
         }
+    }
+
+    public static boolean isEmojiIcon(String rawIcon) {
+        return rawIcon != null && rawIcon.trim().startsWith(EMOJI_PREFIX)
+                && isEmoji(extractEmoji(rawIcon));
+    }
+
+    public static boolean isEmoji(String value) {
+        if (value == null) return false;
+        String candidate = value.trim();
+        if (candidate.isEmpty() || candidate.length() > 16) return false;
+        for (int offset = 0; offset < candidate.length();) {
+            int codePoint = candidate.codePointAt(offset);
+            if ((codePoint >= 0x1F000 && codePoint <= 0x1FAFF)
+                    || (codePoint >= 0x2300 && codePoint <= 0x23FF)
+                    || (codePoint >= 0x2600 && codePoint <= 0x27BF)) return true;
+            offset += Character.charCount(codePoint);
+        }
+        return false;
+    }
+
+    public static String toEmojiIcon(String emoji) {
+        String candidate = emoji == null ? "" : emoji.trim();
+        return isEmoji(candidate) ? EMOJI_PREFIX + candidate : "ic_other";
+    }
+
+    public static String extractEmoji(String rawIcon) {
+        if (rawIcon == null) return "";
+        String value = rawIcon.trim();
+        return value.startsWith(EMOJI_PREFIX) ? value.substring(EMOJI_PREFIX.length()) : "";
+    }
+
+    public static Drawable resolveIconDrawable(Context context, String rawIcon, int sizePx) {
+        if (!isEmojiIcon(rawIcon)) {
+            Drawable drawable = AppCompatResources.getDrawable(context, resolveIcon(rawIcon));
+            if (drawable != null) drawable.setBounds(0, 0, sizePx, sizePx);
+            return drawable;
+        }
+        Bitmap bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+        paint.setTypeface(Typeface.DEFAULT);
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setTextSize(sizePx * 0.82f);
+        Paint.FontMetrics metrics = paint.getFontMetrics();
+        float baseline = sizePx / 2f - (metrics.ascent + metrics.descent) / 2f;
+        canvas.drawText(extractEmoji(rawIcon), sizePx / 2f, baseline, paint);
+        BitmapDrawable drawable = new BitmapDrawable(context.getResources(), bitmap);
+        drawable.setBounds(0, 0, sizePx, sizePx);
+        return drawable;
+    }
+
+    public static void bindIcon(ImageView view, String rawIcon, @ColorInt int vectorTint) {
+        if (isEmojiIcon(rawIcon)) {
+            ImageViewCompat.setImageTintList(view, null);
+            view.clearColorFilter();
+            int size = Math.max(view.getLayoutParams().width, view.getLayoutParams().height);
+            if (size <= 0) size = Math.round(24 * view.getResources().getDisplayMetrics().density);
+            view.setImageDrawable(resolveIconDrawable(view.getContext(), rawIcon, size));
+            return;
+        }
+        view.setImageResource(resolveIcon(rawIcon));
+        ImageViewCompat.setImageTintList(view, ColorStateList.valueOf(vectorTint));
     }
 
     private static int parseColor(String rawColor, int fallback) {

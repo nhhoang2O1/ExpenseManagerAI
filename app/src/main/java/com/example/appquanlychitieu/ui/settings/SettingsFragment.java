@@ -35,6 +35,7 @@ import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.ProfileDto;
 import com.example.appquanlychitieu.util.SessionManager;
 import com.example.appquanlychitieu.util.ThemeManager;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.IOException;
@@ -300,23 +301,35 @@ public class SettingsFragment extends Fragment {
 
     private void chooseReport() {
         String[] formats = {"XLSX", "CSV", "PDF"};
-        new AlertDialog.Builder(requireContext())
-                .setTitle("Chá»n Ä‘á»‹nh dáº¡ng")
-                .setItems(formats, (dialog, which) -> {
-                    exportFormat = formats[which].toLowerCase(Locale.US);
-                    Calendar now = Calendar.getInstance();
-                    new DatePickerDialog(requireContext(), (picker, year, month, day) -> {
-                        exportYear = year;
-                        exportMonth = month + 1;
-                        exportReportLauncher.launch(String.format(
-                                Locale.US,
-                                "bao_cao_%04d_%02d.%s",
-                                exportYear,
-                                exportMonth,
-                                exportFormat));
-                    }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), 1).show();
+        int checkedItem = Math.max(0, java.util.Arrays.asList(formats)
+                .indexOf(exportFormat.toUpperCase(Locale.US)));
+        final int[] selectedItem = {checkedItem};
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.choose_report_format)
+                .setMessage(R.string.choose_report_format_description)
+                .setSingleChoiceItems(formats, checkedItem,
+                        (dialog, which) -> selectedItem[0] = which)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.continue_action, (dialog, which) -> {
+                    exportFormat = formats[selectedItem[0]].toLowerCase(Locale.US);
+                    showReportMonthPicker();
                 })
                 .show();
+    }
+
+    private void showReportMonthPicker() {
+        Calendar now = Calendar.getInstance();
+        new DatePickerDialog(requireContext(), (picker, year, month, day) -> {
+            exportYear = year;
+            exportMonth = month + 1;
+            exportReportLauncher.launch(String.format(
+                    Locale.US,
+                    "bao_cao_%04d_%02d.%s",
+                    exportYear,
+                    exportMonth,
+                    exportFormat));
+        }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), 1).show();
     }
 
     private void showToast(String message) {

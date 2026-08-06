@@ -18,6 +18,7 @@
         android:textStyle="bold" />
 
     <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_transaction"
         style="@style/Widget.App.CardView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

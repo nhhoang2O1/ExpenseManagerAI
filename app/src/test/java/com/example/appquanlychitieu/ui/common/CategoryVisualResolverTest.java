@@ -20,4 +20,16 @@ public class CategoryVisualResolverTest {
         assertNotEquals(first,
                 CategoryVisualResolver.resolveChartColor("transport-id", null));
     }
+
+    @Test
+    public void emojiIconCanBeStoredAndReadBack() {
+        assertEquals("emoji:☕", CategoryVisualResolver.toEmojiIcon(" ☕ "));
+        assertEquals("☕", CategoryVisualResolver.extractEmoji("emoji:☕"));
+    }
+
+    @Test
+    public void regularTextIsNotAcceptedAsEmoji() {
+        assertEquals("ic_other", CategoryVisualResolver.toEmojiIcon("Coffee"));
+        assertEquals("", CategoryVisualResolver.extractEmoji("ic_food"));
+    }
 }

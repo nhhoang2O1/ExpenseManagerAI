@@ -76,7 +76,8 @@ public class HomeFragment extends Fragment {
         errorState = view.findViewById(R.id.layout_error_state);
         syncBanner = view.findViewById(R.id.layout_sync_banner);
 
-        adapter = new TransactionListAdapter(requireContext());
+        // Home already has a 16dp page inset, so transaction rows must not add another one.
+        adapter = new TransactionListAdapter(requireContext(), false);
         recentView.setLayoutManager(new LinearLayoutManager(requireContext()));
         recentView.setNestedScrollingEnabled(false);
         recentView.setAdapter(adapter);

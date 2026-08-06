@@ -122,9 +122,8 @@ public class BudgetListAdapter extends ListAdapter<Budget, BudgetListAdapter.Vie
             bg.setShape(GradientDrawable.OVAL);
             bg.setColor(visual.baseColor);
             iconBackground.setBackground(bg);
-            icon.setColorFilter(visual.onBaseColor);
-            icon.setImageResource(CategoryVisualResolver.resolveIcon(
-                    budget.getRemoteCategoryIcon()));
+            CategoryVisualResolver.bindIcon(icon, budget.getRemoteCategoryIcon(),
+                    visual.onBaseColor);
             more.setOnClickListener(v -> {
                 PopupMenu menu = new PopupMenu(context, v);
                 menu.getMenu().add(R.string.edit).setOnMenuItemClickListener(item -> {

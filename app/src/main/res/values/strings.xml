@@ -45,6 +45,9 @@
     <string name="export_report_desc">Tải báo cáo giao dịch theo tháng ở định dạng .xlsx</string>
     <string name="export_report_success">Đã xuất báo cáo</string>
     <string name="export_report_error">Không thể xuất báo cáo</string>
+    <string name="choose_report_format">Chọn định dạng báo cáo</string>
+    <string name="choose_report_format_description">Chọn loại tệp bạn muốn xuất</string>
+    <string name="continue_action">Tiếp tục</string>
     <string name="app_version">Phiên bản 1.0</string>
 
     <!-- Default Categories - Expense -->
@@ -203,6 +206,22 @@
     <string name="add_category">Thêm danh mục</string>
     <string name="edit_category">Sửa danh mục</string>
     <string name="category_name_hint">Tên danh mục</string>
+    <string name="category_emoji_hint">Emoji danh mục (ví dụ: ☕)</string>
+    <string name="invalid_category_emoji">Vui lòng nhập một emoji cho danh mục</string>
+    <string name="content_description_back">Quay lại</string>
+    <string name="icon_food">Ăn uống</string>
+    <string name="icon_transport">Di chuyển</string>
+    <string name="icon_shopping">Mua sắm</string>
+    <string name="icon_house">Nhà ở</string>
+    <string name="icon_entertainment">Giải trí</string>
+    <string name="icon_health">Sức khỏe</string>
+    <string name="icon_education">Giáo dục</string>
+    <string name="icon_bill">Hóa đơn</string>
+    <string name="icon_salary">Lương</string>
+    <string name="icon_gift">Quà tặng</string>
+    <string name="icon_invest">Đầu tư</string>
+    <string name="icon_freelance">Làm thêm</string>
+    <string name="icon_other">Khác</string>
     <string name="percentage_format">%1$d%%</string>
     <string name="positive_amount">+ %1$s</string>
     <string name="negative_amount">- %1$s</string>
