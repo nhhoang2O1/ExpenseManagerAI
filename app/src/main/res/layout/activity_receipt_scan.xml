@@ -121,7 +121,7 @@
                         android:layout_marginStart="4dp"
                         android:layout_weight="1"
                         android:text="@string/take_photo"
-                        app:icon="@drawable/ic_add" />
+                        app:icon="@drawable/ic_camera" />
                 </LinearLayout>
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_start_ocr"
@@ -240,6 +240,14 @@
                         android:id="@+id/dropdown_category"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:minHeight="56dp"
+                        android:gravity="center_vertical"
+                        android:includeFontPadding="false"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:textSize="16sp"
                         android:inputType="none" />
                 </com.google.android.material.textfield.TextInputLayout>
 
