@@ -6,116 +6,108 @@ namespace ExpenseManager.Api.Services;
 
 public interface IReportExportService
 {
-    byte[] CreateCsv(int year, int month, IReadOnlyList<Domain.Transaction> transactions);
-    byte[] CreatePdf(int year, int month, IReadOnlyList<Domain.Transaction> transactions);
+    byte[] CreatePdf(DateOnly from, DateOnly to, IReadOnlyList<Domain.Transaction> transactions);
 }
 
-/// <summary>
-/// Dependency-free CSV/PDF exports. XLSX remains implemented by
-/// ExcelReportService; these formats intentionally share the same ordered
-/// transaction query in ReportsController.
-/// </summary>
 public sealed class ReportExportService : IReportExportService
 {
-    public byte[] CreateCsv(int year, int month, IReadOnlyList<Domain.Transaction> transactions)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine("date,type,category,amount_vnd,store,note");
-        foreach (var item in transactions)
-        {
-            AppendCsvRow(builder,
-                item.TransactionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                item.Type == TransactionType.INCOME ? "income" : "expense",
-                item.Category.Name,
-                item.Amount.ToString(CultureInfo.InvariantCulture),
-                item.StoreName ?? string.Empty,
-                item.Note ?? string.Empty);
-        }
-
-        var income = transactions.Where(x => x.Type == TransactionType.INCOME).Sum(x => x.Amount);
-        var expense = transactions.Where(x => x.Type == TransactionType.EXPENSE).Sum(x => x.Amount);
-        AppendCsvRow(builder, string.Empty, "total_income", string.Empty,
-            income.ToString(CultureInfo.InvariantCulture), string.Empty, string.Empty);
-        AppendCsvRow(builder, string.Empty, "total_expense", string.Empty,
-            expense.ToString(CultureInfo.InvariantCulture), string.Empty, string.Empty);
-        AppendCsvRow(builder, string.Empty, "balance", string.Empty,
-            (income - expense).ToString(CultureInfo.InvariantCulture), string.Empty, string.Empty);
-
-        return new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)
-            .GetBytes(builder.ToString());
-    }
-
-    public byte[] CreatePdf(int year, int month, IReadOnlyList<Domain.Transaction> transactions)
+    public byte[] CreatePdf(DateOnly from, DateOnly to, IReadOnlyList<Domain.Transaction> transactions)
     {
         var lines = new List<string>
         {
-            $"Expense Manager - {year}-{month:00}",
-            "Date | Type | Category | Amount (VND) | Store",
-            "------------------------------------------------------------"
+            $"Expense Manager - {from:yyyy-MM-dd} to {to:yyyy-MM-dd}"
         };
-        lines.AddRange(transactions.Select(x =>
-            $"{x.TransactionDate:yyyy-MM-dd} | {(x.Type == TransactionType.INCOME ? "IN" : "OUT")} | " +
-            $"{x.Category.Name} | {x.Amount.ToString("N0", CultureInfo.InvariantCulture)} | {x.StoreName ?? ""}"));
-        var income = transactions.Where(x => x.Type == TransactionType.INCOME).Sum(x => x.Amount);
-        var expense = transactions.Where(x => x.Type == TransactionType.EXPENSE).Sum(x => x.Amount);
-        lines.Add($"Income: {income.ToString("N0", CultureInfo.InvariantCulture)} VND");
-        lines.Add($"Expense: {expense.ToString("N0", CultureInfo.InvariantCulture)} VND");
-        lines.Add($"Balance: {(income - expense).ToString("N0", CultureInfo.InvariantCulture)} VND");
 
-        // A small valid PDF writer is sufficient for an export artifact and
-        // avoids adding a native/PDF dependency to the API container.
-        var content = new StringBuilder("BT\n/F1 9 Tf\n50 800 Td\n");
-        foreach (var line in lines)
+        foreach (var month in transactions
+                     .GroupBy(x => new { x.TransactionDate.Year, x.TransactionDate.Month })
+                     .OrderBy(x => x.Key.Year).ThenBy(x => x.Key.Month))
         {
-            content.Append('(').Append(EscapePdf(line)).Append(") Tj\n0 -14 Td\n");
+            lines.Add($"MONTH {month.Key.Year}-{month.Key.Month:00}");
+            lines.Add("Date | Type | Category | Amount (VND) | Store");
+            lines.Add("------------------------------------------------------------");
+            lines.AddRange(month.Select(x =>
+                $"{x.TransactionDate:yyyy-MM-dd} | {(x.Type == TransactionType.INCOME ? "IN" : "OUT")} | " +
+                $"{x.Category.Name} | {x.Amount.ToString("N0", CultureInfo.InvariantCulture)} | {x.StoreName ?? ""}"));
+            var income = month.Where(x => x.Type == TransactionType.INCOME).Sum(x => x.Amount);
+            var expense = month.Where(x => x.Type == TransactionType.EXPENSE).Sum(x => x.Amount);
+            lines.Add($"Month income: {income.ToString("N0", CultureInfo.InvariantCulture)} VND");
+            lines.Add($"Month expense: {expense.ToString("N0", CultureInfo.InvariantCulture)} VND");
+            lines.Add($"Month balance: {(income - expense).ToString("N0", CultureInfo.InvariantCulture)} VND");
+            lines.Add(string.Empty);
         }
-        content.Append("ET\n");
-        var stream = Encoding.ASCII.GetBytes(content.ToString());
 
+        var totalIncome = transactions.Where(x => x.Type == TransactionType.INCOME).Sum(x => x.Amount);
+        var totalExpense = transactions.Where(x => x.Type == TransactionType.EXPENSE).Sum(x => x.Amount);
+        lines.Add("GRAND TOTAL");
+        lines.Add($"Income: {totalIncome.ToString("N0", CultureInfo.InvariantCulture)} VND");
+        lines.Add($"Expense: {totalExpense.ToString("N0", CultureInfo.InvariantCulture)} VND");
+        lines.Add($"Balance: {(totalIncome - totalExpense).ToString("N0", CultureInfo.InvariantCulture)} VND");
+
+        const int linesPerPage = 50;
+        var pages = new List<List<string>>();
+        var page = NewPageHeader(from, to);
+        foreach (var line in lines.Skip(1))
+        {
+            if (page.Count >= linesPerPage)
+            {
+                pages.Add(page);
+                page = NewPageHeader(from, to);
+            }
+            page.Add(line);
+        }
+        if (page.Count > 1 || pages.Count == 0) pages.Add(page);
+        return BuildPdf(pages);
+    }
+
+    private static List<string> NewPageHeader(DateOnly from, DateOnly to) =>
+        [$"Expense Manager - {from:yyyy-MM-dd} to {to:yyyy-MM-dd}"];
+
+    private static byte[] BuildPdf(IReadOnlyList<List<string>> pages)
+    {
         using var output = new MemoryStream();
-        using var writer = new StreamWriter(output, Encoding.ASCII, leaveOpen: true);
-        writer.Write("%PDF-1.4\n");
-        writer.Flush();
+        WriteAscii(output, "%PDF-1.4\n");
         var offsets = new List<long> { 0 };
         WriteObject(output, offsets, "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n");
-        WriteObject(output, offsets, "2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj\n");
-        WriteObject(output, offsets, "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>endobj\n");
-        WriteObject(output, offsets, "4 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj\n");
-        offsets.Add(output.Position);
-        writer.Write($"5 0 obj<< /Length {stream.Length} >>stream\n");
-        writer.Flush();
-        output.Write(stream, 0, stream.Length);
-        writer.Write("\nendstream\nendobj\n");
-        writer.Flush();
+        var pageReferences = string.Join(" ", pages.Select((_, index) => $"{4 + index * 2} 0 R"));
+        WriteObject(output, offsets, $"2 0 obj<< /Type /Pages /Kids [{pageReferences}] /Count {pages.Count} >>endobj\n");
+        WriteObject(output, offsets, "3 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj\n");
+
+        for (var index = 0; index < pages.Count; index++)
+        {
+            var pageId = 4 + index * 2;
+            var contentId = pageId + 1;
+            WriteObject(output, offsets,
+                $"{pageId} 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 3 0 R >> >> /Contents {contentId} 0 R >>endobj\n");
+            var content = new StringBuilder("BT\n/F1 9 Tf\n50 800 Td\n");
+            foreach (var line in pages[index])
+                content.Append('(').Append(EscapePdf(line)).Append(") Tj\n0 -14 Td\n");
+            content.Append("ET\n");
+            var stream = Encoding.ASCII.GetBytes(content.ToString());
+            offsets.Add(output.Position);
+            WriteAscii(output, $"{contentId} 0 obj<< /Length {stream.Length} >>stream\n");
+            output.Write(stream, 0, stream.Length);
+            WriteAscii(output, "\nendstream\nendobj\n");
+        }
+
         var xref = output.Position;
-        writer.Write($"xref\n0 {offsets.Count}\n0000000000 65535 f \n");
-        foreach (var offset in offsets.Skip(1))
-            writer.Write($"{offset:0000000000} 00000 n \n");
-        writer.Write($"trailer<< /Size {offsets.Count} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF");
-        writer.Flush();
+        WriteAscii(output, $"xref\n0 {offsets.Count}\n0000000000 65535 f \n");
+        foreach (var offset in offsets.Skip(1)) WriteAscii(output, $"{offset:0000000000} 00000 n \n");
+        WriteAscii(output, $"trailer<< /Size {offsets.Count} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF");
         return output.ToArray();
     }
 
-    private static void AppendCsvRow(StringBuilder builder, params string[] values) =>
-        builder.AppendLine(string.Join(',', values.Select(EscapeCsv)));
-
-    private static string EscapeCsv(string value) =>
-        value.Contains(',', StringComparison.Ordinal) || value.Contains('"') ||
-        value.Contains('\n') || value.Contains('\r')
-            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
-            : value;
-
-    private static string EscapePdf(string value) =>
-        value.Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("(", "\\(", StringComparison.Ordinal)
-            .Replace(")", "\\)", StringComparison.Ordinal)
-            .Where(c => c <= 127)
-            .Aggregate(new StringBuilder(), (builder, c) => builder.Append(c))
-            .ToString();
+    private static string EscapePdf(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal)
+        .Replace("(", "\\(", StringComparison.Ordinal).Replace(")", "\\)", StringComparison.Ordinal)
+        .Where(c => c <= 127).Aggregate(new StringBuilder(), (builder, c) => builder.Append(c)).ToString();
 
     private static void WriteObject(Stream output, List<long> offsets, string value)
     {
         offsets.Add(output.Position);
+        WriteAscii(output, value);
+    }
+
+    private static void WriteAscii(Stream output, string value)
+    {
         var bytes = Encoding.ASCII.GetBytes(value);
         output.Write(bytes, 0, bytes.Length);
     }

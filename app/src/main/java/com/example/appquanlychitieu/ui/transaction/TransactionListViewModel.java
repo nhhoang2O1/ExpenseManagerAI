@@ -16,21 +16,24 @@ import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.util.SessionManager;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class TransactionListViewModel extends AndroidViewModel {
     public static final class FilterOptions {
         final String type;
         final long startDate;
         final long endDate;
-        final String keyword;
+        final String category;
 
-        FilterOptions(String type, long startDate, long endDate, String keyword) {
+        FilterOptions(String type, long startDate, long endDate, String category) {
             this.type = type;
             this.startDate = startDate;
             this.endDate = endDate;
-            this.keyword = keyword;
+            this.category = category;
         }
     }
 
@@ -39,6 +42,9 @@ public class TransactionListViewModel extends AndroidViewModel {
     private final boolean authenticated;
     private final MutableLiveData<List<Transaction>> transactions =
             new MutableLiveData<>(new ArrayList<>());
+    private final MutableLiveData<List<String>> categoryNames =
+            new MutableLiveData<>(new ArrayList<>());
+    private final MutableLiveData<String> selectedCategory = new MutableLiveData<>("");
     private final MutableLiveData<LoadState> loadState =
             new MutableLiveData<>(LoadState.LOADING);
     private final MutableLiveData<String> remoteError = new MutableLiveData<>();
@@ -59,22 +65,25 @@ public class TransactionListViewModel extends AndroidViewModel {
     }
 
     public LiveData<List<Transaction>> getTransactions() { return transactions; }
+    public LiveData<List<String>> getCategoryNames() { return categoryNames; }
+    public LiveData<String> getSelectedCategory() { return selectedCategory; }
     public LiveData<LoadState> getLoadState() { return loadState; }
     public LiveData<String> getRemoteError() { return remoteError; }
     public LiveData<String> getFeedback() { return feedback; }
 
     public void setFilterType(String type) {
-        filters = new FilterOptions(type, filters.startDate, filters.endDate, filters.keyword);
+        filters = new FilterOptions(type, filters.startDate, filters.endDate, filters.category);
         publish();
     }
 
     public void setDateRange(long start, long end) {
-        filters = new FilterOptions(filters.type, start, end, filters.keyword);
+        filters = new FilterOptions(filters.type, start, end, filters.category);
         publish();
     }
 
-    public void setSearchQuery(String keyword) {
-        filters = new FilterOptions(filters.type, filters.startDate, filters.endDate, keyword);
+    public void setCategoryFilter(String category) {
+        selectedCategory.setValue(category == null ? "" : category);
+        filters = new FilterOptions(filters.type, filters.startDate, filters.endDate, category);
         publish();
     }
 
@@ -118,8 +127,14 @@ public class TransactionListViewModel extends AndroidViewModel {
                 refreshing = false;
                 hasLoaded = true;
                 serverSnapshot = value == null ? new ArrayList<>() : new ArrayList<>(value);
-                remoteError.setValue(null);
+                Set<String> names = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+                for (Transaction transaction : serverSnapshot) {
+                    String name = transaction.getRemoteCategoryName();
+                    if (name != null && !name.trim().isEmpty()) names.add(name.trim());
+                }
+                categoryNames.setValue(new ArrayList<>(names));
                 publish();
+                remoteError.setValue(null);
             }
 
             @Override
@@ -133,19 +148,17 @@ public class TransactionListViewModel extends AndroidViewModel {
 
     private void publish() {
         List<Transaction> filtered = new ArrayList<>();
-        String keyword = filters.keyword == null
-                ? "" : filters.keyword.trim().toLowerCase(Locale.ROOT);
+        String categoryFilter = filters.category == null ? "" : filters.category.trim();
         for (Transaction transaction : serverSnapshot) {
             if ("EXPENSE".equals(filters.type) && transaction.getType() != TransactionType.EXPENSE) continue;
             if ("INCOME".equals(filters.type) && transaction.getType() != TransactionType.INCOME) continue;
             if (transaction.getDate() < filters.startDate || transaction.getDate() > filters.endDate) continue;
-            String note = transaction.getNote() == null ? "" : transaction.getNote();
             String category = transaction.getRemoteCategoryName() == null
                     ? "" : transaction.getRemoteCategoryName();
-            if (!keyword.isEmpty()
-                    && !(note + " " + category).toLowerCase(Locale.ROOT).contains(keyword)) continue;
+            if (!categoryFilter.isEmpty() && !category.equalsIgnoreCase(categoryFilter)) continue;
             filtered.add(transaction);
         }
+        filtered.sort(Comparator.comparingLong(Transaction::getDate).reversed());
         transactions.setValue(filtered);
         loadState.setValue(filtered.isEmpty() ? LoadState.EMPTY : LoadState.CONTENT);
     }

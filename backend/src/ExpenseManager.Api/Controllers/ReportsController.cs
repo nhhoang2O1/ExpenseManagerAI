@@ -16,73 +16,90 @@ public sealed class ReportsController(
     IExcelReportService excelReportService,
     IReportExportService reportExportService) : ControllerBase
 {
-    [HttpGet("monthly.xlsx")]
-    public async Task<IActionResult> Monthly(
-        [FromQuery] int year,
-        [FromQuery] int month,
+    [HttpGet("range.xlsx")]
+    public async Task<IActionResult> RangeXlsx(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         CancellationToken cancellationToken)
     {
-        if (year is < 2000 or > 2100 || month is < 1 or > 12)
-            return BadRequest(new { message = "year hoặc month không hợp lệ." });
+        if (!TryValidateRange(from, to, out var start, out var end, out var error))
+            return BadRequest(new { message = error });
 
-        var start = new DateOnly(year, month, 1);
-        var end = start.AddMonths(1);
-        var transactions = await db.Transactions.AsNoTracking().Include(x => x.Category)
-            .Where(x => x.UserId == userContext.UserId &&
-                        x.TransactionDate >= start && x.TransactionDate < end)
-            .OrderBy(x => x.TransactionDate)
-            .ThenBy(x => x.CreatedAt)
-            .ThenBy(x => x.Id)
-            .ToListAsync(cancellationToken);
-        var bytes = excelReportService.CreateMonthly(year, month, transactions);
+        var transactions = await LoadTransactions(start, end, cancellationToken);
+        var bytes = excelReportService.CreateRange(start, end, transactions);
         return File(
             bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"bao-cao-{year}-{month:00}.xlsx");
+            $"bao-cao-{start:yyyyMMdd}-{end:yyyyMMdd}.xlsx");
     }
 
-    [HttpGet("monthly.csv")]
-    public Task<IActionResult> MonthlyCsv(
-        [FromQuery] int year,
-        [FromQuery] int month,
-        CancellationToken cancellationToken) =>
-        ExportTextAsync(year, month, "csv", cancellationToken);
-
-    [HttpGet("monthly.pdf")]
-    public Task<IActionResult> MonthlyPdf(
-        [FromQuery] int year,
-        [FromQuery] int month,
-        CancellationToken cancellationToken) =>
-        ExportTextAsync(year, month, "pdf", cancellationToken);
-
-    private async Task<IActionResult> ExportTextAsync(
-        int year,
-        int month,
-        string format,
+    [HttpGet("range.pdf")]
+    public async Task<IActionResult> RangePdf(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         CancellationToken cancellationToken)
     {
-        if (year is < 2000 or > 2100 || month is < 1 or > 12)
-            return BadRequest(new { message = "year or month is invalid." });
+        if (!TryValidateRange(from, to, out var start, out var end, out var error))
+            return BadRequest(new { message = error });
 
-        var start = new DateOnly(year, month, 1);
-        var end = start.AddMonths(1);
-        var transactions = await db.Transactions.AsNoTracking().Include(x => x.Category)
+        var transactions = await LoadTransactions(start, end, cancellationToken);
+        return File(
+            reportExportService.CreatePdf(start, end, transactions),
+            "application/pdf",
+            $"bao-cao-{start:yyyyMMdd}-{end:yyyyMMdd}.pdf");
+    }
+
+    private async Task<List<Domain.Transaction>> LoadTransactions(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken) =>
+        await db.Transactions.AsNoTracking().Include(x => x.Category)
             .Where(x => x.UserId == userContext.UserId &&
-                        x.TransactionDate >= start && x.TransactionDate < end)
+                        x.TransactionDate >= from && x.TransactionDate <= to)
             .OrderBy(x => x.TransactionDate)
             .ThenBy(x => x.CreatedAt)
             .ThenBy(x => x.Id)
             .ToListAsync(cancellationToken);
 
-        if (format == "csv")
-            return File(
-                reportExportService.CreateCsv(year, month, transactions),
-                "text/csv; charset=utf-8",
-                $"bao-cao-{year}-{month:00}.csv");
+    private static bool TryValidateRange(
+        DateOnly? from,
+        DateOnly? to,
+        out DateOnly start,
+        out DateOnly end,
+        out string error)
+    {
+        start = default;
+        end = default;
+        error = string.Empty;
 
-        return File(
-            reportExportService.CreatePdf(year, month, transactions),
-            "application/pdf",
-            $"bao-cao-{year}-{month:00}.pdf");
+        if (!from.HasValue || !to.HasValue)
+        {
+            error = "from và to là bắt buộc.";
+            return false;
+        }
+
+        start = from.Value;
+        end = to.Value;
+        var today = LocalToday();
+        if (start > end)
+        {
+            error = "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.";
+            return false;
+        }
+
+        if (end > today)
+        {
+            error = "Không thể xuất báo cáo quá ngày hiện tại.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static DateOnly LocalToday()
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "SE Asia Standard Time" : "Asia/Ho_Chi_Minh");
+        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
     }
 }

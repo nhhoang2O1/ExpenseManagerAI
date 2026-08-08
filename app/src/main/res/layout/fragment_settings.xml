@@ -213,13 +213,6 @@
                             android:text="@string/export_report"
                             android:textColor="@color/text_primary"
                             android:textStyle="bold" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="3dp"
-                            android:text="@string/export_report_desc"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

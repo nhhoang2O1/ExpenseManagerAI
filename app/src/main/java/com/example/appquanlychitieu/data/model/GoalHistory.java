@@ -8,6 +8,7 @@ public class GoalHistory {
     private long date;
     private String remoteId;
     private String remoteGoalId;
+    private String actionType = "FUND";
 
     public GoalHistory(long goalId, long amountAdded, long date) {
         this.goalId = goalId;
@@ -32,4 +33,8 @@ public class GoalHistory {
 
     public String getRemoteGoalId() { return remoteGoalId; }
     public void setRemoteGoalId(String remoteGoalId) { this.remoteGoalId = remoteGoalId; }
+    public String getActionType() { return actionType; }
+    public void setActionType(String actionType) {
+        this.actionType = actionType == null ? "FUND" : actionType;
+    }
 }

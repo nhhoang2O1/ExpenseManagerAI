@@ -2,8 +2,6 @@ package com.example.appquanlychitieu.ui.transaction;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,7 +24,10 @@ import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
-import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import android.widget.ArrayAdapter;
+import java.util.ArrayList;
+import java.util.List;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -61,7 +62,8 @@ public class TransactionListFragment extends Fragment {
         chipAll = view.findViewById(R.id.chip_all);
         chipExpense = view.findViewById(R.id.chip_expense);
         chipIncome = view.findViewById(R.id.chip_income);
-        TextInputEditText search = view.findViewById(R.id.et_search_transactions);
+        MaterialAutoCompleteTextView categoryDropdown =
+                view.findViewById(R.id.dropdown_transaction_category);
 
         adapter = new TransactionListAdapter(requireContext());
         transactionsView.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -84,13 +86,8 @@ public class TransactionListFragment extends Fragment {
         chipIncome.setOnCheckedChangeListener((button, checked) -> {
             if (checked) viewModel.setFilterType("INCOME");
         });
-        search.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void afterTextChanged(Editable s) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                viewModel.setSearchQuery(s == null ? "" : s.toString());
-            }
-        });
+        categoryDropdown.setOnItemClickListener((parent, itemView, position, id) ->
+                viewModel.setCategoryFilter(position == 0 ? "" : String.valueOf(parent.getItemAtPosition(position))));
 
         adapter.setOnItemClickListener(new TransactionListAdapter.OnItemClickListener() {
             @Override public void onClick(Transaction transaction) { openTransaction(transaction); }
@@ -98,6 +95,16 @@ public class TransactionListFragment extends Fragment {
         });
 
         viewModel.getTransactions().observe(getViewLifecycleOwner(), adapter::setTransactions);
+        viewModel.getCategoryNames().observe(getViewLifecycleOwner(), names -> {
+            List<String> options = new ArrayList<>();
+            options.add("Tất cả danh mục");
+            if (names != null) options.addAll(names);
+            categoryDropdown.setAdapter(new ArrayAdapter<>(requireContext(),
+                    android.R.layout.simple_spinner_dropdown_item, options));
+            String selected = viewModel.getSelectedCategory().getValue();
+            categoryDropdown.setText(selected == null || selected.trim().isEmpty()
+                    ? options.get(0) : selected, false);
+        });
         viewModel.getLoadState().observe(getViewLifecycleOwner(), this::renderState);
         viewModel.getRemoteError().observe(getViewLifecycleOwner(), message -> {
             boolean hasMessage = message != null && !message.trim().isEmpty();
@@ -147,6 +154,11 @@ public class TransactionListFragment extends Fragment {
     }
 
     private void openTransaction(Transaction transaction) {
+        if (transaction.isGoalCompletion()) {
+            Snackbar.make(requireView(), R.string.goal_transaction_read_only,
+                    Snackbar.LENGTH_LONG).show();
+            return;
+        }
         editTransaction(transaction);
     }
 
@@ -167,6 +179,11 @@ public class TransactionListFragment extends Fragment {
     }
 
     private void confirmDelete(Transaction transaction) {
+        if (transaction.isGoalCompletion()) {
+            Snackbar.make(requireView(), R.string.goal_transaction_read_only,
+                    Snackbar.LENGTH_LONG).show();
+            return;
+        }
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(R.string.confirm_delete)

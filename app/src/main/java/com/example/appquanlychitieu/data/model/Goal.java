@@ -9,6 +9,9 @@ public class Goal {
     private long userId;
     private String remoteId;
     private long version = 1L;
+    private String status = "ACTIVE";
+    private String completedAt;
+    private String completionTransactionId;
 
     public Goal(String name, long targetAmount, long currentAmount, long userId) {
         this.name = name;
@@ -36,4 +39,14 @@ public class Goal {
     public void setRemoteId(String remoteId) { this.remoteId = remoteId; }
     public long getVersion() { return version; }
     public void setVersion(long version) { this.version = version; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status == null ? "ACTIVE" : status; }
+    public String getCompletedAt() { return completedAt; }
+    public void setCompletedAt(String completedAt) { this.completedAt = completedAt; }
+    public String getCompletionTransactionId() { return completionTransactionId; }
+    public void setCompletionTransactionId(String value) { completionTransactionId = value; }
+    public boolean isActive() { return "ACTIVE".equals(status); }
+    public boolean isReadyToComplete() { return "READY_TO_COMPLETE".equals(status); }
+    public boolean isCompleted() { return "COMPLETED".equals(status); }
+    public boolean isCancelled() { return "CANCELLED".equals(status); }
 }

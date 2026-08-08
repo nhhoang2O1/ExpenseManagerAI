@@ -44,6 +44,8 @@ public class HomeFragment extends Fragment {
     private TextView balance;
     private TextView income;
     private TextView expense;
+    private TextView availableBalance;
+    private TextView reservedForGoals;
     private TextView dailyDate;
     private TextView dailyIncome;
     private TextView dailyExpense;
@@ -67,6 +69,8 @@ public class HomeFragment extends Fragment {
         balance = view.findViewById(R.id.tv_balance);
         income = view.findViewById(R.id.tv_income);
         expense = view.findViewById(R.id.tv_expense);
+        availableBalance = view.findViewById(R.id.tv_available_balance);
+        reservedForGoals = view.findViewById(R.id.tv_reserved_goals);
         dailyDate = view.findViewById(R.id.tv_daily_date);
         dailyIncome = view.findViewById(R.id.tv_daily_income);
         dailyExpense = view.findViewById(R.id.tv_daily_expense);
@@ -108,6 +112,11 @@ public class HomeFragment extends Fragment {
                 expense.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getBalance().observe(getViewLifecycleOwner(), value ->
                 balance.setText(CurrencyFormatter.format(value == null ? 0L : value)));
+        viewModel.getAvailableBalance().observe(getViewLifecycleOwner(), value ->
+                availableBalance.setText(CurrencyFormatter.format(value == null ? 0L : value)));
+        viewModel.getReservedForGoals().observe(getViewLifecycleOwner(), value ->
+                reservedForGoals.setText(getString(R.string.reserved_for_goals,
+                        CurrencyFormatter.format(value == null ? 0L : value))));
         viewModel.getDailyIncome().observe(getViewLifecycleOwner(), value ->
                 dailyIncome.setText(getString(R.string.positive_amount,
                         CurrencyFormatter.format(value == null ? 0L : value))));
@@ -148,6 +157,11 @@ public class HomeFragment extends Fragment {
     }
 
     private void openTransaction(Transaction transaction) {
+        if (transaction.isGoalCompletion()) {
+            Snackbar.make(requireView(), R.string.goal_transaction_read_only,
+                    Snackbar.LENGTH_LONG).show();
+            return;
+        }
         editTransaction(transaction);
     }
 
@@ -168,6 +182,11 @@ public class HomeFragment extends Fragment {
     }
 
     private void confirmDelete(Transaction transaction) {
+        if (transaction.isGoalCompletion()) {
+            Snackbar.make(requireView(), R.string.goal_transaction_read_only,
+                    Snackbar.LENGTH_LONG).show();
+            return;
+        }
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(R.string.confirm_delete)

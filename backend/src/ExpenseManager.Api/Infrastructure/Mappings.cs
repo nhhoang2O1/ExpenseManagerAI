@@ -24,6 +24,7 @@ public static class Mappings
             transaction.ReceiptId,
             transaction.CreatedAt,
             transaction.UpdatedAt,
+            transaction.GoalId,
             transaction.Version);
 
     public static BudgetResponse ToResponse(this Budget budget) =>
@@ -47,11 +48,14 @@ public static class Mappings
             goal.CurrentAmount,
             goal.CreatedAt,
             goal.UpdatedAt,
+            goal.Status,
+            goal.CompletedAt,
+            goal.CompletionTransaction?.Id,
             goal.Version);
 
     public static GoalHistoryResponse ToResponse(this GoalHistory history) =>
         new(history.Id, history.GoalId, history.AmountAdded, history.Date,
-            history.RequestedAmount, history.BalanceAfter);
+            history.RequestedAmount, history.BalanceAfter, history.ActionType);
 
     public static ReminderResponse ToResponse(this Reminder reminder) =>
         new(

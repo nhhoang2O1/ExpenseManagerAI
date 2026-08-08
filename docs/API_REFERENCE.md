@@ -32,7 +32,7 @@ tối đa 5 lần thử.
 | Goal | CRUD `/goals`; `POST /goals/{id}/funds`; `GET /goals/{id}/history` | Add funds có row lock và history |
 | Reminder | CRUD `/reminders` | Create idempotent |
 | Statistics | `/statistics/daily`, `/monthly`, `/by-category` | Tổng hợp server-side |
-| Report | `/reports/monthly.xlsx`, `.csv`, `.pdf` | Query theo tháng/năm |
+| Report | `/reports/range.xlsx`, `/reports/range.pdf` | Query `from=yyyy-MM-dd&to=yyyy-MM-dd` |
 
 Giai đoạn tương thích vẫn chấp nhận thiếu `If-Match`; client mới nên gửi
 version nhận gần nhất. Upload receipt, create transaction, add funds và create
@@ -60,4 +60,3 @@ CONFIRMED`; lỗi có retry/backoff và cuối cùng thành `OCR_FAILED`.
 - `401`: refresh một lần rồi đưa về Login nếu vẫn lỗi.
 - `404`: không tồn tại/không thuộc user theo policy endpoint.
 - `409`: concurrency, idempotency hoặc lifecycle conflict.
-

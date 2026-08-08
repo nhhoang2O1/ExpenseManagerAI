@@ -4,6 +4,10 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,13 +22,20 @@ import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Goal;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
+import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.ui.planning.PlanningFragment;
 import com.example.appquanlychitieu.util.NumberTextWatcher;
+import com.example.appquanlychitieu.util.CurrencyFormatter;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInteractionListener {
     private GoalViewModel viewModel;
@@ -194,6 +205,59 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
                 .show();
     }
 
+    @Override
+    public void onCompleteGoalClick(Goal goal) {
+        List<CategoryDto> categories = viewModel.getExpenseCategories().getValue();
+        if (categories == null || categories.isEmpty()) {
+            Snackbar.make(requireView(), R.string.no_expense_category_for_goal,
+                    Snackbar.LENGTH_LONG).show();
+            return;
+        }
+        LinearLayout form = new LinearLayout(requireContext());
+        form.setOrientation(LinearLayout.VERTICAL);
+        int padding = Math.round(24 * getResources().getDisplayMetrics().density);
+        form.setPadding(padding, 0, padding, 0);
+        TextView summary = new TextView(requireContext());
+        summary.setText(getString(R.string.complete_goal_summary,
+                goal.getName(), CurrencyFormatter.format(goal.getCurrentAmount())));
+        summary.setPadding(0, 0, 0, Math.round(
+                12 * getResources().getDisplayMetrics().density));
+        Spinner category = new Spinner(requireContext());
+        category.setAdapter(new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_dropdown_item, categories));
+        form.addView(summary);
+        form.addView(category);
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.complete_goal_action)
+                .setView(form)
+                .setPositiveButton(R.string.confirm, null)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    CategoryDto selected = (CategoryDto) category.getSelectedItem();
+                    if (selected == null) return;
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                    String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                            .format(new Date());
+                    viewModel.completeGoal(goal, selected.id, today,
+                            goalActionCallback(dialog));
+                }));
+        dialog.show();
+    }
+
+    @Override
+    public void onCancelGoalClick(Goal goal) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.cancel_goal)
+                .setMessage(R.string.confirm_cancel_goal)
+                .setPositiveButton(R.string.confirm,
+                        (dialog, which) -> viewModel.cancelGoal(goal))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
     private String text(TextInputEditText input) {
         return input.getText() == null ? "" : input.getText().toString().trim();
     }
@@ -217,12 +281,27 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
         return new RemoteCallback<Goal>() {
             @Override public void onSuccess(Goal value) {
                 if (dialog.isShowing()) dialog.dismiss();
+                viewModel.refreshGoals();
             }
 
             @Override public void onError(ApiError error) {
                 if (!dialog.isShowing()) return;
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
                 errorLayout.setError(error.getMessage());
+            }
+        };
+    }
+
+    private RemoteCallback<Goal> goalActionCallback(AlertDialog dialog) {
+        return new RemoteCallback<Goal>() {
+            @Override public void onSuccess(Goal value) {
+                if (dialog.isShowing()) dialog.dismiss();
+            }
+
+            @Override public void onError(ApiError error) {
+                if (!dialog.isShowing()) return;
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                Snackbar.make(requireView(), error.getMessage(), Snackbar.LENGTH_LONG).show();
             }
         };
     }

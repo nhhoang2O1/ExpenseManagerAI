@@ -43,11 +43,21 @@ public class GoalHistoryAdapter extends ArrayAdapter<GoalHistory> {
         
         TextView tvDate = convertView.findViewById(R.id.tv_date);
         TextView tvAmount = convertView.findViewById(R.id.tv_amount);
+        TextView tvAction = convertView.findViewById(R.id.tv_action);
 
         if (history != null) {
             tvDate.setText(DateUtils.formatDate(history.getDate()));
-            tvAmount.setText(context.getString(R.string.positive_amount,
-                    CurrencyFormatter.format(history.getAmountAdded())));
+            if ("COMPLETE".equals(history.getActionType())) {
+                tvAction.setText(R.string.goal_history_completed);
+                tvAmount.setText(R.string.goal_completed);
+            } else if ("CANCEL".equals(history.getActionType())) {
+                tvAction.setText(R.string.goal_history_cancelled);
+                tvAmount.setText(R.string.goal_cancelled);
+            } else {
+                tvAction.setText(R.string.goal_history_entry);
+                tvAmount.setText(context.getString(R.string.positive_amount,
+                        CurrencyFormatter.format(history.getAmountAdded())));
+            }
         }
 
         return convertView;

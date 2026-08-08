@@ -9,6 +9,8 @@ import com.example.appquanlychitieu.data.remote.ApiResponseHelper;
 import com.example.appquanlychitieu.data.remote.ApiService;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.AddGoalFundsRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.AvailableBalanceDto;
+import com.example.appquanlychitieu.data.remote.dto.CompleteGoalRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.GoalDto;
 import com.example.appquanlychitieu.data.remote.dto.GoalHistoryDto;
 import com.example.appquanlychitieu.data.remote.dto.GoalRequestDto;
@@ -94,6 +96,36 @@ public class RemoteGoalRepository {
                 });
     }
 
+    public void getAvailableBalance(int year, int month, RemoteCallback<AvailableBalanceDto> callback) {
+        apiService.getAvailableBalance(year, month).enqueue(new Callback<AvailableBalanceDto>() {
+            @Override public void onResponse(Call<AvailableBalanceDto> call,
+                                             Response<AvailableBalanceDto> response) {
+                if (response.isSuccessful() && response.body() != null)
+                    callback.onSuccess(response.body());
+                else callback.onError(ApiResponseHelper.fromResponse(response));
+            }
+
+            @Override public void onFailure(Call<AvailableBalanceDto> call, Throwable throwable) {
+                callback.onError(ApiResponseHelper.fromFailure(throwable));
+            }
+        });
+    }
+
+    public void complete(Goal goal, String categoryId, String transactionDate,
+                         RemoteCallback<Goal> callback) {
+        if (goal.getRemoteId() == null || goal.getRemoteId().trim().isEmpty()) return;
+        CompleteGoalRequestDto request = new CompleteGoalRequestDto(
+                categoryId, transactionDate, "Hoàn thành mục tiêu: " + goal.getName());
+        enqueue(apiService.completeGoal(goal.getRemoteId(), UUID.randomUUID().toString(),
+                        quote(goal.getVersion()), request), goal.getUserId(), callback);
+    }
+
+    public void cancel(Goal goal, RemoteCallback<Goal> callback) {
+        if (goal.getRemoteId() == null || goal.getRemoteId().trim().isEmpty()) return;
+        enqueue(apiService.cancelGoal(goal.getRemoteId(), quote(goal.getVersion())),
+                goal.getUserId(), callback);
+    }
+
     public void delete(Goal goal, RemoteCallback<Void> callback) {
         if (goal.getRemoteId() == null || goal.getRemoteId().trim().isEmpty()) return;
         apiService.deleteGoal(goal.getRemoteId(), quote(goal.getVersion())).enqueue(new Callback<Void>() {
@@ -166,6 +198,9 @@ public class RemoteGoalRepository {
         goal.setId(dto.id == null ? 0L : dto.id.hashCode());
         goal.setRemoteId(dto.id);
         goal.setVersion(dto.version);
+        goal.setStatus(dto.status);
+        goal.setCompletedAt(dto.completedAt);
+        goal.setCompletionTransactionId(dto.completionTransactionId);
         return goal;
     }
 
@@ -174,6 +209,7 @@ public class RemoteGoalRepository {
         history.setId(dto.id == null ? 0L : dto.id.hashCode());
         history.setRemoteId(dto.id);
         history.setRemoteGoalId(dto.goalId);
+        history.setActionType(dto.actionType);
         return history;
     }
 

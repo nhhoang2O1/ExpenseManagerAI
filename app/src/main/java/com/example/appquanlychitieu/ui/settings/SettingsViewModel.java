@@ -26,11 +26,11 @@ public final class SettingsViewModel extends AndroidViewModel {
     }
 
     public void export(
-            int year,
-            int month,
+            String from,
+            String to,
             String format,
             RemoteCallback<ResponseBody> callback) {
-        reports.download(year, month, format, callback);
+        reports.download(from, to, format, callback);
     }
 
     public void logout(String refreshToken) { auth.logout(refreshToken); }

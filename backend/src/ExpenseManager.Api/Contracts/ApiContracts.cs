@@ -59,6 +59,7 @@ public sealed record TransactionResponse(
     Guid? ReceiptId,
     DateTime CreatedAt,
     DateTime UpdatedAt,
+    Guid? GoalId = null,
     long Version = 1);
 
 public sealed record PagedResponse<T>(
@@ -145,6 +146,16 @@ public sealed record GoalRequest(
 public sealed record AddGoalFundsRequest(
     [Range(1, long.MaxValue)] long Amount);
 
+public sealed record CompleteGoalRequest(
+    Guid CategoryId,
+    DateOnly TransactionDate,
+    [StringLength(1000)] string? Note);
+
+public sealed record AvailableBalanceResponse(
+    long Balance,
+    long ReservedAmount,
+    long AvailableAmount);
+
 public sealed record GoalResponse(
     Guid Id,
     string Name,
@@ -152,6 +163,9 @@ public sealed record GoalResponse(
     long CurrentAmount,
     DateTime CreatedAt,
     DateTime UpdatedAt,
+    GoalStatus Status = GoalStatus.ACTIVE,
+    DateTime? CompletedAt = null,
+    Guid? CompletionTransactionId = null,
     long Version = 1);
 
 public sealed record GoalHistoryResponse(
@@ -160,7 +174,8 @@ public sealed record GoalHistoryResponse(
     long AmountAdded,
     DateTime Date,
     long? RequestedAmount = null,
-    long? BalanceAfter = null);
+    long? BalanceAfter = null,
+    GoalHistoryActionType ActionType = GoalHistoryActionType.FUND);
 
 public sealed record ReminderRequest(
     [Required, StringLength(500, MinimumLength = 1)] string Content,

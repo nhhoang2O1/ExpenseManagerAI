@@ -6,6 +6,21 @@ public enum TransactionType
     EXPENSE
 }
 
+public enum GoalStatus
+{
+    ACTIVE,
+    READY_TO_COMPLETE,
+    COMPLETED,
+    CANCELLED
+}
+
+public enum GoalHistoryActionType
+{
+    FUND,
+    COMPLETE,
+    CANCEL
+}
+
 public enum ReceiptStatus
 {
     UPLOADED,
@@ -81,11 +96,14 @@ public sealed class Goal
     public required string Name { get; set; }
     public long TargetAmount { get; set; }
     public long CurrentAmount { get; set; }
+    public GoalStatus Status { get; set; } = GoalStatus.ACTIVE;
+    public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public long Version { get; set; } = 1;
     public User User { get; set; } = null!;
     public ICollection<GoalHistory> History { get; set; } = [];
+    public Transaction? CompletionTransaction { get; set; }
 }
 
 public sealed class GoalHistory
@@ -95,6 +113,7 @@ public sealed class GoalHistory
     public long AmountAdded { get; set; }
     public long? RequestedAmount { get; set; }
     public long? BalanceAfter { get; set; }
+    public GoalHistoryActionType ActionType { get; set; } = GoalHistoryActionType.FUND;
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public Goal Goal { get; set; } = null!;
 }
@@ -120,6 +139,7 @@ public sealed class Transaction
     public Guid UserId { get; set; }
     public Guid CategoryId { get; set; }
     public Guid? ReceiptId { get; set; }
+    public Guid? GoalId { get; set; }
     public long Amount { get; set; }
     public TransactionType Type { get; set; }
     public DateOnly TransactionDate { get; set; }
@@ -131,6 +151,7 @@ public sealed class Transaction
     public User User { get; set; } = null!;
     public Category Category { get; set; } = null!;
     public Receipt? Receipt { get; set; }
+    public Goal? Goal { get; set; }
 }
 
 public sealed class Receipt

@@ -35,7 +35,10 @@ public sealed class ExcelReportTests
             StoreName = "Circle K"
         };
 
-        var bytes = new ExcelReportService().CreateMonthly(2026, 7, [transaction]);
+        var bytes = new ExcelReportService().CreateRange(
+            new DateOnly(2026, 7, 1),
+            new DateOnly(2026, 7, 31),
+            [transaction]);
         using var archive = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read);
         var requiredEntries = new[]
         {

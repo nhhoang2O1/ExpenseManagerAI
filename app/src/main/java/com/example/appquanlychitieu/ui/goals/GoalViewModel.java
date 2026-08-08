@@ -9,9 +9,11 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.example.appquanlychitieu.data.model.Goal;
 import com.example.appquanlychitieu.data.model.GoalHistory;
+import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.repository.RemoteGoalRepository;
+import com.example.appquanlychitieu.data.repository.RemoteCategoryRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.util.SessionManager;
 
@@ -20,6 +22,7 @@ import java.util.List;
 
 public class GoalViewModel extends AndroidViewModel {
     private final RemoteGoalRepository repository;
+    private final RemoteCategoryRepository categoryRepository;
     private final long userId;
     private final boolean authenticated;
     private final MutableLiveData<List<Goal>> goals = new MutableLiveData<>(new ArrayList<>());
@@ -27,15 +30,19 @@ public class GoalViewModel extends AndroidViewModel {
     private final MutableLiveData<LoadState> loadState = new MutableLiveData<>(LoadState.LOADING);
     private final MutableLiveData<String> error = new MutableLiveData<>();
     private final MutableLiveData<String> feedback = new MutableLiveData<>();
+    private final MutableLiveData<List<CategoryDto>> expenseCategories =
+            new MutableLiveData<>(new ArrayList<>());
     private boolean hasLoaded;
 
     public GoalViewModel(@NonNull Application application) {
         super(application);
         repository = new RemoteGoalRepository(application);
+        categoryRepository = new RemoteCategoryRepository(application);
         SessionManager session = new SessionManager(application);
         userId = session.getUserId();
         authenticated = session.hasAuthToken();
         refreshGoals();
+        refreshExpenseCategories();
     }
 
     public long getUserId() { return userId; }
@@ -44,6 +51,7 @@ public class GoalViewModel extends AndroidViewModel {
     public LiveData<LoadState> getLoadState() { return loadState; }
     public LiveData<String> getError() { return error; }
     public LiveData<String> getFeedback() { return feedback; }
+    public LiveData<List<CategoryDto>> getExpenseCategories() { return expenseCategories; }
 
     public void insertGoal(Goal goal) {
         insertGoal(goal, null);
@@ -74,6 +82,26 @@ public class GoalViewModel extends AndroidViewModel {
             @Override public void onSuccess(Void value) {
                 feedback.setValue("Đã xóa mục tiêu");
                 refreshGoals();
+            }
+            @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }
+        });
+    }
+
+    public void completeGoal(Goal goal, String categoryId, String transactionDate,
+                             RemoteCallback<Goal> callback) {
+        repository.complete(goal, categoryId, transactionDate,
+                new RefreshCallback("Đã hoàn thành mục tiêu và tạo giao dịch", callback));
+    }
+
+    public void cancelGoal(Goal goal) {
+        repository.cancel(goal, new RefreshCallback(
+                "Đã hủy mục tiêu và hoàn lại số dư khả dụng", null));
+    }
+
+    private void refreshExpenseCategories() {
+        categoryRepository.getCategories("EXPENSE", new RemoteCallback<List<CategoryDto>>() {
+            @Override public void onSuccess(List<CategoryDto> value) {
+                expenseCategories.setValue(value == null ? new ArrayList<>() : value);
             }
             @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }
         });

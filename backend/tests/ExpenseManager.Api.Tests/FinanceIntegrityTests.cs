@@ -44,6 +44,7 @@ public sealed class FinanceIntegrityTests
     {
         await using var db = TestSupport.CreateDb();
         var user = NewUser();
+        var incomeCategory = NewCategory(user, TransactionType.INCOME);
         var goal = new Goal
         {
             UserId = user.Id,
@@ -52,7 +53,16 @@ public sealed class FinanceIntegrityTests
             TargetAmount = 100,
             CurrentAmount = 80
         };
-        db.AddRange(user, goal);
+        db.AddRange(user, incomeCategory, goal, new Domain.Transaction
+        {
+            UserId = user.Id,
+            User = user,
+            CategoryId = incomeCategory.Id,
+            Category = incomeCategory,
+            Amount = 1_000,
+            Type = TransactionType.INCOME,
+            TransactionDate = new DateOnly(2026, 8, 6)
+        });
         await db.SaveChangesAsync();
         var controller = new GoalsController(db, new TestUserContext(user.Id));
 
@@ -76,6 +86,7 @@ public sealed class FinanceIntegrityTests
     {
         await using var db = TestSupport.CreateDb();
         var user = NewUser();
+        var incomeCategory = NewCategory(user, TransactionType.INCOME);
         var goal = new Goal
         {
             UserId = user.Id,
@@ -84,7 +95,16 @@ public sealed class FinanceIntegrityTests
             TargetAmount = 100,
             Version = 7
         };
-        db.AddRange(user, goal);
+        db.AddRange(user, incomeCategory, goal, new Domain.Transaction
+        {
+            UserId = user.Id,
+            User = user,
+            CategoryId = incomeCategory.Id,
+            Category = incomeCategory,
+            Amount = 100,
+            Type = TransactionType.INCOME,
+            TransactionDate = new DateOnly(2026, 8, 6)
+        });
         await db.SaveChangesAsync();
         var controller = new GoalsController(db, new TestUserContext(user.Id))
         {
@@ -143,6 +163,7 @@ public sealed class FinanceIntegrityTests
     {
         await using var db = TestSupport.CreateDb();
         var user = NewUser();
+        var incomeCategory = NewCategory(user, TransactionType.INCOME);
         var goal = new Goal
         {
             UserId = user.Id,
@@ -151,7 +172,16 @@ public sealed class FinanceIntegrityTests
             TargetAmount = 100,
             CurrentAmount = 10
         };
-        db.AddRange(user, goal);
+        db.AddRange(user, incomeCategory, goal, new Domain.Transaction
+        {
+            UserId = user.Id,
+            User = user,
+            CategoryId = incomeCategory.Id,
+            Category = incomeCategory,
+            Amount = 100,
+            Type = TransactionType.INCOME,
+            TransactionDate = new DateOnly(2026, 8, 6)
+        });
         await db.SaveChangesAsync();
         var controller = new GoalsController(db, new TestUserContext(user.Id))
         {
@@ -165,6 +195,76 @@ public sealed class FinanceIntegrityTests
         Assert.Equal(30, goal.CurrentAmount);
         Assert.Single(await db.GoalHistories.ToListAsync());
         Assert.Single(await db.IdempotencyRecords.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Completing_goal_creates_linked_expense_transaction_atomically()
+    {
+        await using var db = TestSupport.CreateDb();
+        var user = NewUser();
+        var category = NewCategory(user, TransactionType.EXPENSE);
+        var goal = new Goal
+        {
+            UserId = user.Id,
+            User = user,
+            Name = "Laptop",
+            TargetAmount = 500,
+            CurrentAmount = 500,
+            Status = GoalStatus.READY_TO_COMPLETE
+        };
+        db.AddRange(user, category, goal);
+        await db.SaveChangesAsync();
+        var controller = new GoalsController(db, new TestUserContext(user.Id));
+
+        var response = await controller.Complete(goal.Id,
+            new CompleteGoalRequest(category.Id, new DateOnly(2026, 8, 6), null),
+            CancellationToken.None);
+
+        var result = Assert.IsType<GoalResponse>(Assert.IsType<OkObjectResult>(response.Result).Value);
+        Assert.Equal(GoalStatus.COMPLETED, result.Status);
+        var transaction = Assert.Single(await db.Transactions.ToListAsync());
+        Assert.Equal(goal.Id, transaction.GoalId);
+        Assert.Equal(500, transaction.Amount);
+        Assert.Equal(TransactionType.EXPENSE, transaction.Type);
+        Assert.Single(await db.GoalHistories.Where(x => x.ActionType == GoalHistoryActionType.COMPLETE)
+            .ToListAsync());
+    }
+
+    [Fact]
+    public async Task Cancelling_goal_releases_reserved_amount_without_creating_transaction()
+    {
+        await using var db = TestSupport.CreateDb();
+        var user = NewUser();
+        var incomeCategory = NewCategory(user, TransactionType.INCOME);
+        var goal = new Goal
+        {
+            UserId = user.Id,
+            User = user,
+            Name = "Trip",
+            TargetAmount = 500,
+            CurrentAmount = 300,
+            Status = GoalStatus.ACTIVE
+        };
+        db.AddRange(user, incomeCategory, goal, new Domain.Transaction
+        {
+            UserId = user.Id,
+            User = user,
+            CategoryId = incomeCategory.Id,
+            Category = incomeCategory,
+            Amount = 500,
+            Type = TransactionType.INCOME,
+            TransactionDate = new DateOnly(2026, 8, 6)
+        });
+        await db.SaveChangesAsync();
+        var controller = new GoalsController(db, new TestUserContext(user.Id));
+
+        var response = await controller.Cancel(goal.Id, CancellationToken.None);
+
+        var result = Assert.IsType<GoalResponse>(Assert.IsType<OkObjectResult>(response.Result).Value);
+        Assert.Equal(GoalStatus.CANCELLED, result.Status);
+        Assert.Empty(await db.Transactions.Where(x => x.GoalId == goal.Id).ToListAsync());
+        Assert.Single(await db.GoalHistories.Where(x => x.ActionType == GoalHistoryActionType.CANCEL)
+            .ToListAsync());
     }
 
     [Fact]

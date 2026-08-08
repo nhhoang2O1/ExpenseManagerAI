@@ -20,14 +20,13 @@ public final class ReportRepository {
     }
 
     public void download(
-            int year,
-            int month,
+            String from,
+            String to,
             String format,
             RemoteCallback<ResponseBody> callback) {
         Call<ResponseBody> call;
-        if ("csv".equalsIgnoreCase(format)) call = api.downloadMonthlyCsv(year, month);
-        else if ("pdf".equalsIgnoreCase(format)) call = api.downloadMonthlyPdf(year, month);
-        else call = api.downloadMonthlyReport(year, month);
+        if ("pdf".equalsIgnoreCase(format)) call = api.downloadRangePdf(from, to);
+        else call = api.downloadRangeReport(from, to);
         call.enqueue(new Callback<ResponseBody>() {
             @Override
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {

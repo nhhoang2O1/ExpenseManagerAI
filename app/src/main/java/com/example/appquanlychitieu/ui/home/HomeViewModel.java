@@ -12,6 +12,8 @@ import com.example.appquanlychitieu.data.model.Transaction;
 import com.example.appquanlychitieu.data.model.TransactionType;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
+import com.example.appquanlychitieu.data.remote.dto.AvailableBalanceDto;
+import com.example.appquanlychitieu.data.repository.RemoteGoalRepository;
 import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.data.repository.RemoteTransactionRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
@@ -31,11 +33,14 @@ import java.util.List;
 public class HomeViewModel extends AndroidViewModel {
     private final RemoteTransactionRepository transactionRepository;
     private final RemoteStatisticsRepository statisticsRepository;
+    private final RemoteGoalRepository goalRepository;
     private final long userId;
     private final boolean authenticated;
     private final MutableLiveData<Long> totalIncome = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> totalExpense = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> balance = new MutableLiveData<>(0L);
+    private final MutableLiveData<Long> availableBalance = new MutableLiveData<>(0L);
+    private final MutableLiveData<Long> reservedForGoals = new MutableLiveData<>(0L);
     private final MutableLiveData<List<Transaction>> recentTransactions =
             new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<Long> selectedDate =
@@ -54,6 +59,7 @@ public class HomeViewModel extends AndroidViewModel {
         super(application);
         transactionRepository = new RemoteTransactionRepository(application);
         statisticsRepository = new RemoteStatisticsRepository(application);
+        goalRepository = new RemoteGoalRepository(application);
         SessionManager session = new SessionManager(application);
         userId = session.getUserId();
         authenticated = session.hasAuthToken();
@@ -63,6 +69,8 @@ public class HomeViewModel extends AndroidViewModel {
     public LiveData<Long> getTotalIncome() { return totalIncome; }
     public LiveData<Long> getTotalExpense() { return totalExpense; }
     public LiveData<Long> getBalance() { return balance; }
+    public LiveData<Long> getAvailableBalance() { return availableBalance; }
+    public LiveData<Long> getReservedForGoals() { return reservedForGoals; }
     public LiveData<List<Transaction>> getRecentTransactions() { return recentTransactions; }
     public LiveData<Long> getSelectedDate() { return selectedDate; }
     public LiveData<Long> getDailyIncome() { return dailyIncome; }
@@ -139,6 +147,19 @@ public class HomeViewModel extends AndroidViewModel {
                         if (generation != refreshGeneration) return;
                         remoteError.setValue(error.getMessage());
                     }
+                });
+        goalRepository.getAvailableBalance(now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1,
+                new RemoteCallback<AvailableBalanceDto>() {
+            @Override public void onSuccess(AvailableBalanceDto value) {
+                if (generation != refreshGeneration || value == null) return;
+                availableBalance.setValue(value.availableAmount);
+                reservedForGoals.setValue(value.reservedAmount);
+            }
+
+            @Override public void onError(ApiError error) {
+                if (generation != refreshGeneration) return;
+                remoteError.setValue(error.getMessage());
+            }
                 });
     }
 

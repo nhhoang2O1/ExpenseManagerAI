@@ -84,8 +84,8 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private Bundle restoredDraft;
     private boolean draftApplied;
 
-    private final ActivityResultLauncher<String> galleryLauncher =
-            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+    private final ActivityResultLauncher<String[]> galleryLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
                 if (uri != null) {
                     selectImage(uri);
                 }
@@ -162,7 +162,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
 
     private void setupActions() {
         findViewById(R.id.btn_gallery).setOnClickListener(
-                view -> galleryLauncher.launch("image/*"));
+                view -> galleryLauncher.launch(new String[]{"image/*"}));
         findViewById(R.id.btn_camera).setOnClickListener(view -> launchCamera());
         btnStartOcr.setOnClickListener(view -> {
             if (selectedImageUri != null) {

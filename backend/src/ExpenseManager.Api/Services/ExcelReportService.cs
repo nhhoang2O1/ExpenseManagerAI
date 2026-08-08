@@ -8,17 +8,17 @@ namespace ExpenseManager.Api.Services;
 
 public interface IExcelReportService
 {
-    byte[] CreateMonthly(
-        int year,
-        int month,
+    byte[] CreateRange(
+        DateOnly from,
+        DateOnly to,
         IReadOnlyList<Domain.Transaction> transactions);
 }
 
 public sealed class ExcelReportService : IExcelReportService
 {
-    public byte[] CreateMonthly(
-        int year,
-        int month,
+    public byte[] CreateRange(
+        DateOnly from,
+        DateOnly to,
         IReadOnlyList<Domain.Transaction> transactions)
     {
         using var output = new MemoryStream();
@@ -29,14 +29,14 @@ public sealed class ExcelReportService : IExcelReportService
             Add(archive, "xl/workbook.xml", Workbook);
             Add(archive, "xl/_rels/workbook.xml.rels", WorkbookRelationships);
             Add(archive, "xl/styles.xml", Styles);
-            Add(archive, "xl/worksheets/sheet1.xml", CreateSheet(year, month, transactions));
+            Add(archive, "xl/worksheets/sheet1.xml", CreateSheet(from, to, transactions));
         }
         return output.ToArray();
     }
 
     private static string CreateSheet(
-        int year,
-        int month,
+        DateOnly from,
+        DateOnly to,
         IReadOnlyList<Domain.Transaction> transactions)
     {
         var xml = new StringBuilder();
@@ -54,15 +54,11 @@ public sealed class ExcelReportService : IExcelReportService
               </cols>
               <sheetData>
             """);
-        xml.Append(Row(1,
-            TextCell("A1", $"Báo cáo thu chi tháng {month:00}/{year}", 1)));
+        xml.Append(Row(1, TextCell("A1", $"Bao cao thu chi tu {from:yyyy-MM-dd} den {to:yyyy-MM-dd}", 1)));
         xml.Append(Row(2,
-            TextCell("A2", "Ngày", 1),
-            TextCell("B2", "Loại", 1),
-            TextCell("C2", "Danh mục", 1),
-            TextCell("D2", "Số tiền (VND)", 1),
-            TextCell("E2", "Cửa hàng", 1),
-            TextCell("F2", "Ghi chú", 1)));
+            TextCell("A2", "Ngay", 1), TextCell("B2", "Loai", 1),
+            TextCell("C2", "Danh muc", 1), TextCell("D2", "So tien (VND)", 1),
+            TextCell("E2", "Cua hang", 1), TextCell("F2", "Ghi chu", 1)));
 
         var rowNumber = 3;
         foreach (var item in transactions)
@@ -70,8 +66,7 @@ public sealed class ExcelReportService : IExcelReportService
             xml.Append(Row(rowNumber,
                 TextCell($"A{rowNumber}", item.TransactionDate.ToString("yyyy-MM-dd")),
                 TextCell($"B{rowNumber}", item.Type == TransactionType.INCOME ? "Thu" : "Chi"),
-                TextCell($"C{rowNumber}", item.Category.Name),
-                NumberCell($"D{rowNumber}", item.Amount),
+                TextCell($"C{rowNumber}", item.Category.Name), NumberCell($"D{rowNumber}", item.Amount),
                 TextCell($"E{rowNumber}", item.StoreName ?? string.Empty),
                 TextCell($"F{rowNumber}", item.Note ?? string.Empty)));
             rowNumber++;
@@ -80,17 +75,11 @@ public sealed class ExcelReportService : IExcelReportService
         var income = transactions.Where(x => x.Type == TransactionType.INCOME).Sum(x => x.Amount);
         var expense = transactions.Where(x => x.Type == TransactionType.EXPENSE).Sum(x => x.Amount);
         rowNumber++;
-        xml.Append(Row(rowNumber,
-            TextCell($"C{rowNumber}", "Tổng thu", 1),
-            NumberCell($"D{rowNumber}", income)));
+        xml.Append(Row(rowNumber, TextCell($"C{rowNumber}", "Tong thu", 1), NumberCell($"D{rowNumber}", income)));
         rowNumber++;
-        xml.Append(Row(rowNumber,
-            TextCell($"C{rowNumber}", "Tổng chi", 1),
-            NumberCell($"D{rowNumber}", expense)));
+        xml.Append(Row(rowNumber, TextCell($"C{rowNumber}", "Tong chi", 1), NumberCell($"D{rowNumber}", expense)));
         rowNumber++;
-        xml.Append(Row(rowNumber,
-            TextCell($"C{rowNumber}", "Số dư", 1),
-            NumberCell($"D{rowNumber}", income - expense)));
+        xml.Append(Row(rowNumber, TextCell($"C{rowNumber}", "So du", 1), NumberCell($"D{rowNumber}", income - expense)));
         xml.Append("</sheetData><autoFilter ref=\"A2:F2\"/></worksheet>");
         return xml.ToString();
     }
@@ -134,7 +123,7 @@ public sealed class ExcelReportService : IExcelReportService
     private const string Workbook = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-          <sheets><sheet name="Giao dịch" sheetId="1" r:id="rId1"/></sheets>
+          <sheets><sheet name="Giao dich" sheetId="1" r:id="rId1"/></sheets>
         </workbook>
         """;
 
@@ -150,18 +139,11 @@ public sealed class ExcelReportService : IExcelReportService
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
           <numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0"/></numFmts>
-          <fonts count="2">
-            <font><sz val="11"/><name val="Calibri"/></font>
-            <font><b/><sz val="11"/><name val="Calibri"/></font>
-          </fonts>
+          <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
           <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
           <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
           <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-          <cellXfs count="3">
-            <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-            <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
-            <xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
-          </cellXfs>
+          <cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>
           <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
         </styleSheet>
         """;

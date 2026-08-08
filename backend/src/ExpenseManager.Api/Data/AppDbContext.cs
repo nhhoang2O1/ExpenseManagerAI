@@ -58,12 +58,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 table.HasCheckConstraint("ck_transactions_type", "type IN ('INCOME', 'EXPENSE')");
             });
             entity.HasIndex(x => x.ReceiptId).IsUnique();
+            entity.HasIndex(x => x.GoalId).IsUnique();
             entity.HasIndex(x => new { x.UserId, x.TransactionDate, x.CreatedAt, x.Id });
             entity.Property(x => x.Amount).HasColumnType("bigint");
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Note).HasMaxLength(1000);
             entity.Property(x => x.StoreName).HasMaxLength(200);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
+            entity.HasOne(x => x.Goal).WithOne(x => x.CompletionTransaction)
+                .HasForeignKey<Transaction>(x => x.GoalId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(x => x.User).WithMany(x => x.Transactions)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Category).WithMany(x => x.Transactions)
@@ -98,11 +102,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<Goal>(entity =>
         {
             entity.ToTable(table =>
-                table.HasCheckConstraint("ck_goals_amounts", "target_amount > 0 AND current_amount >= 0 AND current_amount <= target_amount"));
+            {
+                table.HasCheckConstraint("ck_goals_amounts", "target_amount > 0 AND current_amount >= 0 AND current_amount <= target_amount");
+                table.HasCheckConstraint("ck_goals_status", "status IN ('ACTIVE', 'READY_TO_COMPLETE', 'COMPLETED', 'CANCELLED')");
+            });
             entity.HasIndex(x => new { x.UserId, x.Name });
             entity.Property(x => x.Name).HasMaxLength(200);
             entity.Property(x => x.TargetAmount).HasColumnType("bigint");
             entity.Property(x => x.CurrentAmount).HasColumnType("bigint");
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Goals)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
@@ -111,11 +119,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<GoalHistory>(entity =>
         {
             entity.ToTable(table =>
-                table.HasCheckConstraint("ck_goal_histories_amounts", "amount_added > 0 AND (requested_amount IS NULL OR requested_amount > 0) AND (balance_after IS NULL OR balance_after >= 0)"));
+            {
+                table.HasCheckConstraint("ck_goal_histories_amounts", "((action_type = 'FUND' AND amount_added > 0) OR (action_type IN ('COMPLETE', 'CANCEL') AND amount_added = 0)) AND (requested_amount IS NULL OR requested_amount > 0) AND (balance_after IS NULL OR balance_after >= 0)");
+                table.HasCheckConstraint("ck_goal_histories_action", "action_type IN ('FUND', 'COMPLETE', 'CANCEL')");
+            });
             entity.HasIndex(x => new { x.GoalId, x.Date });
             entity.Property(x => x.AmountAdded).HasColumnType("bigint");
             entity.Property(x => x.RequestedAmount).HasColumnType("bigint");
             entity.Property(x => x.BalanceAfter).HasColumnType("bigint");
+            entity.Property(x => x.ActionType).HasConversion<string>().HasMaxLength(20);
             entity.HasOne(x => x.Goal).WithMany(x => x.History)
                 .HasForeignKey(x => x.GoalId).OnDelete(DeleteBehavior.Cascade);
         });

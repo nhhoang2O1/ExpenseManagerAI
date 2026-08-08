@@ -29,7 +29,7 @@ public sealed class CategorySuggestionService(AppDbContext db) : ICategorySugges
     private static readonly IReadOnlyDictionary<string, string[]> KeywordGroups =
         new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
-            ["AN UONG"] = ["TRA SUA", "CA PHE", "COFFEE", "DO UONG", "NUOC UONG", "PHO", "COM", "BUN", "BANH", "MON AN", "THUC AN", "RESTAURANT", "FOOD"],
+            ["AN UONG"] = ["TRA SUA", "SUA TUOI", "SUA", "TRA", "TEA", "MILK TEA", "CA PHE", "COFFEE", "DO UONG", "NUOC UONG", "PHO", "COM", "BUN", "BANH", "MON AN", "THUC AN", "RESTAURANT", "FOOD"],
             ["DI CHUYEN"] = ["XANG", "DAU DIESEL", "TAXI", "CUOC XE", "VE XE", "GUI XE", "PARKING", "CAU DUONG"],
             ["MUA SAM"] = ["SIEU THI", "QUAN AO", "MY PHAM", "GIA DUNG", "CUA HANG TIEN LOI", "SHOPPING"],
             ["NHA O"] = ["TIEN DIEN", "TIEN NUOC", "INTERNET", "THUE NHA", "CHUNG CU"],

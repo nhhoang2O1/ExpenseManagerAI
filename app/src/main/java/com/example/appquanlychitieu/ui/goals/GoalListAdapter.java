@@ -17,6 +17,7 @@ import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Goal;
 import com.example.appquanlychitieu.util.CurrencyFormatter;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -27,6 +28,8 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
         void onAddFundsClick(Goal goal);
         void onEditGoalClick(Goal goal);
         void onGoalLongClick(Goal goal);
+        void onCompleteGoalClick(Goal goal);
+        void onCancelGoalClick(Goal goal);
     }
 
     private final Context context;
@@ -58,6 +61,7 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
         final TextView name, current, target, percent, completed;
         final LinearProgressIndicator progress;
         final ImageButton addFunds, more;
+        final MaterialButton completeGoal;
 
         ViewHolder(View view) {
             super(view);
@@ -69,6 +73,7 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
             progress = view.findViewById(R.id.pb_goal_progress);
             addFunds = view.findViewById(R.id.btn_add_funds);
             more = view.findViewById(R.id.btn_more);
+            completeGoal = view.findViewById(R.id.btn_complete_goal);
         }
 
         void bind(Goal goal) {
@@ -80,20 +85,34 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
                     CurrencyFormatter.format(goal.getTargetAmount())));
             percent.setText(context.getString(R.string.percentage_format, value));
             progress.setProgressCompat(value, false);
-            completed.setVisibility(value >= 100 ? View.VISIBLE : View.GONE);
-            addFunds.setVisibility(value >= 100 ? View.GONE : View.VISIBLE);
+            if (goal.isCompleted()) {
+                completed.setText(R.string.goal_completed);
+                completed.setVisibility(View.VISIBLE);
+            } else if (goal.isCancelled()) {
+                completed.setText(R.string.goal_cancelled);
+                completed.setVisibility(View.VISIBLE);
+            } else if (goal.isReadyToComplete()) {
+                completed.setText(R.string.goal_ready);
+                completed.setVisibility(View.VISIBLE);
+            } else {
+                completed.setVisibility(View.GONE);
+            }
+            addFunds.setVisibility(goal.isActive() ? View.VISIBLE : View.GONE);
+            completeGoal.setVisibility(goal.isReadyToComplete() ? View.VISIBLE : View.GONE);
+            more.setVisibility(goal.isCompleted() || goal.isCancelled() ? View.GONE : View.VISIBLE);
             itemView.setOnClickListener(v -> listener.onGoalClick(goal));
             addFunds.setOnClickListener(v -> listener.onAddFundsClick(goal));
+            completeGoal.setOnClickListener(v -> listener.onCompleteGoalClick(goal));
             more.setOnClickListener(v -> {
                 PopupMenu menu = new PopupMenu(context, v);
                 menu.getMenu().add(R.string.edit).setOnMenuItemClickListener(item -> {
                     listener.onEditGoalClick(goal);
                     return true;
                 });
-                menu.getMenu().add(R.string.delete);
+                menu.getMenu().add(R.string.cancel_goal);
                 menu.setOnMenuItemClickListener(item -> {
-                    if (item.getTitle().equals(context.getString(R.string.delete)))
-                        listener.onGoalLongClick(goal);
+                    if (item.getTitle().equals(context.getString(R.string.cancel_goal)))
+                        listener.onCancelGoalClick(goal);
                     return true;
                 });
                 menu.show();
@@ -120,6 +139,9 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
     static boolean sameContent(Goal first, Goal second) {
         return Objects.equals(first.getName(), second.getName())
                 && first.getTargetAmount() == second.getTargetAmount()
-                && first.getCurrentAmount() == second.getCurrentAmount();
+                && first.getCurrentAmount() == second.getCurrentAmount()
+                && Objects.equals(first.getStatus(), second.getStatus())
+                && Objects.equals(first.getCompletionTransactionId(),
+                        second.getCompletionTransactionId());
     }
 }

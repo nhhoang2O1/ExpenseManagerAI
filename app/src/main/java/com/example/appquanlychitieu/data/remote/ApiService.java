@@ -161,6 +161,22 @@ public interface ApiService {
             @Header("If-Match") String ifMatch,
             @Body AddGoalFundsRequestDto request);
 
+    @GET("api/goals/available-balance")
+    Call<com.example.appquanlychitieu.data.remote.dto.AvailableBalanceDto> getAvailableBalance(
+            @Query("year") int year, @Query("month") int month);
+
+    @POST("api/goals/{id}/complete")
+    Call<GoalDto> completeGoal(
+            @Path("id") String goalId,
+            @Header("Idempotency-Key") String idempotencyKey,
+            @Header("If-Match") String ifMatch,
+            @Body com.example.appquanlychitieu.data.remote.dto.CompleteGoalRequestDto request);
+
+    @POST("api/goals/{id}/cancel")
+    Call<GoalDto> cancelGoal(
+            @Path("id") String goalId,
+            @Header("If-Match") String ifMatch);
+
     @GET("api/goals/{id}/history")
     Call<JsonElement> getGoalHistory(@Path("id") String goalId);
 
@@ -189,20 +205,15 @@ public interface ApiService {
     @GET("api/statistics/monthly")
     Call<JsonElement> getMonthlyStatistics(@Query("year") int year);
 
-    @GET("api/reports/monthly.xlsx")
-    Call<ResponseBody> downloadMonthlyReport(
-            @Query("year") int year,
-            @Query("month") int month);
+    @GET("api/reports/range.xlsx")
+    Call<ResponseBody> downloadRangeReport(
+            @Query("from") String from,
+            @Query("to") String to);
 
-    @GET("api/reports/monthly.csv")
-    Call<ResponseBody> downloadMonthlyCsv(
-            @Query("year") int year,
-            @Query("month") int month);
-
-    @GET("api/reports/monthly.pdf")
-    Call<ResponseBody> downloadMonthlyPdf(
-            @Query("year") int year,
-            @Query("month") int month);
+    @GET("api/reports/range.pdf")
+    Call<ResponseBody> downloadRangePdf(
+            @Query("from") String from,
+            @Query("to") String to);
 
     @Multipart
     @POST("api/receipts")

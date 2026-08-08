@@ -14,9 +14,16 @@ import com.example.appquanlychitieu.data.remote.dto.CategoryRequestDto;
 import com.example.appquanlychitieu.data.repository.RemoteCategoryRepository;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public final class CategoryViewModel extends AndroidViewModel {
+    private static final String[] CATEGORY_COLORS = {
+            "#E11D48", "#16A34A", "#9333EA", "#CA8A04", "#0284C7"
+    };
+
     private final RemoteCategoryRepository repository;
     private final MutableLiveData<List<CategoryDto>> categories = new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<String> error = new MutableLiveData<>();
@@ -40,8 +47,13 @@ public final class CategoryViewModel extends AndroidViewModel {
     }
 
     public void save(CategoryDto existing, String name, String type, String icon) {
+        String color = existing == null ? chooseUnusedColor() : existing.color;
+        if (color == null) {
+            error.setValue("Đã dùng hết 5 màu mới cho danh mục");
+            return;
+        }
         CategoryRequestDto request = new CategoryRequestDto(name, type,
-                existing == null ? "#607D8B" : existing.color,
+                color,
                 icon);
         RemoteCallback<CategoryDto> callback = new RemoteCallback<CategoryDto>() {
             @Override public void onSuccess(CategoryDto value) { refresh(); }
@@ -49,6 +61,24 @@ public final class CategoryViewModel extends AndroidViewModel {
         };
         if (existing == null) repository.create(request, callback);
         else repository.update(existing, request, callback);
+    }
+
+    private String chooseUnusedColor() {
+        Set<String> usedColors = new HashSet<>();
+        List<CategoryDto> currentCategories = categories.getValue();
+        if (currentCategories != null) {
+            for (CategoryDto category : currentCategories) {
+                if (category.color != null && !category.color.trim().isEmpty()) {
+                    usedColors.add(category.color.trim().toUpperCase(Locale.ROOT));
+                }
+            }
+        }
+
+        List<String> availableColors = new ArrayList<>();
+        for (String color : CATEGORY_COLORS) {
+            if (!usedColors.contains(color)) availableColors.add(color);
+        }
+        return availableColors.isEmpty() ? null : availableColors.get(0);
     }
 
     public void delete(CategoryDto category) {

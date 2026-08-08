@@ -17,6 +17,7 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
     public async Task<ActionResult<IReadOnlyList<GoalResponse>>> GetAll(CancellationToken cancellationToken)
     {
         var items = await db.Goals.AsNoTracking()
+            .Include(x => x.CompletionTransaction)
             .Where(x => x.UserId == userContext.UserId)
             .OrderByDescending(x => x.CreatedAt)
             .ThenByDescending(x => x.Id)
@@ -38,7 +39,8 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
             UserId = userContext.UserId,
             Name = name,
             TargetAmount = request.TargetAmount,
-            CurrentAmount = 0
+            CurrentAmount = 0,
+            Status = GoalStatus.ACTIVE
         };
         db.Goals.Add(goal);
         await db.SaveChangesAsync(cancellationToken);
@@ -56,6 +58,8 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (goal is null)
             return NotFound();
+        if (goal.Status is GoalStatus.COMPLETED or GoalStatus.CANCELLED)
+            return Conflict(new { message = "Mục tiêu đã kết thúc và không thể chỉnh sửa." });
         if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
             return OptimisticConcurrency.PreconditionFailed(this);
 
@@ -68,6 +72,8 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
 
         goal.Name = name;
         goal.TargetAmount = request.TargetAmount;
+        goal.Status = goal.CurrentAmount == goal.TargetAmount
+            ? GoalStatus.READY_TO_COMPLETE : GoalStatus.ACTIVE;
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -89,6 +95,9 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
             return NotFound();
         if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
             return OptimisticConcurrency.PreconditionFailed(this);
+
+        if (goal.CurrentAmount > 0 || goal.Status != GoalStatus.ACTIVE)
+            return Conflict(new { message = "Mục tiêu đã có tiền hoặc đã kết thúc. Hãy dùng chức năng hủy mục tiêu để giữ lịch sử." });
 
         db.Goals.Remove(goal);
         try
@@ -141,12 +150,23 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
             return OptimisticConcurrency.PreconditionFailed(this);
 
+        if (goal.Status is not GoalStatus.ACTIVE)
+            return Conflict(new { message = "Chỉ có thể nạp tiền vào mục tiêu đang hoạt động." });
+
         var funding = GoalFundingRules.Calculate(
             goal.TargetAmount, goal.CurrentAmount, request.Amount);
         if (funding.WasAlreadyFunded)
             return Conflict(new { message = "This goal is already fully funded." });
         var appliedAmount = funding.AppliedAmount;
+        var available = await CalculateAvailableBalance(cancellationToken);
+        if (appliedAmount > available.AvailableAmount)
+            return Conflict(new
+            {
+                message = $"Số dư khả dụng không đủ. Hiện còn {available.AvailableAmount:N0} đ."
+            });
         goal.CurrentAmount = funding.BalanceAfter;
+        goal.Status = goal.CurrentAmount == goal.TargetAmount
+            ? GoalStatus.READY_TO_COMPLETE : GoalStatus.ACTIVE;
         if (appliedAmount > 0)
         {
             db.GoalHistories.Add(new GoalHistory
@@ -154,7 +174,8 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
                 GoalId = goal.Id,
                 AmountAdded = appliedAmount,
                 RequestedAmount = request.Amount,
-                BalanceAfter = goal.CurrentAmount
+                BalanceAfter = goal.CurrentAmount,
+                ActionType = GoalHistoryActionType.FUND
             });
         }
         IdempotencySupport.Add(
@@ -177,6 +198,127 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         return Ok(goal.ToResponse());
     }
 
+    [HttpGet("available-balance")]
+    public async Task<ActionResult<AvailableBalanceResponse>> GetAvailableBalance(
+        [FromQuery] int? year,
+        [FromQuery] int? month,
+        CancellationToken cancellationToken) =>
+        Ok(await CalculateAvailableBalanceForMonth(year, month, cancellationToken));
+
+    [HttpPost("{id:guid}/complete")]
+    public async Task<ActionResult<GoalResponse>> Complete(
+        Guid id,
+        CompleteGoalRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!IdempotencySupport.TryCreate(
+                this, $"goals:{id}:complete", request, out var idempotency, out var keyError))
+            return keyError!;
+
+        await using var databaseTransaction =
+            await FinanceDatabaseLocks.BeginIfPostgresAsync(db, cancellationToken);
+        var goal = db.Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL"
+            ? await db.Goals
+                .FromSqlInterpolated($"SELECT * FROM goals WHERE id = {id} AND user_id = {userContext.UserId} FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken)
+            : await db.Goals.SingleOrDefaultAsync(
+                x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
+        if (goal is null)
+            return NotFound();
+        var replay = await IdempotencySupport.FindAsync<GoalResponse>(
+            db, userContext.UserId, idempotency, cancellationToken);
+        if (replay?.RequestConflict == true)
+            return IdempotencySupport.Conflict(this);
+        if (replay?.Exists == true && replay.Response is not null)
+            return StatusCode(replay.StatusCode, replay.Response);
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
+        if (goal.Status != GoalStatus.READY_TO_COMPLETE ||
+            goal.CurrentAmount != goal.TargetAmount)
+            return Conflict(new { message = "Mục tiêu chưa tích lũy đủ hoặc đã được xử lý." });
+
+        var category = await FinanceDatabaseLocks.GetOwnedCategoryForReferenceAsync(
+            db, request.CategoryId, userContext.UserId, cancellationToken);
+        if (category is null || category.Type != TransactionType.EXPENSE)
+            return BadRequest(new { message = "Vui lòng chọn một danh mục chi tiêu hợp lệ." });
+
+        var completion = new Domain.Transaction
+        {
+            UserId = userContext.UserId,
+            CategoryId = category.Id,
+            Category = category,
+            Amount = goal.CurrentAmount,
+            Type = TransactionType.EXPENSE,
+            TransactionDate = request.TransactionDate,
+            Note = string.IsNullOrWhiteSpace(request.Note)
+                ? $"Hoàn thành mục tiêu: {goal.Name}" : request.Note.Trim(),
+            GoalId = goal.Id,
+            Goal = goal
+        };
+        goal.Status = GoalStatus.COMPLETED;
+        goal.CompletedAt = DateTime.UtcNow;
+        goal.CompletionTransaction = completion;
+        db.Transactions.Add(completion);
+        db.GoalHistories.Add(new GoalHistory
+        {
+            GoalId = goal.Id,
+            Goal = goal,
+            AmountAdded = 0,
+            BalanceAfter = goal.CurrentAmount,
+            ActionType = GoalHistoryActionType.COMPLETE
+        });
+        var response = goal.ToResponse();
+        IdempotencySupport.Add(db, userContext.UserId, idempotency,
+            StatusCodes.Status200OK, response);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        if (databaseTransaction is not null)
+            await databaseTransaction.CommitAsync(cancellationToken);
+        OptimisticConcurrency.WriteEtag(this, goal.Version);
+        return Ok(goal.ToResponse());
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult<GoalResponse>> Cancel(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var goal = await db.Goals.SingleOrDefaultAsync(
+            x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
+        if (goal is null)
+            return NotFound();
+        if (!OptimisticConcurrency.IfMatchSatisfied(this, goal.Version))
+            return OptimisticConcurrency.PreconditionFailed(this);
+        if (goal.Status is GoalStatus.COMPLETED or GoalStatus.CANCELLED)
+            return Conflict(new { message = "Mục tiêu đã kết thúc." });
+
+        goal.Status = GoalStatus.CANCELLED;
+        db.GoalHistories.Add(new GoalHistory
+        {
+            GoalId = goal.Id,
+            Goal = goal,
+            AmountAdded = 0,
+            BalanceAfter = goal.CurrentAmount,
+            ActionType = GoalHistoryActionType.CANCEL
+        });
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OptimisticConcurrency.PreconditionFailed(this);
+        }
+        OptimisticConcurrency.WriteEtag(this, goal.Version);
+        return Ok(goal.ToResponse());
+    }
+
     [HttpGet("{id:guid}/history")]
     public async Task<ActionResult<IReadOnlyList<GoalHistoryResponse>>> GetHistory(
         Guid id,
@@ -193,5 +335,62 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
             .ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);
         return Ok(items.Select(x => x.ToResponse()).ToList());
+    }
+
+    private async Task<AvailableBalanceResponse> CalculateAvailableBalance(
+        CancellationToken cancellationToken)
+    {
+        var income = await db.Transactions.AsNoTracking()
+            .Where(x => x.UserId == userContext.UserId && x.Type == TransactionType.INCOME)
+            .SumAsync(x => (long?)x.Amount, cancellationToken) ?? 0L;
+        var expense = await db.Transactions.AsNoTracking()
+            .Where(x => x.UserId == userContext.UserId && x.Type == TransactionType.EXPENSE)
+            .SumAsync(x => (long?)x.Amount, cancellationToken) ?? 0L;
+        var reserved = await db.Goals.AsNoTracking()
+            .Where(x => x.UserId == userContext.UserId &&
+                (x.Status == GoalStatus.ACTIVE || x.Status == GoalStatus.READY_TO_COMPLETE))
+            .SumAsync(x => (long?)x.CurrentAmount, cancellationToken) ?? 0L;
+        return new AvailableBalanceResponse(
+            StatisticsRules.Balance(income, expense),
+            reserved,
+            StatisticsRules.AvailableBalance(income, expense, reserved));
+    }
+
+    private async Task<AvailableBalanceResponse> CalculateAvailableBalanceForMonth(
+        int? year,
+        int? month,
+        CancellationToken cancellationToken)
+    {
+        var today = LocalToday();
+        var selectedYear = year ?? today.Year;
+        var selectedMonth = month ?? today.Month;
+        if (selectedYear is < 2000 or > 2100 || selectedMonth is < 1 or > 12)
+            throw new ArgumentException("year hoặc month không hợp lệ.");
+
+        var start = new DateOnly(selectedYear, selectedMonth, 1);
+        var end = start.AddMonths(1);
+        var income = await db.Transactions.AsNoTracking()
+            .Where(x => x.UserId == userContext.UserId && x.Type == TransactionType.INCOME &&
+                        x.TransactionDate >= start && x.TransactionDate < end)
+            .SumAsync(x => (long?)x.Amount, cancellationToken) ?? 0L;
+        var expense = await db.Transactions.AsNoTracking()
+            .Where(x => x.UserId == userContext.UserId && x.Type == TransactionType.EXPENSE &&
+                        x.TransactionDate >= start && x.TransactionDate < end)
+            .SumAsync(x => (long?)x.Amount, cancellationToken) ?? 0L;
+        var reserved = await db.Goals.AsNoTracking()
+            .Where(x => x.UserId == userContext.UserId &&
+                (x.Status == GoalStatus.ACTIVE || x.Status == GoalStatus.READY_TO_COMPLETE))
+            .SumAsync(x => (long?)x.CurrentAmount, cancellationToken) ?? 0L;
+        return new AvailableBalanceResponse(
+            StatisticsRules.Balance(income, expense),
+            reserved,
+            StatisticsRules.AvailableBalance(income, expense, reserved));
+    }
+
+    private static DateOnly LocalToday()
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "SE Asia Standard Time" : "Asia/Ho_Chi_Minh");
+        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
     }
 }

@@ -52,8 +52,8 @@ public class SettingsFragment extends Fragment {
     private SessionManager sessionManager;
     private ActivityResultLauncher<String> exportReportLauncher;
     private SettingsViewModel viewModel;
-    private int exportYear;
-    private int exportMonth;
+    private String exportFromDate;
+    private String exportToDate;
     private String exportFormat = "xlsx";
     
     private View cardExportReport, cardLogout, cardReminders;
@@ -274,7 +274,7 @@ public class SettingsFragment extends Fragment {
         android.content.Context appContext = requireContext().getApplicationContext();
         String successMessage = getString(R.string.export_report_success);
         String errorMessage = getString(R.string.export_report_error);
-        viewModel.export(exportYear, exportMonth, exportFormat,
+        viewModel.export(exportFromDate, exportToDate, exportFormat,
                 new RemoteCallback<ResponseBody>() {
                     @Override
                     public void onSuccess(ResponseBody body) {
@@ -300,36 +300,88 @@ public class SettingsFragment extends Fragment {
     }
 
     private void chooseReport() {
-        String[] formats = {"XLSX", "CSV", "PDF"};
+        String[] formats = {"XLSX", "PDF"};
         int checkedItem = Math.max(0, java.util.Arrays.asList(formats)
                 .indexOf(exportFormat.toUpperCase(Locale.US)));
         final int[] selectedItem = {checkedItem};
 
-        new MaterialAlertDialogBuilder(requireContext())
+        android.widget.RadioGroup formatGroup = new android.widget.RadioGroup(requireContext());
+        formatGroup.setOrientation(android.widget.RadioGroup.VERTICAL);
+        int optionPadding = (int) (8 * getResources().getDisplayMetrics().density);
+        formatGroup.setPadding(optionPadding, 0, optionPadding, 0);
+        for (int index = 0; index < formats.length; index++) {
+            android.widget.RadioButton option = new android.widget.RadioButton(requireContext());
+            option.setText(formats[index]);
+            option.setTextSize(16);
+            option.setPadding(optionPadding, optionPadding, optionPadding, optionPadding);
+            option.setId(android.view.View.generateViewId());
+            int optionIndex = index;
+            option.setOnClickListener(v -> selectedItem[0] = optionIndex);
+            formatGroup.addView(option,
+                    new android.widget.RadioGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+            if (index == checkedItem) option.setChecked(true);
+        }
+
+        new AlertDialog.Builder(requireContext())
                 .setTitle(R.string.choose_report_format)
                 .setMessage(R.string.choose_report_format_description)
-                .setSingleChoiceItems(formats, checkedItem,
-                        (dialog, which) -> selectedItem[0] = which)
+                .setView(formatGroup)
                 .setNegativeButton(R.string.cancel, null)
                 .setPositiveButton(R.string.continue_action, (dialog, which) -> {
                     exportFormat = formats[selectedItem[0]].toLowerCase(Locale.US);
-                    showReportMonthPicker();
+                    showReportDateRangePicker();
                 })
                 .show();
     }
 
-    private void showReportMonthPicker() {
+    private void showReportDateRangePicker() {
         Calendar now = Calendar.getInstance();
-        new DatePickerDialog(requireContext(), (picker, year, month, day) -> {
-            exportYear = year;
-            exportMonth = month + 1;
+        Calendar firstOfMonth = (Calendar) now.clone();
+        firstOfMonth.set(Calendar.DAY_OF_MONTH, 1);
+        showReportFromPicker(firstOfMonth, now);
+    }
+
+    private void showReportFromPicker(Calendar defaultDate, Calendar today) {
+        DatePickerDialog picker = new DatePickerDialog(requireContext(), (dialog, year, month, day) -> {
+            Calendar from = Calendar.getInstance();
+            from.set(year, month, day, 0, 0, 0);
+            showReportToPicker(from, today);
+        }, defaultDate.get(Calendar.YEAR), defaultDate.get(Calendar.MONTH),
+                defaultDate.get(Calendar.DAY_OF_MONTH));
+        picker.setTitle("Chọn ngày bắt đầu");
+        picker.getDatePicker().setMaxDate(today.getTimeInMillis());
+        picker.show();
+    }
+
+    private void showReportToPicker(Calendar from, Calendar today) {
+        DatePickerDialog picker = new DatePickerDialog(requireContext(), (dialog, year, month, day) -> {
+            Calendar to = Calendar.getInstance();
+            to.set(year, month, day, 0, 0, 0);
+            if (to.before(from)) {
+                showToast("Ngày kết thúc phải sau ngày bắt đầu");
+                return;
+            }
+            exportFromDate = formatReportDate(from);
+            exportToDate = formatReportDate(to);
             exportReportLauncher.launch(String.format(
                     Locale.US,
-                    "bao_cao_%04d_%02d.%s",
-                    exportYear,
-                    exportMonth,
+                    "bao_cao_%s_%s.%s",
+                    exportFromDate,
+                    exportToDate,
                     exportFormat));
-        }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), 1).show();
+        }, today.get(Calendar.YEAR), today.get(Calendar.MONTH), today.get(Calendar.DAY_OF_MONTH));
+        picker.setTitle("Chọn ngày kết thúc");
+        picker.getDatePicker().setMinDate(from.getTimeInMillis());
+        picker.getDatePicker().setMaxDate(today.getTimeInMillis());
+        picker.show();
+    }
+
+    private String formatReportDate(Calendar date) {
+        return String.format(Locale.US, "%04d-%02d-%02d",
+                date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1,
+                date.get(Calendar.DAY_OF_MONTH));
     }
 
     private void showToast(String message) {

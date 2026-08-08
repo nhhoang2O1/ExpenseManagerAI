@@ -58,22 +58,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/scan_receipt"
-            app:icon="@drawable/ic_bill" />
+            app:icon="@drawable/ic_camera" />
 
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.App.TextInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="@string/search_transactions"
-            app:startIconDrawable="@drawable/ic_transaction">
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_search_transactions"
+            android:hint="@string/transaction_category"
+            app:startIconDrawable="@drawable/ic_transaction"
+            app:endIconMode="dropdown_menu">
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/dropdown_transaction_category"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:imeOptions="actionSearch"
-                android:inputType="text"
-                android:maxLines="1" />
+                android:inputType="none"
+                android:minHeight="56dp"
+                android:gravity="center_vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="8dp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <HorizontalScrollView

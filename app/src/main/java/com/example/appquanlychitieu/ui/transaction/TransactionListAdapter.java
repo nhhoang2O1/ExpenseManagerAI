@@ -203,6 +203,7 @@ public class TransactionListAdapter
                 && Objects.equals(first.getRemoteCategoryName(), second.getRemoteCategoryName())
                 && Objects.equals(first.getRemoteCategoryColor(), second.getRemoteCategoryColor())
                 && Objects.equals(first.getRemoteCategoryIcon(), second.getRemoteCategoryIcon())
-                && Objects.equals(first.getRemoteReceiptId(), second.getRemoteReceiptId());
+                && Objects.equals(first.getRemoteReceiptId(), second.getRemoteReceiptId())
+                && Objects.equals(first.getRemoteGoalId(), second.getRemoteGoalId());
     }
 }
