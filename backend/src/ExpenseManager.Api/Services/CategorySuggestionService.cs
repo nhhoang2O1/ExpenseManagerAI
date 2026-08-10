@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Text;
+using System.Text.Json;
 using ExpenseManager.Api.Data;
 using ExpenseManager.Api.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -21,22 +20,27 @@ public interface ICategorySuggestionService
 }
 
 /// <summary>
-/// Suggests an expense category without relying on merchant-specific parsers.
-/// Confirmed user history has priority; semantic receipt keywords are the fallback.
+/// Maps the explainable semantic decision made by CategoryClassifier to an
+/// expense category owned by the current user. The HTTP contract remains the
+/// same as V1; medium/low-confidence decisions are not auto-selected because
+/// the current Android client treats every returned id as authoritative.
 /// </summary>
-public sealed class CategorySuggestionService(AppDbContext db) : ICategorySuggestionService
+public sealed class CategorySuggestionService : ICategorySuggestionService
 {
-    private static readonly IReadOnlyDictionary<string, string[]> KeywordGroups =
-        new Dictionary<string, string[]>(StringComparer.Ordinal)
-        {
-            ["AN UONG"] = ["TRA SUA", "SUA TUOI", "SUA", "TRA", "TEA", "MILK TEA", "CA PHE", "COFFEE", "DO UONG", "NUOC UONG", "PHO", "COM", "BUN", "BANH", "MON AN", "THUC AN", "RESTAURANT", "FOOD"],
-            ["DI CHUYEN"] = ["XANG", "DAU DIESEL", "TAXI", "CUOC XE", "VE XE", "GUI XE", "PARKING", "CAU DUONG"],
-            ["MUA SAM"] = ["SIEU THI", "QUAN AO", "MY PHAM", "GIA DUNG", "CUA HANG TIEN LOI", "SHOPPING"],
-            ["NHA O"] = ["TIEN DIEN", "TIEN NUOC", "INTERNET", "THUE NHA", "CHUNG CU"],
-            ["GIAI TRI"] = ["VE PHIM", "RAP CHIEU", "KARAOKE", "GAME", "GIAI TRI"],
-            ["SUC KHOE"] = ["NHA THUOC", "THUOC", "DUOC PHAM", "BENH VIEN", "KHAM BENH"],
-            ["GIAO DUC"] = ["HOC PHI", "KHOA HOC", "SACH", "VAN PHONG PHAM", "TRUONG HOC"]
-        };
+    private readonly AppDbContext _db;
+    private readonly CategoryTextNormalizer _normalizer;
+    private readonly UserCategoryMapper _mapper;
+    private readonly CategoryHistoryScorer _historyScorer;
+    private readonly CategoryClassifier _classifier;
+
+    public CategorySuggestionService(AppDbContext db)
+    {
+        _db = db;
+        _normalizer = new CategoryTextNormalizer();
+        _mapper = new UserCategoryMapper(_normalizer);
+        _historyScorer = new CategoryHistoryScorer();
+        _classifier = new CategoryClassifier(_normalizer, new CategoryRuleSet());
+    }
 
     public async Task<CategorySuggestion?> SuggestAsync(
         Guid userId,
@@ -46,94 +50,145 @@ public sealed class CategorySuggestionService(AppDbContext db) : ICategorySugges
         if (ocrResult is null)
             return null;
 
-        var categories = await db.Categories.AsNoTracking()
-            .Where(x => x.UserId == userId && x.Type == TransactionType.EXPENSE)
-            .ToListAsync(cancellationToken);
-        if (categories.Count == 0)
+        var prepared = await AnalyzeCoreAsync(userId, ocrResult, cancellationToken);
+        var decision = prepared.Analysis.Decision;
+        if (!decision.Accepted || decision.SemanticCategory is null ||
+            decision.ConfidenceTier != CategoryConfidenceTier.HIGH)
             return null;
 
-        var normalizedStore = Normalize(ocrResult.StoreName);
-        if (normalizedStore.Length >= 3)
-        {
-            var history = await db.Transactions.AsNoTracking()
-                .Where(x => x.UserId == userId
-                    && x.Type == TransactionType.EXPENSE
-                    && x.StoreName != null)
-                .OrderByDescending(x => x.TransactionDate)
-                .ThenByDescending(x => x.CreatedAt)
-                .Take(500)
-                .Select(x => new { x.StoreName, x.CategoryId })
-                .ToListAsync(cancellationToken);
-
-            var learned = history
-                .Where(x => Normalize(x.StoreName) == normalizedStore)
-                .GroupBy(x => x.CategoryId)
-                .Select(x => new { CategoryId = x.Key, Count = x.Count() })
-                .OrderByDescending(x => x.Count)
-                .FirstOrDefault();
-            var learnedCategory = learned is null
-                ? null
-                : categories.FirstOrDefault(x => x.Id == learned.CategoryId);
-            if (learnedCategory is not null)
-            {
-                return new CategorySuggestion(
-                    learnedCategory.Id,
-                    learnedCategory.Name,
-                    learned!.Count >= 2 ? 0.98m : 0.94m,
-                    "Dựa trên danh mục bạn đã chọn cho cửa hàng này trước đây.");
-            }
-        }
-
-        var content = Normalize($"{ocrResult.StoreName}\n{ocrResult.RawText}");
-        var matches = KeywordGroups
-            .Select(group => new
-            {
-                Family = group.Key,
-                Score = group.Value.Count(keyword => content.Contains(keyword, StringComparison.Ordinal))
-            })
-            .Where(x => x.Score > 0)
-            .OrderByDescending(x => x.Score)
-            .ToList();
-        if (matches.Count == 0 || (matches.Count > 1 && matches[0].Score == matches[1].Score))
-            return null;
-
-        var match = matches[0];
-        var category = categories.FirstOrDefault(x => Normalize(x.Name) == match.Family);
+        var category = _mapper.FindCategory(
+            decision.SemanticCategory.Value,
+            prepared.Categories);
         if (category is null)
             return null;
+
+        var winningCandidate = prepared.Analysis.Candidates
+            .Single(x => x.Category == decision.SemanticCategory.Value);
+        var reason = string.Join(
+            " ",
+            winningCandidate.Evidence
+                .Where(x => x.Contribution > 0)
+                .OrderByDescending(x => x.Contribution)
+                .Take(2)
+                .Select(x => x.Reason));
+        if (string.IsNullOrWhiteSpace(reason))
+            reason = "Gợi ý từ bằng chứng trên hóa đơn; vui lòng kiểm tra trước khi xác nhận.";
 
         return new CategorySuggestion(
             category.Id,
             category.Name,
-            Math.Min(0.95m, 0.82m + (match.Score - 1) * 0.04m),
-            "Gợi ý từ nội dung trên hóa đơn; vui lòng kiểm tra trước khi xác nhận.");
+            decision.HeuristicConfidence,
+            reason);
     }
 
-    private static string Normalize(string? value)
+    /// <summary>
+    /// Internal-debug friendly analysis used by unit/regression tests. It is
+    /// not exposed by any controller or HTTP response.
+    /// </summary>
+    public async Task<CategoryAnalysis?> AnalyzeAsync(
+        Guid userId,
+        OcrResult? ocrResult,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(value))
-            return string.Empty;
-
-        var decomposed = value.Trim().ToUpperInvariant().Normalize(NormalizationForm.FormD);
-        var result = new StringBuilder(decomposed.Length);
-        var previousWasSpace = false;
-        foreach (var character in decomposed)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
-                continue;
-            var normalized = char.IsLetterOrDigit(character) ? character : ' ';
-            if (normalized == ' ')
-            {
-                if (previousWasSpace)
-                    continue;
-                previousWasSpace = true;
-            }
-            else
-            {
-                previousWasSpace = false;
-            }
-            result.Append(normalized);
-        }
-        return result.ToString().Trim();
+        if (ocrResult is null)
+            return null;
+        return (await AnalyzeCoreAsync(userId, ocrResult, cancellationToken)).Analysis;
     }
+
+    private async Task<PreparedAnalysis> AnalyzeCoreAsync(
+        Guid userId,
+        OcrResult ocrResult,
+        CancellationToken cancellationToken)
+    {
+        var categories = await _db.Categories.AsNoTracking()
+            .Where(x => x.UserId == userId && x.Type == TransactionType.EXPENSE)
+            .ToListAsync(cancellationToken);
+        var historyEvidence = await HistoryEvidenceAsync(
+            userId,
+            ocrResult,
+            categories,
+            cancellationToken);
+        var lines = ReadLines(ocrResult.LinesJson, ocrResult.RawText, ocrResult.OverallConfidence);
+        var analysis = _classifier.Analyze(new CategoryClassifierInput(
+            ocrResult.StoreName,
+            ocrResult.RawText,
+            lines,
+            historyEvidence,
+            ocrResult.OverallConfidence));
+        return new PreparedAnalysis(analysis, categories);
+    }
+
+    private async Task<IReadOnlyList<CategoryEvidence>> HistoryEvidenceAsync(
+        Guid userId,
+        OcrResult ocrResult,
+        IReadOnlyList<Category> categories,
+        CancellationToken cancellationToken)
+    {
+        var merchant = _normalizer.Normalize(ocrResult.StoreName);
+        if (merchant.Length < 3)
+            return [];
+
+        var categoryById = categories.ToDictionary(x => x.Id);
+        var history = await _db.Transactions.AsNoTracking()
+            .Where(x => x.UserId == userId &&
+                x.Type == TransactionType.EXPENSE &&
+                x.StoreName != null &&
+                x.ReceiptId != ocrResult.ReceiptId)
+            .OrderByDescending(x => x.TransactionDate)
+            .ThenByDescending(x => x.CreatedAt)
+            .Take(500)
+            .Select(x => new { x.StoreName, x.CategoryId })
+            .ToListAsync(cancellationToken);
+        var semanticHistory = history
+            .Where(x => _normalizer.Normalize(x.StoreName) == merchant)
+            .Select(x => categoryById.TryGetValue(x.CategoryId, out var category)
+                ? _mapper.ToSemantic(category)
+                : null)
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .ToList();
+        return _historyScorer.Score(semanticHistory);
+    }
+
+    private static IReadOnlyList<CategoryOcrLine> ReadLines(
+        string linesJson,
+        string rawText,
+        decimal overallConfidence)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(linesJson);
+            var result = new List<CategoryOcrLine>();
+            var index = 0;
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                if (!item.TryGetProperty("text", out var textProperty))
+                    continue;
+                var text = textProperty.GetString();
+                if (string.IsNullOrWhiteSpace(text))
+                    continue;
+                var confidence = item.TryGetProperty("confidence", out var confidenceProperty) &&
+                                 confidenceProperty.TryGetDecimal(out var parsedConfidence)
+                    ? parsedConfidence
+                    : overallConfidence;
+                result.Add(new CategoryOcrLine(text, confidence, index++));
+            }
+
+            if (result.Count > 0)
+                return result;
+        }
+        catch (JsonException)
+        {
+            // Older records may contain malformed line JSON. Raw text remains
+            // sufficient for a safe, layout-free classification attempt.
+        }
+
+        return rawText.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select((text, index) => new CategoryOcrLine(text, overallConfidence, index))
+            .ToList();
+    }
+
+    private sealed record PreparedAnalysis(
+        CategoryAnalysis Analysis,
+        IReadOnlyList<Category> Categories);
 }
