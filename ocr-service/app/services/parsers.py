@@ -5,14 +5,39 @@ from datetime import date
 from typing import Iterable
 
 from app.schemas import Classification, ExtractedFields, OCRLine
+from app.services.merchant_extractor import MerchantNameExtractor
 
 AMOUNT_PATTERN = re.compile(
-    r"(?<!\d)(\d{1,3}(?:[.,\s]\d{3})+|\d{3,})(?!\d)"
+    r"(?<!\d)(\d{1,3}(?:[.,\s]\d{3})+|\d{3,})(?!\d|[.,]\d)"
 )
 DATE_PATTERNS = (
     re.compile(r"(?<!\d)(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})(?!\d)"),
     re.compile(r"(?<!\d)(\d{4})[./-](\d{1,2})[./-](\d{1,2})(?!\d)"),
 )
+ENGLISH_DATE_PATTERN = re.compile(
+    r"(?<![A-Z0-9])"
+    r"(?:(?:MON|TUE|WED|THU|FRI|SAT|SUN)\s*,?\s+)?"
+    r"(\d{1,2})\s+"
+    r"(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|"
+    r"JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|"
+    r"OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\s+"
+    r"(\d{4})(?!\d)",
+    re.IGNORECASE,
+)
+ENGLISH_MONTHS = {
+    "JAN": 1, "JANUARY": 1,
+    "FEB": 2, "FEBRUARY": 2,
+    "MAR": 3, "MARCH": 3,
+    "APR": 4, "APRIL": 4,
+    "MAY": 5,
+    "JUN": 6, "JUNE": 6,
+    "JUL": 7, "JULY": 7,
+    "AUG": 8, "AUGUST": 8,
+    "SEP": 9, "SEPTEMBER": 9,
+    "OCT": 10, "OCTOBER": 10,
+    "NOV": 11, "NOVEMBER": 11,
+    "DEC": 12, "DECEMBER": 12,
+}
 
 TOTAL_KEYWORDS = (
     ("TONG TIEN THANH TOAN", 110),
@@ -26,38 +51,11 @@ TOTAL_KEYWORDS = (
     ("TOTAL", 95),
 )
 VAT_KEYWORDS = ("VAT", "THUE GTGT", "THUE", "GTGT")
-STORE_BLOCKLIST = (
-    "HOA DON",
-    "RECEIPT",
-    "PHIEU",
-    "TONG",
-    "THANH TOAN",
-    "CAM ON",
-    "MA SO THUE",
-    "MST",
-    "DIA CHI",
-    "NGAY",
-    "DATE",
-    "TEL",
-    "MA HD",
-    "SO HD",
-    "MA HOA DON",
-    "NHAN VIEN",
-    "THU NGAN",
-    "BAN:",
-    "GIO VAO",
-    "GIO RA",
-    "STT",
-    "TEN MON",
-    "DON GIA",
+POSITIVE_DATE_CONTEXTS = (
+    "TRANSACTION DATE", "PAYMENT DATE", "RECEIPT DATE", "PRINT DATE",
 )
-ADDRESS_SIGNALS = (
-    "DIA CHI",
-    "HOTLINE",
-    "VIET NAM",
-    "QUAN ",
-    "PHUONG ",
-    "DUONG ",
+SECONDARY_DATE_CONTEXTS = (
+    "GIO VAO", "GIA VAO", "CHECK IN", "ORDER TIME", "START TIME",
 )
 
 
@@ -75,52 +73,13 @@ class _AmountCandidate:
     line_index: int
 
 
-@dataclass(frozen=True)
-class _StoreMatch:
-    name: str
-
-
-class GenericReceiptParser:
-    @staticmethod
-    def match_store(
-        lines: list[OCRLine], normalized_lines: list[str]
-    ) -> _StoreMatch | None:
-        candidates: list[tuple[float, str]] = []
-        for index, (line, text) in enumerate(zip(lines, normalized_lines)):
-            clean = line.text.strip()
-            letters = sum(character.isalpha() for character in clean)
-            if not (
-                3 <= len(clean) <= 80
-                and letters >= 3
-                and letters / max(len(clean), 1) >= 0.4
-            ) or any(keyword in text for keyword in STORE_BLOCKLIST):
-                continue
-
-            # A merchant name is commonly next to its address or hotline. This
-            # is more reliable than blindly taking the first alphabetic line,
-            # which often is a receipt code or cashier name on Vietnamese bills.
-            nearby = normalized_lines[max(0, index - 1) : index + 4]
-            address_bonus = 0.35 if any(
-                signal in candidate
-                for candidate in nearby
-                for signal in ADDRESS_SIGNALS
-            ) else 0.0
-            header_bonus = 0.08 if index < 6 else 0.0
-            candidates.append((0.45 + address_bonus + header_bonus, clean))
-
-        if not candidates:
-            return None
-        _, name = max(candidates, key=lambda candidate: candidate[0])
-        return _StoreMatch(name=name)
-
-
 class ReceiptParser:
-    def __init__(self) -> None:
-        self.generic_parser = GenericReceiptParser()
+    def __init__(self, merchant_extractor: MerchantNameExtractor | None = None) -> None:
+        self.merchant_extractor = merchant_extractor or MerchantNameExtractor()
 
     def parse(self, lines: list[OCRLine]) -> ParseResult:
         normalized = [_normalize(line.text) for line in lines]
-        store_name = self._extract_store(lines, normalized)
+        store_name = self._extract_store(lines)
         receipt_date = self._extract_date(lines, normalized)
         total_amount = self._extract_total(lines, normalized)
         vat_amount = self._extract_vat(lines, normalized)
@@ -151,14 +110,8 @@ class ReceiptParser:
             warnings=warnings,
         )
 
-    def _extract_store(
-        self,
-        lines: list[OCRLine], normalized: list[str]
-    ) -> str | None:
-        match = self.generic_parser.match_store(lines, normalized)
-        if match is not None:
-            return match.name
-        return None
+    def _extract_store(self, lines: list[OCRLine]) -> str | None:
+        return self.merchant_extractor.extract(lines)
 
     @staticmethod
     def _extract_date(
@@ -179,11 +132,26 @@ class ReceiptParser:
                         parsed = date(year, month, day)
                     except ValueError:
                         continue
-                    keyword_bonus = 0.08 if "NGAY" in text or "DATE" in text else 0
+                    keyword_bonus = _date_context_score(index, normalized)
                     position_bonus = max(0, 0.04 - index * 0.003)
                     candidates.append(
                         (parsed, min(0.96, 0.82 + keyword_bonus + position_bonus))
                     )
+            for match in ENGLISH_DATE_PATTERN.finditer(line.text):
+                day_text, month_text, year_text = match.groups()
+                try:
+                    parsed = date(
+                        int(year_text),
+                        ENGLISH_MONTHS[month_text.upper()],
+                        int(day_text),
+                    )
+                except (KeyError, TypeError, ValueError):
+                    continue
+                keyword_bonus = _date_context_score(index, normalized)
+                position_bonus = max(0, 0.04 - index * 0.003)
+                candidates.append(
+                    (parsed, min(0.96, 0.82 + keyword_bonus + position_bonus))
+                )
         return max(candidates, key=lambda item: item[1])[0] if candidates else None
 
     def _extract_total(
@@ -217,6 +185,46 @@ class ReceiptParser:
                             amount=amount,
                             score=35 + 8 * index / line_count,
                             line_index=index,
+                        )
+                    )
+
+        document_box = _document_box(lines)
+        for label_index, text in enumerate(normalized):
+            if any(keyword in text for keyword in VAT_KEYWORDS):
+                continue
+            keyword_score = next(
+                (score for keyword, score in TOTAL_KEYWORDS if keyword in text),
+                0,
+            )
+            if not keyword_score:
+                continue
+            for value_index, value_line in enumerate(lines):
+                if value_index == label_index or not _same_row(
+                    lines[label_index], value_line
+                ):
+                    continue
+                for amount in _amounts(value_line.text):
+                    score = keyword_score + 20
+                    label_box = _line_box(lines[label_index])
+                    value_box = _line_box(value_line)
+                    if label_box is not None and value_box is not None:
+                        if value_box[0] >= label_box[2]:
+                            score += 14
+                        if document_box is not None:
+                            document_width = max(document_box[2] - document_box[0], 1)
+                            document_height = max(document_box[3] - document_box[1], 1)
+                            value_x = (value_box[0] + value_box[2]) / 2
+                            value_y = (value_box[1] + value_box[3]) / 2
+                            score += 8 * (value_x - document_box[0]) / document_width
+                            if (value_y - document_box[1]) / document_height >= 0.7:
+                                score += 8
+                    if amount < 1_000:
+                        score -= 15
+                    candidates.append(
+                        _AmountCandidate(
+                            amount=amount,
+                            score=score,
+                            line_index=value_index,
                         )
                     )
 
@@ -283,6 +291,60 @@ def _amounts(text: str) -> list[int]:
         if 0 < value <= 10**12:
             values.append(value)
     return values
+
+
+def _date_context_score(index: int, normalized: list[str]) -> float:
+    current = normalized[index]
+    previous = normalized[index - 1] if index > 0 else ""
+    score = 0.0
+    if "NGAY" in current or "DATE" in current:
+        score += 0.08
+    if any(context in current for context in POSITIVE_DATE_CONTEXTS):
+        score += 0.04
+    elif any(context in previous for context in POSITIVE_DATE_CONTEXTS):
+        score += 0.06
+    if any(
+        context in current or context in previous
+        for context in SECONDARY_DATE_CONTEXTS
+    ):
+        score -= 0.12
+    return score
+
+
+def _line_box(line: OCRLine) -> tuple[float, float, float, float] | None:
+    points = [point for point in line.box if len(point) >= 2]
+    if len(points) < 2:
+        return None
+    xs = [float(point[0]) for point in points]
+    ys = [float(point[1]) for point in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _document_box(lines: list[OCRLine]) -> tuple[float, float, float, float] | None:
+    boxes = [box for line in lines if (box := _line_box(line)) is not None]
+    if not boxes:
+        return None
+    return (
+        min(box[0] for box in boxes),
+        min(box[1] for box in boxes),
+        max(box[2] for box in boxes),
+        max(box[3] for box in boxes),
+    )
+
+
+def _same_row(first: OCRLine, second: OCRLine) -> bool:
+    first_box = _line_box(first)
+    second_box = _line_box(second)
+    if first_box is None or second_box is None:
+        return False
+    overlap = max(0.0, min(first_box[3], second_box[3]) - max(first_box[1], second_box[1]))
+    min_height = max(min(first_box[3] - first_box[1], second_box[3] - second_box[1]), 1)
+    if overlap / min_height >= 0.4:
+        return True
+    first_center = (first_box[1] + first_box[3]) / 2
+    second_center = (second_box[1] + second_box[3]) / 2
+    max_height = max(first_box[3] - first_box[1], second_box[3] - second_box[1], 1)
+    return abs(first_center - second_center) <= max_height * 0.6
 
 
 def _normalize(value: str) -> str:

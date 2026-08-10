@@ -4,6 +4,20 @@ package com.example.appquanlychitieu.ui.receipt;
 final class ReceiptCallbackPolicy {
     private ReceiptCallbackPolicy() { }
 
+    static boolean isCurrentOperation(long callbackToken, long currentToken) {
+        return callbackToken == currentToken;
+    }
+
+    static boolean shouldApplyDownloadedImage(
+            long callbackToken,
+            long currentToken,
+            String callbackReceiptId,
+            String loadedReceiptId) {
+        return isCurrentOperation(callbackToken, currentToken)
+                && callbackReceiptId != null
+                && callbackReceiptId.equals(loadedReceiptId);
+    }
+
     static boolean shouldDeleteLateUpload(
             long callbackToken,
             long currentToken,

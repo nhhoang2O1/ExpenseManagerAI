@@ -74,13 +74,21 @@ public class ReceiptViewModel extends AndroidViewModel {
 
     public void loadServerImage(@NonNull String id) {
         if (id.equals(loadedImageReceiptId)) return;
+        long token = operationToken;
         loadedImageReceiptId = id;
         repository.downloadImage(id, new RemoteCallback<ResponseBody>() {
             @Override public void onSuccess(ResponseBody value) {
+                if (!ReceiptCallbackPolicy.shouldApplyDownloadedImage(
+                        token, operationToken, id, loadedImageReceiptId)) return;
                 try { serverImage.setValue(value.bytes()); }
                 catch (Exception exception) { loadedImageReceiptId = null; }
             }
-            @Override public void onError(ApiError error) { loadedImageReceiptId = null; }
+            @Override public void onError(ApiError error) {
+                if (ReceiptCallbackPolicy.shouldApplyDownloadedImage(
+                        token, operationToken, id, loadedImageReceiptId)) {
+                    loadedImageReceiptId = null;
+                }
+            }
         });
     }
 
@@ -243,6 +251,44 @@ public class ReceiptViewModel extends AndroidViewModel {
 
     public void reset() {
         deleteAndReset(null);
+    }
+
+    /**
+     * Immediately invalidates the current scan and returns to image picking.
+     * Remote deletion is best-effort cleanup and never blocks the fresh scan UI.
+     */
+    public void resetForNewReceipt() {
+        cancelPolling();
+        UiState current = state.getValue();
+        if (current != null && current.phase == Phase.UPLOADING) {
+            canceledUploadToken = operationToken;
+        }
+        operationToken++;
+        pollAttempts = 0;
+
+        String oldReceiptId = receiptId;
+        if (oldReceiptId == null && current != null && current.receipt != null) {
+            oldReceiptId = current.receipt.id;
+        }
+        if (oldReceiptId == null) {
+            ReceiptDraftStore.Draft draft = draftStore.load();
+            oldReceiptId = draft == null ? null : draft.receiptId;
+        }
+
+        draftStore.clear();
+        receiptId = null;
+        imageUri = null;
+        idempotencyKey = null;
+        loadedImageReceiptId = null;
+        serverImage.setValue(null);
+        state.setValue(new UiState(Phase.PICK_IMAGE, null, null));
+
+        if (oldReceiptId != null) {
+            repository.delete(oldReceiptId, new RemoteCallback<Void>() {
+                @Override public void onSuccess(Void value) { }
+                @Override public void onError(ApiError error) { }
+            });
+        }
     }
 
     private void process(long token, String id) {

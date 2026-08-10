@@ -23,9 +23,8 @@ import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
 import com.example.appquanlychitieu.data.remote.dto.ConfirmReceiptRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ReceiptDto;
-import com.example.appquanlychitieu.data.remote.ApiError;
-import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.util.SessionManager;
+import com.example.appquanlychitieu.util.NumberTextWatcher;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -47,6 +46,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private static final String STATE_TOTAL = "receipt_draft_total";
     private static final String STATE_NOTE = "receipt_draft_note";
     private static final String STATE_CATEGORY = "receipt_draft_category";
+    private static final String STATE_RECEIPT_ID = "receipt_draft_receipt_id";
 
     private ReceiptViewModel viewModel;
     private ImageView ivReceipt;
@@ -140,6 +140,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
         etStoreName = findViewById(R.id.et_store_name);
         etReceiptDate = findViewById(R.id.et_receipt_date);
         etTotalAmount = findViewById(R.id.et_total_amount);
+        etTotalAmount.addTextChangedListener(new NumberTextWatcher(etTotalAmount));
         etNote = findViewById(R.id.et_note);
         categoryDropdown = findViewById(R.id.dropdown_category);
         layoutStore = findViewById(R.id.layout_store_name);
@@ -167,24 +168,36 @@ public class ReceiptScanActivity extends AppCompatActivity {
         etReceiptDate.setOnClickListener(view -> showDatePicker());
         btnConfirm.setOnClickListener(view -> confirmReceipt());
         btnRetry.setOnClickListener(view -> viewModel.retry());
-        findViewById(R.id.btn_retake).setOnClickListener(view -> {
-            viewModel.deleteAndReset(new RemoteCallback<Void>() {
-                @Override public void onSuccess(Void value) {
-                    selectedImageUri = null;
-                    populatedReceiptId = null;
-                    currentReceipt = null;
-                    selectedCategory = null;
-                    categoryDropdown.setText("", false);
-                    layoutCategory.setHelperText(null);
-                    ivReceipt.setImageResource(R.drawable.ic_bill);
-                    btnStartOcr.setEnabled(false);
-                    launchCamera();
-                }
-                @Override public void onError(ApiError error) {
-                    Toast.makeText(ReceiptScanActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
-                }
-            });
-        });
+        findViewById(R.id.btn_retake).setOnClickListener(view -> onRetakeClicked());
+    }
+
+    private void onRetakeClicked() {
+        selectedImageUri = null;
+        cameraOutputUri = null;
+        populatedReceiptId = null;
+        currentReceipt = null;
+        selectedCategory = null;
+        restoredDraft = null;
+        draftApplied = true;
+
+        etStoreName.setText("");
+        etReceiptDate.setText("");
+        etTotalAmount.setText("");
+        etNote.setText("");
+        categoryDropdown.setText("", false);
+        layoutStore.setError(null);
+        layoutDate.setError(null);
+        layoutTotal.setError(null);
+        layoutCategory.setError(null);
+        layoutCategory.setHelperText(null);
+        tvWarning.setText("");
+        tvWarning.setVisibility(View.GONE);
+        tvError.setText("");
+        tvError.setVisibility(View.GONE);
+        ivReceipt.setImageResource(R.drawable.ic_bill);
+        btnStartOcr.setEnabled(false);
+
+        viewModel.resetForNewReceipt();
     }
 
     private void selectImage(Uri uri) {
@@ -382,6 +395,13 @@ public class ReceiptScanActivity extends AppCompatActivity {
 
     private void applyRestoredDraft() {
         if (restoredDraft == null || draftApplied) return;
+        String restoredReceiptId = restoredDraft.getString(STATE_RECEIPT_ID);
+        if (currentReceipt == null || currentReceipt.id == null
+                || !currentReceipt.id.equals(restoredReceiptId)) {
+            restoredDraft = null;
+            draftApplied = true;
+            return;
+        }
         draftApplied = true;
         etStoreName.setText(restoredDraft.getString(STATE_STORE, textOf(etStoreName)));
         etReceiptDate.setText(restoredDraft.getString(STATE_DATE, textOf(etReceiptDate)));
@@ -486,5 +506,8 @@ public class ReceiptScanActivity extends AppCompatActivity {
         outState.putString(STATE_TOTAL, textOf(etTotalAmount));
         outState.putString(STATE_NOTE, textOf(etNote));
         if (selectedCategory != null) outState.putString(STATE_CATEGORY, selectedCategory.id);
+        if (currentReceipt != null && currentReceipt.id != null) {
+            outState.putString(STATE_RECEIPT_ID, currentReceipt.id);
+        }
     }
 }
