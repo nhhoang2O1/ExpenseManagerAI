@@ -19,6 +19,19 @@ public class TransactionListAdapterDiffTest {
         assertFalse(TransactionListAdapter.sameContent(first, changed));
     }
 
+    @Test
+    public void dateHeaderOnlyStartsWhenCalendarDayChanges() {
+        Transaction first = transaction("remote-1", 100_000L);
+        Transaction sameDay = transaction("remote-2", 120_000L);
+        sameDay.setDate(first.getDate() + 60_000L);
+        Transaction nextDay = transaction("remote-3", 130_000L);
+        nextDay.setDate(first.getDate() + 86_400_000L);
+
+        assertTrue(TransactionListAdapter.startsNewDay(null, first));
+        assertFalse(TransactionListAdapter.startsNewDay(first, sameDay));
+        assertTrue(TransactionListAdapter.startsNewDay(first, nextDay));
+    }
+
     private Transaction transaction(String id, long amount) {
         Transaction value = new Transaction(amount, "Ghi chú", 1_700_000_000_000L,
                 1L, TransactionType.EXPENSE, 1L);

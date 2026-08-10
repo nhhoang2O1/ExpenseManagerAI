@@ -86,12 +86,9 @@
     <string name="store_name">Cửa hàng</string>
     <string name="receipt_date">Ngày hóa đơn (yyyy-MM-dd)</string>
     <string name="total_amount">Tổng tiền (VND)</string>
-    <string name="vat_amount">VAT (không bắt buộc)</string>
     <string name="confirm_receipt">Xác nhận và tạo giao dịch</string>
     <string name="retry_ocr">Thử OCR lại</string>
     <string name="retake_photo">Chụp lại</string>
-    <string name="manual_entry">Nhập thủ công trên hóa đơn</string>
-    <string name="manual_entry_hint">Điền hoặc sửa các trường bên trên, sau đó xác nhận để tạo một giao dịch duy nhất.</string>
     <string name="camera_unavailable">Không thể mở camera</string>
     <string name="backend_login_required">Cần đăng nhập backend để quét hóa đơn</string>
     <string name="warning_generic">Mẫu hóa đơn chưa được hỗ trợ riêng. Hãy kiểm tra kỹ kết quả.</string>
@@ -110,7 +107,6 @@
     <string name="invalid_store_name">Vui lòng nhập tên cửa hàng</string>
     <string name="invalid_receipt_date">Ngày hóa đơn phải có dạng yyyy-MM-dd</string>
     <string name="invalid_total_amount">Tổng tiền phải là số nguyên VND lớn hơn 0</string>
-    <string name="invalid_vat_amount">VAT phải từ 0 đến tổng tiền</string>
     <string name="remote_transaction">Giao dịch trực tuyến</string>
     <string name="login_success">Đăng nhập thành công</string>
     <string name="invalid_name">Vui lòng nhập họ tên</string>

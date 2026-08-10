@@ -36,7 +36,7 @@ services:
       OCR_DEVICE: gpu
       OCR_PRELOAD_MODEL: "true"
       OCR_USE_DOC_ORIENTATION_CLASSIFY: "true"
-      OCR_USE_DOC_UNWARPING: "true"
+      OCR_USE_DOC_UNWARPING: "false"
       OCR_USE_TEXTLINE_ORIENTATION: "true"
       OCR_MAX_IMAGE_SIDE: "1600"
     healthcheck:

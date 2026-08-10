@@ -49,3 +49,7 @@ def test_configure_paddle_runtime_disables_mkldnn_by_default(monkeypatch) -> Non
     _configure_paddle_runtime()
 
     assert os.environ["PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT"] == "False"
+
+
+def test_document_unwarping_is_disabled_by_default() -> None:
+    assert Settings().use_doc_unwarping is False

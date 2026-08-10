@@ -27,9 +27,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.List;
 
 public class TransactionListAdapter
         extends ListAdapter<Transaction, TransactionListAdapter.ViewHolder> {
+    private static final Object PAYLOAD_DATE_GROUP = new Object();
+
     public interface OnItemClickListener {
         void onClick(Transaction transaction);
         void onLongClick(Transaction transaction);
@@ -55,7 +58,16 @@ public class TransactionListAdapter
     }
 
     public void setTransactions(java.util.List<Transaction> transactions) {
-        submitList(transactions == null ? new ArrayList<>() : new ArrayList<>(transactions));
+        java.util.List<Transaction> copy = transactions == null
+                ? new ArrayList<>() : new ArrayList<>(transactions);
+        submitList(copy, () -> {
+            // A date header depends on the item immediately before it. DiffUtil
+            // only compares each transaction's own fields, so inserting a new
+            // transaction can leave a stale header on the old first item.
+            if (getItemCount() > 0) {
+                notifyItemRangeChanged(0, getItemCount(), PAYLOAD_DATE_GROUP);
+            }
+        });
     }
 
     public void setCategoryCache(Map<Long, Category> cache) {
@@ -76,6 +88,20 @@ public class TransactionListAdapter
         Transaction transaction = getItem(position);
         Transaction previous = position > 0 ? getItem(position - 1) : null;
         holder.bind(transaction, previous);
+    }
+
+    @Override
+    public void onBindViewHolder(
+            @NonNull ViewHolder holder,
+            int position,
+            @NonNull List<Object> payloads) {
+        if (payloads.contains(PAYLOAD_DATE_GROUP)) {
+            Transaction transaction = getItem(position);
+            Transaction previous = position > 0 ? getItem(position - 1) : null;
+            holder.bindDateGroup(transaction, previous);
+            return;
+        }
+        super.onBindViewHolder(holder, position, payloads);
     }
 
     final class ViewHolder extends RecyclerView.ViewHolder {
@@ -140,10 +166,7 @@ public class TransactionListAdapter
             viewIconBg.setBackground(background);
             CategoryVisualResolver.bindIcon(ivCategoryIcon, categoryIcon, visual.onBaseColor);
 
-            boolean newDay = previous == null
-                    || !DateUtils.formatDate(previous.getDate()).equals(DateUtils.formatDate(transaction.getDate()));
-            tvDateGroup.setVisibility(newDay ? View.VISIBLE : View.GONE);
-            if (newDay) tvDateGroup.setText(DateUtils.getRelativeDateLabel(transaction.getDate()));
+            bindDateGroup(transaction, previous);
 
             itemView.setOnClickListener(v -> {
                 if (listener != null) listener.onClick(transaction);
@@ -153,6 +176,14 @@ public class TransactionListAdapter
                 return true;
             });
             btnMore.setOnClickListener(v -> showMenu(v, transaction));
+        }
+
+        void bindDateGroup(Transaction transaction, Transaction previous) {
+            boolean newDay = startsNewDay(previous, transaction);
+            tvDateGroup.setVisibility(newDay ? View.VISIBLE : View.GONE);
+            if (newDay) {
+                tvDateGroup.setText(DateUtils.getRelativeDateLabel(transaction.getDate()));
+            }
         }
 
         private void showMenu(View anchor, Transaction transaction) {
@@ -205,5 +236,9 @@ public class TransactionListAdapter
                 && Objects.equals(first.getRemoteCategoryIcon(), second.getRemoteCategoryIcon())
                 && Objects.equals(first.getRemoteReceiptId(), second.getRemoteReceiptId())
                 && Objects.equals(first.getRemoteGoalId(), second.getRemoteGoalId());
+    }
+
+    static boolean startsNewDay(Transaction previous, Transaction current) {
+        return previous == null || !DateUtils.isSameDay(previous.getDate(), current.getDate());
     }
 }

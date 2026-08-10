@@ -214,21 +214,6 @@
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/layout_vat_amount"
-                    style="@style/Widget.App.TextInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:hint="@string/vat_amount"
-                    app:suffixText="₫">
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_vat_amount"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="number" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/layout_receipt_category"
                     style="@style/Widget.App.TextInput"
                     android:layout_width="match_parent"
@@ -287,12 +272,6 @@
                         android:layout_weight="1"
                         android:text="@string/retake_photo" />
                 </LinearLayout>
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_manual"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:text="@string/manual_entry" />
             </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

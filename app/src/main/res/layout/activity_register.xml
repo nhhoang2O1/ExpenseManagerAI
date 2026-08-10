@@ -64,6 +64,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/password_label"
+            app:startIconDrawable="@drawable/ic_lock"
             app:endIconMode="password_toggle">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_password"
@@ -79,6 +80,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/confirm_password_label"
+            app:startIconDrawable="@drawable/ic_lock"
             app:endIconMode="password_toggle">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_confirm_password"

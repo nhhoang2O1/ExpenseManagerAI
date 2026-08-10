@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     recognition_model_dir: Path | None = None
     preload_model: bool = False
     use_doc_orientation_classify: bool = True
-    use_doc_unwarping: bool = True
+    use_doc_unwarping: bool = False
     use_textline_orientation: bool = True
 
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1024)

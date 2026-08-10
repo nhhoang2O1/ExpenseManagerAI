@@ -16,26 +16,10 @@ public class ReceiptReviewValidatorTest {
                         "Circle K",
                         "2026-07-09",
                         "125.000",
-                        "10,000",
                         "category-id");
 
         assertTrue(result.valid);
         assertEquals(new BigDecimal("125000"), result.totalAmount);
-        assertEquals(new BigDecimal("10000"), result.vatAmount);
-    }
-
-    @Test
-    public void vatAboveTotal_isRejected() {
-        ReceiptReviewValidator.ValidationResult result =
-                ReceiptReviewValidator.validate(
-                        "GS25",
-                        "2026-07-09",
-                        "50000",
-                        "60000",
-                        "category-id");
-
-        assertFalse(result.valid);
-        assertEquals(ReceiptReviewValidator.Field.VAT, result.field);
     }
 
     @Test
@@ -45,7 +29,6 @@ public class ReceiptReviewValidatorTest {
                         "GS25",
                         "09/07/2026",
                         "50000",
-                        "",
                         "category-id");
 
         assertFalse(result.valid);
@@ -59,7 +42,6 @@ public class ReceiptReviewValidatorTest {
                         "GS25",
                         "2026-07-09",
                         "50000.50",
-                        "",
                         "category-id");
 
         assertFalse(result.valid);

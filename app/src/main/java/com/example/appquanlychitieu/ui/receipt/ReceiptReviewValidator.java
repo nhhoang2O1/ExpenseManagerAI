@@ -11,7 +11,6 @@ public final class ReceiptReviewValidator {
             String storeName,
             String receiptDate,
             String totalAmount,
-            String vatAmount,
             String categoryId) {
         if (storeName == null || storeName.trim().isEmpty()) {
             return ValidationResult.error(Field.STORE);
@@ -27,19 +26,10 @@ public final class ReceiptReviewValidator {
             return ValidationResult.error(Field.TOTAL);
         }
 
-        BigDecimal vat = null;
-        if (vatAmount != null && !vatAmount.trim().isEmpty()) {
-            vat = parseVnd(vatAmount);
-            if (vat == null || vat.signum() < 0 || hasFraction(vat)
-                    || vat.compareTo(total) > 0) {
-                return ValidationResult.error(Field.VAT);
-            }
-        }
-
         if (categoryId == null || categoryId.trim().isEmpty()) {
             return ValidationResult.error(Field.CATEGORY);
         }
-        return ValidationResult.valid(total, vat);
+        return ValidationResult.valid(total);
     }
 
     public static BigDecimal parseVnd(String value) {
@@ -73,7 +63,6 @@ public final class ReceiptReviewValidator {
         STORE,
         DATE,
         TOTAL,
-        VAT,
         CATEGORY
     }
 
@@ -81,25 +70,22 @@ public final class ReceiptReviewValidator {
         public final boolean valid;
         public final Field field;
         public final BigDecimal totalAmount;
-        public final BigDecimal vatAmount;
 
         private ValidationResult(
                 boolean valid,
                 Field field,
-                BigDecimal totalAmount,
-                BigDecimal vatAmount) {
+                BigDecimal totalAmount) {
             this.valid = valid;
             this.field = field;
             this.totalAmount = totalAmount;
-            this.vatAmount = vatAmount;
         }
 
-        static ValidationResult valid(BigDecimal totalAmount, BigDecimal vatAmount) {
-            return new ValidationResult(true, Field.NONE, totalAmount, vatAmount);
+        static ValidationResult valid(BigDecimal totalAmount) {
+            return new ValidationResult(true, Field.NONE, totalAmount);
         }
 
         static ValidationResult error(Field field) {
-            return new ValidationResult(false, field, null, null);
+            return new ValidationResult(false, field, null);
         }
     }
 }

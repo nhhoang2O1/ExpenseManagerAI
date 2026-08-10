@@ -125,19 +125,15 @@ class ImagePreprocessor:
     def _geometry_corrections(
         self, image: ImageArray
     ) -> tuple[ImageArray, list[str]]:
-        corrected = image
-        warnings: list[str] = []
-
-        perspective = self._find_receipt_and_warp(corrected)
+        perspective = self._find_receipt_and_warp(image)
         if perspective is not None:
-            corrected = perspective
-            warnings.append("PERSPECTIVE_CORRECTED")
+            return perspective, ["PERSPECTIVE_CORRECTED"]
 
-        angle = self._estimate_skew(corrected)
+        angle = self._estimate_skew(image)
         if angle is not None:
-            corrected = self._rotate(corrected, angle)
-            warnings.append("DESKEWED")
-        return corrected, warnings
+            return self._rotate(image, angle), ["DESKEWED"]
+
+        return image, []
 
     def _find_receipt_and_warp(self, image: ImageArray) -> ImageArray | None:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -249,12 +245,6 @@ class ImagePreprocessor:
         contrast = float(gray.std())
         if contrast < 55:
             gray = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
-
-        residual = cv2.absdiff(gray, cv2.GaussianBlur(gray, (3, 3), 0))
-        if float(residual.mean()) > 8:
-            gray = cv2.fastNlMeansDenoising(
-                gray, None, h=7, templateWindowSize=7, searchWindowSize=21
-            )
         return gray
 
     @staticmethod

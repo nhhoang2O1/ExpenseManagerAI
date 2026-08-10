@@ -45,7 +45,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private static final String STATE_STORE = "receipt_draft_store";
     private static final String STATE_DATE = "receipt_draft_date";
     private static final String STATE_TOTAL = "receipt_draft_total";
-    private static final String STATE_VAT = "receipt_draft_vat";
     private static final String STATE_NOTE = "receipt_draft_note";
     private static final String STATE_CATEGORY = "receipt_draft_category";
 
@@ -60,13 +59,11 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private TextInputEditText etStoreName;
     private TextInputEditText etReceiptDate;
     private TextInputEditText etTotalAmount;
-    private TextInputEditText etVatAmount;
     private TextInputEditText etNote;
     private MaterialAutoCompleteTextView categoryDropdown;
     private TextInputLayout layoutStore;
     private TextInputLayout layoutDate;
     private TextInputLayout layoutTotal;
-    private TextInputLayout layoutVat;
     private TextInputLayout layoutCategory;
     private View layoutConfirmBar;
     private TextView stepPick;
@@ -143,13 +140,11 @@ public class ReceiptScanActivity extends AppCompatActivity {
         etStoreName = findViewById(R.id.et_store_name);
         etReceiptDate = findViewById(R.id.et_receipt_date);
         etTotalAmount = findViewById(R.id.et_total_amount);
-        etVatAmount = findViewById(R.id.et_vat_amount);
         etNote = findViewById(R.id.et_note);
         categoryDropdown = findViewById(R.id.dropdown_category);
         layoutStore = findViewById(R.id.layout_store_name);
         layoutDate = findViewById(R.id.layout_receipt_date);
         layoutTotal = findViewById(R.id.layout_total_amount);
-        layoutVat = findViewById(R.id.layout_vat_amount);
         layoutCategory = findViewById(R.id.layout_receipt_category);
         layoutConfirmBar = findViewById(R.id.layout_confirm_bar);
         stepPick = findViewById(R.id.tv_step_pick);
@@ -190,7 +185,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
                 }
             });
         });
-        findViewById(R.id.btn_manual).setOnClickListener(view -> openManualEntry());
     }
 
     private void selectImage(Uri uri) {
@@ -274,14 +268,9 @@ public class ReceiptScanActivity extends AppCompatActivity {
             boolean ocrFailed = "OCR_FAILED".equalsIgnoreCase(state.receipt.status);
             boolean reviewRequired =
                     "REVIEW_REQUIRED".equalsIgnoreCase(state.receipt.status);
-            String classification = state.receipt.classification == null
-                    ? "" : state.receipt.classification;
-            boolean retrySuggested = ocrFailed
-                    || state.phase == ReceiptViewModel.Phase.ERROR
-                    || "LOW_QUALITY".equalsIgnoreCase(classification)
-                    || "UNRECOGNIZED".equalsIgnoreCase(classification);
             btnConfirm.setEnabled(!busy && (reviewRequired || ocrFailed));
-            btnRetry.setVisibility(retrySuggested ? View.VISIBLE : View.GONE);
+            btnRetry.setVisibility(View.VISIBLE);
+            btnRetry.setEnabled(!busy);
         }
     }
 
@@ -296,8 +285,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
                 receipt.receiptDate == null ? LocalDate.now().toString() : receipt.receiptDate);
         etTotalAmount.setText(
                 receipt.totalAmount == null ? "" : receipt.totalAmount.toPlainString());
-        etVatAmount.setText(
-                receipt.vatAmount == null ? "" : receipt.vatAmount.toPlainString());
 
         StringBuilder warning = new StringBuilder();
         String classification = receipt.classification == null ? "" : receipt.classification;
@@ -399,7 +386,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
         etStoreName.setText(restoredDraft.getString(STATE_STORE, textOf(etStoreName)));
         etReceiptDate.setText(restoredDraft.getString(STATE_DATE, textOf(etReceiptDate)));
         etTotalAmount.setText(restoredDraft.getString(STATE_TOTAL, textOf(etTotalAmount)));
-        etVatAmount.setText(restoredDraft.getString(STATE_VAT, textOf(etVatAmount)));
         etNote.setText(restoredDraft.getString(STATE_NOTE, textOf(etNote)));
     }
 
@@ -407,14 +393,12 @@ public class ReceiptScanActivity extends AppCompatActivity {
         String store = textOf(etStoreName);
         String date = textOf(etReceiptDate);
         String total = textOf(etTotalAmount);
-        String vat = textOf(etVatAmount);
         CategoryDto category = selectedCategory;
 
         ReceiptReviewValidator.ValidationResult result = ReceiptReviewValidator.validate(
                 store,
                 date,
                 total,
-                vat,
                 category == null ? null : category.id);
         if (!result.valid) {
             showValidationError(result.field);
@@ -425,7 +409,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
                 store,
                 date,
                 result.totalAmount,
-                result.vatAmount,
+                null,
                 category.id,
                 textOf(etNote)));
     }
@@ -434,7 +418,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
         layoutStore.setError(null);
         layoutDate.setError(null);
         layoutTotal.setError(null);
-        layoutVat.setError(null);
         layoutCategory.setError(null);
         int message;
         switch (field) {
@@ -452,11 +435,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
                 message = R.string.invalid_total_amount;
                 layoutTotal.setError(getString(message));
                 etTotalAmount.requestFocus();
-                break;
-            case VAT:
-                message = R.string.invalid_vat_amount;
-                layoutVat.setError(getString(message));
-                etVatAmount.requestFocus();
                 break;
             default:
                 message = R.string.please_select_category;
@@ -493,22 +471,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void openManualEntry() {
-        // Manual entry stays inside the receipt confirmation flow so one
-        // receipt can produce at most one, receipt-linked transaction.
-        if (textOf(etStoreName).isEmpty()) {
-            etStoreName.requestFocus();
-        } else if (textOf(etTotalAmount).isEmpty()) {
-            etTotalAmount.requestFocus();
-        } else if (selectedCategory == null) {
-            categoryDropdown.requestFocus();
-            categoryDropdown.showDropDown();
-        } else {
-            etStoreName.requestFocus();
-        }
-        Toast.makeText(this, R.string.manual_entry_hint, Toast.LENGTH_LONG).show();
-    }
-
     private String textOf(TextInputEditText input) {
         return input.getText() == null ? "" : input.getText().toString().trim();
     }
@@ -522,7 +484,6 @@ public class ReceiptScanActivity extends AppCompatActivity {
         outState.putString(STATE_STORE, textOf(etStoreName));
         outState.putString(STATE_DATE, textOf(etReceiptDate));
         outState.putString(STATE_TOTAL, textOf(etTotalAmount));
-        outState.putString(STATE_VAT, textOf(etVatAmount));
         outState.putString(STATE_NOTE, textOf(etNote));
         if (selectedCategory != null) outState.putString(STATE_CATEGORY, selectedCategory.id);
     }
