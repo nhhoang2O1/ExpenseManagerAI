@@ -46,6 +46,8 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private static final String STATE_TOTAL = "receipt_draft_total";
     private static final String STATE_NOTE = "receipt_draft_note";
     private static final String STATE_CATEGORY = "receipt_draft_category";
+    private static final String STATE_CATEGORY_USER_SELECTED =
+            "receipt_draft_category_user_selected";
     private static final String STATE_RECEIPT_ID = "receipt_draft_receipt_id";
 
     private ReceiptViewModel viewModel;
@@ -75,11 +77,12 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private List<CategoryDto> categories = new ArrayList<>();
     private Uri selectedImageUri;
     private Uri cameraOutputUri;
-    private String populatedReceiptId;
     private CategoryDto selectedCategory;
     private ReceiptDto currentReceipt;
     private Bundle restoredDraft;
     private boolean draftApplied;
+    private final ReceiptReviewRenderPolicy reviewRenderPolicy =
+            new ReceiptReviewRenderPolicy();
 
     private final ActivityResultLauncher<String[]> galleryLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
@@ -174,9 +177,9 @@ public class ReceiptScanActivity extends AppCompatActivity {
     private void onRetakeClicked() {
         selectedImageUri = null;
         cameraOutputUri = null;
-        populatedReceiptId = null;
         currentReceipt = null;
         selectedCategory = null;
+        reviewRenderPolicy.reset();
         restoredDraft = null;
         draftApplied = true;
 
@@ -288,10 +291,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
     }
 
     private void populateReview(ReceiptDto receipt) {
-        if (receipt.id != null && receipt.id.equals(populatedReceiptId)) {
-            return;
-        }
-        populatedReceiptId = receipt.id;
+        if (!reviewRenderPolicy.shouldRender(receipt)) return;
         currentReceipt = receipt;
         etStoreName.setText(receipt.storeName == null ? "" : receipt.storeName);
         etReceiptDate.setText(
@@ -366,6 +366,7 @@ public class ReceiptScanActivity extends AppCompatActivity {
         categoryDropdown.setAdapter(adapter);
         categoryDropdown.setOnItemClickListener((parent, view, position, id) -> {
             selectedCategory = categories.get(position);
+            reviewRenderPolicy.markCategorySelectedByUser();
             layoutCategory.setError(null);
         });
         if (!categories.isEmpty() && selectedCategory == null) {
@@ -375,6 +376,10 @@ public class ReceiptScanActivity extends AppCompatActivity {
                 if (item.id != null && item.id.equals(restoredId)) selectedCategory = item;
             }
             if (selectedCategory != null) {
+                reviewRenderPolicy.restoreCategorySelection(
+                        restoredDraft != null
+                                && restoredDraft.getBoolean(
+                                STATE_CATEGORY_USER_SELECTED, false));
                 categoryDropdown.setText(selectedCategory.toString(), false);
             }
         }
@@ -382,14 +387,28 @@ public class ReceiptScanActivity extends AppCompatActivity {
     }
 
     private void applySuggestedCategory() {
-        if (selectedCategory != null || currentReceipt == null
-                || currentReceipt.suggestedCategoryId == null) return;
+        if (currentReceipt == null) return;
+        String currentCategoryId = selectedCategory == null ? null : selectedCategory.id;
+        String targetCategoryId = reviewRenderPolicy.resolveCategoryId(
+                currentCategoryId,
+                currentReceipt.suggestedCategoryId);
+        if (targetCategoryId == null) {
+            if (!reviewRenderPolicy.isCategorySelectedByUser()) {
+                selectedCategory = null;
+                categoryDropdown.setText("", false);
+            }
+            return;
+        }
         for (CategoryDto item : categories) {
-            if (currentReceipt.suggestedCategoryId.equals(item.id)) {
+            if (targetCategoryId.equals(item.id)) {
                 selectedCategory = item;
                 categoryDropdown.setText(item.toString(), false);
                 return;
             }
+        }
+        if (!reviewRenderPolicy.isCategorySelectedByUser()) {
+            selectedCategory = null;
+            categoryDropdown.setText("", false);
         }
     }
 
@@ -506,6 +525,9 @@ public class ReceiptScanActivity extends AppCompatActivity {
         outState.putString(STATE_TOTAL, textOf(etTotalAmount));
         outState.putString(STATE_NOTE, textOf(etNote));
         if (selectedCategory != null) outState.putString(STATE_CATEGORY, selectedCategory.id);
+        outState.putBoolean(
+                STATE_CATEGORY_USER_SELECTED,
+                reviewRenderPolicy.isCategorySelectedByUser());
         if (currentReceipt != null && currentReceipt.id != null) {
             outState.putString(STATE_RECEIPT_ID, currentReceipt.id);
         }
