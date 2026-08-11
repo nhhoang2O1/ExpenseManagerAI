@@ -58,7 +58,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 table.HasCheckConstraint("ck_transactions_type", "type IN ('INCOME', 'EXPENSE')");
             });
             entity.HasIndex(x => x.ReceiptId).IsUnique();
-            entity.HasIndex(x => x.GoalId).IsUnique();
             entity.HasIndex(x => new { x.UserId, x.TransactionDate, x.CreatedAt, x.Id });
             entity.Property(x => x.Amount).HasColumnType("bigint");
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
@@ -66,8 +65,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.StoreName).HasMaxLength(200);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.Goal).WithOne(x => x.CompletionTransaction)
-                .HasForeignKey<Transaction>(x => x.GoalId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .HasForeignKey<Transaction>(x => new { x.GoalId, x.UserId })
+                .HasPrincipalKey<Goal>(x => new { x.Id, x.UserId })
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.User).WithMany(x => x.Transactions)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Category).WithMany(x => x.Transactions)
@@ -107,6 +107,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 table.HasCheckConstraint("ck_goals_status", "status IN ('ACTIVE', 'READY_TO_COMPLETE', 'COMPLETED', 'CANCELLED')");
             });
             entity.HasIndex(x => new { x.UserId, x.Name });
+            entity.HasAlternateKey(x => new { x.Id, x.UserId });
             entity.Property(x => x.Name).HasMaxLength(200);
             entity.Property(x => x.TargetAmount).HasColumnType("bigint");
             entity.Property(x => x.CurrentAmount).HasColumnType("bigint");

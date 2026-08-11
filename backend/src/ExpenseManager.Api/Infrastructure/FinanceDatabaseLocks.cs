@@ -47,6 +47,26 @@ internal static class FinanceDatabaseLocks
                 x => x.Id == categoryId && x.UserId == userId,
                 cancellationToken);
 
+    /// <summary>
+    /// Serializes balance reservations for one user. Locking only the goal row
+    /// is insufficient because concurrent requests can fund different goals
+    /// after reading the same available balance.
+    /// </summary>
+    public static async Task LockUserForGoalFundingAsync(
+        AppDbContext db,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        if (!IsPostgres(db))
+            return;
+
+        _ = await db.Users
+            .FromSqlInterpolated(
+                $"SELECT * FROM users WHERE id = {userId} FOR UPDATE")
+            .AsNoTracking()
+            .SingleAsync(cancellationToken);
+    }
+
     private static bool IsPostgres(AppDbContext db) =>
         db.Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL";
 }

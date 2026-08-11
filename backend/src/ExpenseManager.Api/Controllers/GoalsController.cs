@@ -129,6 +129,8 @@ public sealed class GoalsController(AppDbContext db, IUserContext userContext) :
         await using var transaction = db.Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL"
             ? await db.Database.BeginTransactionAsync(cancellationToken)
             : null;
+        await FinanceDatabaseLocks.LockUserForGoalFundingAsync(
+            db, userContext.UserId, cancellationToken);
         var goal = transaction is null
             ? await db.Goals.SingleOrDefaultAsync(
                 x => x.Id == id && x.UserId == userContext.UserId, cancellationToken)
