@@ -132,6 +132,15 @@ builder.Services.AddSingleton<IAccountCodeSender, SmtpAccountCodeSender>();
 builder.Services.AddScoped<IAuthSessionService, AuthSessionService>();
 builder.Services.AddScoped<IAccountSecurityService, AccountSecurityService>();
 builder.Services.AddSingleton<IReportExportService, ReportExportService>();
+builder.Services.AddScoped<IStatisticsApplicationService, StatisticsApplicationService>();
+builder.Services.AddScoped<IRemindersApplicationService, RemindersApplicationService>();
+builder.Services.AddScoped<ITransactionsApplicationService, TransactionsApplicationService>();
+builder.Services.AddScoped<ICategoriesApplicationService, CategoriesApplicationService>();
+builder.Services.AddScoped<IBudgetsApplicationService, BudgetsApplicationService>();
+builder.Services.AddScoped<IReportsApplicationService, ReportsApplicationService>();
+builder.Services.AddScoped<IReceiptsApplicationService, ReceiptsApplicationService>();
+builder.Services.AddScoped<IAuthApplicationService, AuthApplicationService>();
+builder.Services.AddScoped<IGoalsApplicationService, GoalsApplicationService>();
 builder.Services.AddHttpClient<IOcrClient, OcrClient>(client =>
 {
     var baseUrl = builder.Configuration["OCR_SERVICE_BASE_URL"] ?? "http://ocr-service:8000";

@@ -21,7 +21,8 @@ public sealed class FinancialControllerBehaviorTests
         db.AddRange(owner, anotherUser, expense, income, foreignExpense);
         await db.SaveChangesAsync();
         var controller = WithHttpContext(
-            new BudgetsController(db, new TestUserContext(owner.Id)));
+            new BudgetsController(new ExpenseManager.Api.Services.BudgetsApplicationService(
+                db, new TestUserContext(owner.Id))));
 
         var incomeResult = await controller.CreateOrUpdate(
             new BudgetRequest(income.Id, 1_000_000, "2026-07"),
@@ -64,7 +65,8 @@ public sealed class FinancialControllerBehaviorTests
         db.AddRange(owner, anotherUser, expense, income, foreignExpense);
         await db.SaveChangesAsync();
         var controller = WithHttpContext(
-            new TransactionsController(db, new TestUserContext(owner.Id)));
+            new TransactionsController(new ExpenseManager.Api.Services.TransactionsApplicationService(
+                db, new TestUserContext(owner.Id))));
         var request = new TransactionRequest(
             125_000,
             TransactionType.EXPENSE,
@@ -110,7 +112,9 @@ public sealed class FinancialControllerBehaviorTests
             Transaction(owner, ownerExpense, 100_000, new DateOnly(2026, 7, 2)),
             Transaction(anotherUser, foreignExpense, 9_000_000, new DateOnly(2026, 7, 1)));
         await db.SaveChangesAsync();
-        var controller = new StatisticsController(db, new TestUserContext(owner.Id));
+        var controller = new StatisticsController(
+            new ExpenseManager.Api.Services.StatisticsApplicationService(
+                db, new TestUserContext(owner.Id)));
 
         var dailyResult = await controller.Daily(
             new DateOnly(2026, 7, 1),
@@ -163,8 +167,12 @@ public sealed class FinancialControllerBehaviorTests
         var user = User("owner");
         db.Users.Add(user);
         await db.SaveChangesAsync();
-        var statistics = new StatisticsController(db, new TestUserContext(user.Id));
-        var transactions = new TransactionsController(db, new TestUserContext(user.Id));
+        var statistics = new StatisticsController(
+            new ExpenseManager.Api.Services.StatisticsApplicationService(
+                db, new TestUserContext(user.Id)));
+        var transactions = new TransactionsController(
+            new ExpenseManager.Api.Services.TransactionsApplicationService(
+                db, new TestUserContext(user.Id)));
 
         var daily = await statistics.Daily(
             new DateOnly(2026, 7, 2),
@@ -190,7 +198,8 @@ public sealed class FinancialControllerBehaviorTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
         var controller = WithHttpContext(
-            new CategoriesController(db, new TestUserContext(user.Id)));
+            new CategoriesController(new ExpenseManager.Api.Services.CategoriesApplicationService(
+                db, new TestUserContext(user.Id))));
 
         var result = await controller.Create(
             new CategoryRequest("Unknown", (TransactionType)999, null, null),
@@ -208,7 +217,8 @@ public sealed class FinancialControllerBehaviorTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
         var controller = WithHttpContext(
-            new CategoriesController(db, new TestUserContext(user.Id)));
+            new CategoriesController(new ExpenseManager.Api.Services.CategoriesApplicationService(
+                db, new TestUserContext(user.Id))));
 
         var result = await controller.Create(
             new CategoryRequest(

@@ -20,12 +20,13 @@ public sealed class ReceiptControllerTests
         await db.SaveChangesAsync();
         var processor = new CapturingReceiptProcessor(receipt);
         var controller = new ReceiptsController(
-            db,
-            new TestUserContext(owner.Id),
             new ReceiptImageReader(),
-            processor,
-            new ReceiptConfirmationService(db),
-            new CategorySuggestionService(db));
+            new ReceiptsApplicationService(
+                db,
+                new TestUserContext(owner.Id),
+                processor,
+                new ReceiptConfirmationService(db),
+                new CategorySuggestionService(db)));
 
         var response = await controller.Process(receipt.Id, CancellationToken.None);
 
@@ -48,12 +49,13 @@ public sealed class ReceiptControllerTests
         db.AddRange(owner, other, ownReceipt, otherReceipt);
         await db.SaveChangesAsync();
         var controller = new ReceiptsController(
-            db,
-            new TestUserContext(owner.Id),
             new ReceiptImageReader(),
-            new NoopReceiptProcessor(),
-            new ReceiptConfirmationService(db),
-            new CategorySuggestionService(db));
+            new ReceiptsApplicationService(
+                db,
+                new TestUserContext(owner.Id),
+                new NoopReceiptProcessor(),
+                new ReceiptConfirmationService(db),
+                new CategorySuggestionService(db)));
 
         var listResponse = await controller.List(
             page: 1,

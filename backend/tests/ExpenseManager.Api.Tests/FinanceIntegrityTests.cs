@@ -25,7 +25,9 @@ public sealed class FinanceIntegrityTests
             MonthYear = "2026-07"
         });
         await db.SaveChangesAsync();
-        var controller = new CategoriesController(db, new TestUserContext(user.Id));
+        var controller = new CategoriesController(
+            new ExpenseManager.Api.Services.CategoriesApplicationService(
+                db, new TestUserContext(user.Id)));
 
         var update = await controller.Update(
             category.Id,
@@ -64,7 +66,9 @@ public sealed class FinanceIntegrityTests
             TransactionDate = new DateOnly(2026, 8, 6)
         });
         await db.SaveChangesAsync();
-        var controller = new GoalsController(db, new TestUserContext(user.Id));
+        var controller = new GoalsController(
+            new ExpenseManager.Api.Services.GoalsApplicationService(
+                db, new TestUserContext(user.Id)));
 
         var response = await controller.AddFunds(
             goal.Id, new AddGoalFundsRequest(50), CancellationToken.None);
@@ -106,7 +110,8 @@ public sealed class FinanceIntegrityTests
             TransactionDate = new DateOnly(2026, 8, 6)
         });
         await db.SaveChangesAsync();
-        var controller = new GoalsController(db, new TestUserContext(user.Id))
+        var controller = new GoalsController(new ExpenseManager.Api.Services.GoalsApplicationService(
+            db, new TestUserContext(user.Id)))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -130,7 +135,8 @@ public sealed class FinanceIntegrityTests
         var category = NewCategory(user, TransactionType.EXPENSE);
         db.AddRange(user, category);
         await db.SaveChangesAsync();
-        var controller = new TransactionsController(db, new TestUserContext(user.Id))
+        var controller = new TransactionsController(new ExpenseManager.Api.Services.TransactionsApplicationService(
+            db, new TestUserContext(user.Id)))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -183,7 +189,8 @@ public sealed class FinanceIntegrityTests
             TransactionDate = new DateOnly(2026, 8, 6)
         });
         await db.SaveChangesAsync();
-        var controller = new GoalsController(db, new TestUserContext(user.Id))
+        var controller = new GoalsController(new ExpenseManager.Api.Services.GoalsApplicationService(
+            db, new TestUserContext(user.Id)))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -214,7 +221,9 @@ public sealed class FinanceIntegrityTests
         };
         db.AddRange(user, category, goal);
         await db.SaveChangesAsync();
-        var controller = new GoalsController(db, new TestUserContext(user.Id));
+        var controller = new GoalsController(
+            new ExpenseManager.Api.Services.GoalsApplicationService(
+                db, new TestUserContext(user.Id)));
 
         var response = await controller.Complete(goal.Id,
             new CompleteGoalRequest(category.Id, new DateOnly(2026, 8, 6), null),
@@ -256,7 +265,9 @@ public sealed class FinanceIntegrityTests
             TransactionDate = new DateOnly(2026, 8, 6)
         });
         await db.SaveChangesAsync();
-        var controller = new GoalsController(db, new TestUserContext(user.Id));
+        var controller = new GoalsController(
+            new ExpenseManager.Api.Services.GoalsApplicationService(
+                db, new TestUserContext(user.Id)));
 
         var response = await controller.Cancel(goal.Id, CancellationToken.None);
 
@@ -291,7 +302,9 @@ public sealed class FinanceIntegrityTests
         db.AddRange(user, category);
         db.Transactions.AddRange(transactions);
         await db.SaveChangesAsync();
-        var controller = new TransactionsController(db, new TestUserContext(user.Id));
+        var controller = new TransactionsController(
+            new ExpenseManager.Api.Services.TransactionsApplicationService(
+                db, new TestUserContext(user.Id)));
 
         var first = await Page(controller, 1, 100);
         var second = await Page(controller, 2, 100);

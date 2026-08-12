@@ -58,6 +58,30 @@ internal static class IdempotencySupport
         return true;
     }
 
+    public static bool TryCreate<TRequest>(
+        string? rawKey,
+        string scope,
+        TRequest request,
+        out IdempotencyRequestContext? context,
+        out string? error)
+    {
+        context = null;
+        error = null;
+        var key = rawKey?.Trim() ?? string.Empty;
+        if (key.Length == 0)
+            return true;
+        if (key.Length > 200)
+        {
+            error = "Idempotency-Key không được dài quá 200 ký tự.";
+            return false;
+        }
+
+        var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, JsonOptions);
+        var hash = Convert.ToHexString(SHA256.HashData(requestBytes));
+        context = new IdempotencyRequestContext(scope, key, hash);
+        return true;
+    }
+
     public static async Task<IdempotencyLookup<T>?> FindAsync<T>(
         AppDbContext db,
         Guid userId,

@@ -19,7 +19,9 @@ public sealed class UserIsolationTests
         var foreign = NewTransaction(secondUser, secondCategory, "Hidden");
         db.AddRange(firstUser, secondUser, firstCategory, secondCategory, own, foreign);
         await db.SaveChangesAsync();
-        var controller = new TransactionsController(db, new TestUserContext(firstUser.Id));
+        var controller = new TransactionsController(
+            new ExpenseManager.Api.Services.TransactionsApplicationService(
+                db, new TestUserContext(firstUser.Id)));
 
         var response = await controller.GetAll(
             null, null, null, null, null, null, 1, 20, CancellationToken.None);

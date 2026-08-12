@@ -4,19 +4,27 @@ namespace ExpenseManager.Api.Infrastructure;
 
 internal static class OptimisticConcurrency
 {
+    public static bool IfMatchSatisfied(string? raw, long currentVersion)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return true;
+
+        return raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Any(candidate => candidate == "*" || TryReadVersion(candidate, out var version) &&
+                version == currentVersion);
+    }
+
+    public static void WriteEtag(HttpResponse response, long version) =>
+        response.Headers.ETag = $"\"{version}\"";
+
     public static bool IfMatchSatisfied(ControllerBase controller, long currentVersion)
     {
         var context = controller.ControllerContext.HttpContext;
         if (context is null)
             return true;
 
-        var raw = context.Request.Headers["If-Match"].ToString();
-        if (string.IsNullOrWhiteSpace(raw))
-            return true; // Compatibility window for older Android releases.
-
-        return raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-            .Any(candidate => candidate == "*" || TryReadVersion(candidate, out var version) &&
-                version == currentVersion);
+        return IfMatchSatisfied(
+            context.Request.Headers["If-Match"].ToString(), currentVersion);
     }
 
     public static ObjectResult PreconditionFailed(ControllerBase controller) =>
@@ -29,7 +37,7 @@ internal static class OptimisticConcurrency
     {
         var context = controller.ControllerContext.HttpContext;
         if (context is not null)
-            context.Response.Headers.ETag = $"\"{version}\"";
+            WriteEtag(context.Response, version);
     }
 
     private static bool TryReadVersion(string candidate, out long version)

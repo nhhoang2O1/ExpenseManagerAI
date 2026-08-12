@@ -157,8 +157,12 @@ public sealed class DatabaseIntegrityPostgreSqlTests(PostgreSqlIntegrationFixtur
 
             await using var firstDb = fixture.CreateDb();
             await using var secondDb = fixture.CreateDb();
-            var firstController = new GoalsController(firstDb, new TestUserContext(user.Id));
-            var secondController = new GoalsController(secondDb, new TestUserContext(user.Id));
+            var firstController = new GoalsController(
+                new ExpenseManager.Api.Services.GoalsApplicationService(
+                    firstDb, new TestUserContext(user.Id)));
+            var secondController = new GoalsController(
+                new ExpenseManager.Api.Services.GoalsApplicationService(
+                    secondDb, new TestUserContext(user.Id)));
 
             var results = await Task.WhenAll(
                 firstController.AddFunds(

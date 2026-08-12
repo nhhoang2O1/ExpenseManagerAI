@@ -25,7 +25,7 @@ public sealed class AuthTests
             })
             .Build();
         var codeSender = new CapturingCodeSender();
-        var controller = new AuthController(
+        var controller = new AuthController(new AuthApplicationService(
             db,
             new PasswordHasher<User>(),
             new SecurityTokenGenerator(),
@@ -33,7 +33,7 @@ public sealed class AuthTests
             codeSender,
             TimeProvider.System,
             new StubSessionService(new JwtTokenService(configuration)),
-            null);
+            null));
 
         var registered = await controller.Register(
             new RegisterRequest("Nguyen Van A", "USER@EXAMPLE.COM", "strong-password"),

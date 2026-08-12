@@ -73,7 +73,8 @@ public sealed class ReminderIntegrationTests
     }
 
     private static RemindersController Controller(ExpenseManager.Api.Data.AppDbContext db, Guid userId) =>
-        new(db, new TestUserContext(userId))
+        new(new ExpenseManager.Api.Services.RemindersApplicationService(
+            db, new TestUserContext(userId)))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
