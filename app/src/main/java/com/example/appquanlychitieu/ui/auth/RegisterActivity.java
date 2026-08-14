@@ -71,34 +71,47 @@ public class RegisterActivity extends AppCompatActivity {
     private void register() {
         String name = textOf(etName);
         String email = textOf(etEmail);
-        String password = textOf(etPassword);
-        String confirmPassword = textOf(etConfirmPassword);
+        // Không trim mật khẩu: khoảng trắng có thể là ký tự hợp lệ của mật khẩu
+        // và phải được tính đúng với số ký tự người dùng đã nhập.
+        String password = rawTextOf(etPassword);
+        String confirmPassword = rawTextOf(etConfirmPassword);
 
-        if (name.isEmpty()) {
-            layoutName.setError(getString(R.string.invalid_name));
-            etName.requestFocus();
-            return;
-        }
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            layoutEmail.setError(getString(R.string.invalid_email));
-            etEmail.requestFocus();
-            return;
-        }
-        if (password.length() < 8) {
-            layoutPassword.setError(getString(R.string.invalid_password_length));
-            etPassword.requestFocus();
-            return;
-        }
-        if (!password.equals(confirmPassword)) {
-            layoutConfirmPassword.setError(getString(R.string.password_mismatch));
-            etConfirmPassword.requestFocus();
-            return;
-        }
-
+        // Xóa lỗi của lần kiểm tra trước để trạng thái hiển thị luôn phản ánh
+        // đúng dữ liệu hiện tại.
         layoutName.setError(null);
         layoutEmail.setError(null);
         layoutPassword.setError(null);
         layoutConfirmPassword.setError(null);
+
+        boolean valid = true;
+        EditText firstInvalidInput = null;
+
+        if (name.isEmpty()) {
+            layoutName.setError(getString(R.string.invalid_name));
+            valid = false;
+            firstInvalidInput = etName;
+        }
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            layoutEmail.setError(getString(R.string.invalid_email));
+            valid = false;
+            if (firstInvalidInput == null) firstInvalidInput = etEmail;
+        }
+        if (password.length() < 8) {
+            layoutPassword.setError(getString(R.string.invalid_password_length));
+            valid = false;
+            if (firstInvalidInput == null) firstInvalidInput = etPassword;
+        }
+        if (!password.equals(confirmPassword)) {
+            layoutConfirmPassword.setError(getString(R.string.password_mismatch));
+            valid = false;
+            if (firstInvalidInput == null) firstInvalidInput = etConfirmPassword;
+        }
+
+        if (!valid) {
+            if (firstInvalidInput != null) firstInvalidInput.requestFocus();
+            return;
+        }
+
         setLoading(true);
         viewModel.register(name, email, password, new RemoteCallback<Void>() {
             @Override
@@ -239,6 +252,10 @@ public class RegisterActivity extends AppCompatActivity {
 
     private String textOf(TextInputEditText input) {
         return input.getText() == null ? "" : input.getText().toString().trim();
+    }
+
+    private String rawTextOf(TextInputEditText input) {
+        return input.getText() == null ? "" : input.getText().toString();
     }
 
     private long stableCacheUserId(String identity) {
