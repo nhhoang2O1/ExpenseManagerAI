@@ -42,7 +42,7 @@ public sealed class FinanceIntegrityTests
     }
 
     [Fact]
-    public async Task Add_funds_records_only_the_amount_actually_applied()
+    public async Task Add_funds_above_remaining_amount_is_rejected_without_changes()
     {
         await using var db = TestSupport.CreateDb();
         var user = NewUser();
@@ -73,16 +73,9 @@ public sealed class FinanceIntegrityTests
         var response = await controller.AddFunds(
             goal.Id, new AddGoalFundsRequest(50), CancellationToken.None);
 
-        var ok = Assert.IsType<OkObjectResult>(response.Result);
-        var result = Assert.IsType<GoalResponse>(ok.Value);
-        Assert.Equal(100, result.CurrentAmount);
-        var history = Assert.Single(await db.GoalHistories.ToListAsync());
-        Assert.Equal(20, history.AmountAdded);
-        Assert.Equal(50, history.RequestedAmount);
-        Assert.Equal(100, history.BalanceAfter);
-
-        await controller.AddFunds(goal.Id, new AddGoalFundsRequest(10), CancellationToken.None);
-        Assert.Single(await db.GoalHistories.ToListAsync());
+        Assert.IsType<ConflictObjectResult>(response.Result);
+        Assert.Equal(80, goal.CurrentAmount);
+        Assert.Empty(await db.GoalHistories.ToListAsync());
     }
 
     [Fact]
@@ -205,11 +198,10 @@ public sealed class FinanceIntegrityTests
     }
 
     [Fact]
-    public async Task Completing_goal_creates_linked_expense_transaction_atomically()
+    public async Task Completing_goal_only_updates_goal_and_history()
     {
         await using var db = TestSupport.CreateDb();
         var user = NewUser();
-        var category = NewCategory(user, TransactionType.EXPENSE);
         var goal = new Goal
         {
             UserId = user.Id,
@@ -219,24 +211,57 @@ public sealed class FinanceIntegrityTests
             CurrentAmount = 500,
             Status = GoalStatus.READY_TO_COMPLETE
         };
-        db.AddRange(user, category, goal);
+        db.AddRange(user, goal);
         await db.SaveChangesAsync();
         var controller = new GoalsController(
             new ExpenseManager.Api.Services.GoalsApplicationService(
                 db, new TestUserContext(user.Id)));
 
-        var response = await controller.Complete(goal.Id,
-            new CompleteGoalRequest(category.Id, new DateOnly(2026, 8, 6), null),
-            CancellationToken.None);
+        var response = await controller.Complete(
+            goal.Id, new CompleteGoalRequest(), CancellationToken.None);
 
         var result = Assert.IsType<GoalResponse>(Assert.IsType<OkObjectResult>(response.Result).Value);
         Assert.Equal(GoalStatus.COMPLETED, result.Status);
-        var transaction = Assert.Single(await db.Transactions.ToListAsync());
-        Assert.Equal(goal.Id, transaction.GoalId);
-        Assert.Equal(500, transaction.Amount);
-        Assert.Equal(TransactionType.EXPENSE, transaction.Type);
+        Assert.Empty(await db.Transactions.ToListAsync());
         Assert.Single(await db.GoalHistories.Where(x => x.ActionType == GoalHistoryActionType.COMPLETE)
             .ToListAsync());
+    }
+
+    [Fact]
+    public async Task Add_funds_does_not_depend_on_transaction_balance()
+    {
+        await using var db = TestSupport.CreateDb();
+        var user = NewUser();
+        var expenseCategory = NewCategory(user, TransactionType.EXPENSE);
+        var goal = new Goal
+        {
+            UserId = user.Id,
+            User = user,
+            Name = "Travel",
+            TargetAmount = 100,
+            CurrentAmount = 10
+        };
+        db.AddRange(user, expenseCategory, goal, new Domain.Transaction
+        {
+            UserId = user.Id,
+            User = user,
+            CategoryId = expenseCategory.Id,
+            Category = expenseCategory,
+            Amount = 1_000,
+            Type = TransactionType.EXPENSE,
+            TransactionDate = new DateOnly(2026, 8, 6)
+        });
+        await db.SaveChangesAsync();
+        var controller = new GoalsController(
+            new ExpenseManager.Api.Services.GoalsApplicationService(
+                db, new TestUserContext(user.Id)));
+
+        var response = await controller.AddFunds(
+            goal.Id, new AddGoalFundsRequest(50), CancellationToken.None);
+
+        var result = Assert.IsType<GoalResponse>(
+            Assert.IsType<OkObjectResult>(response.Result).Value);
+        Assert.Equal(60, result.CurrentAmount);
     }
 
     [Fact]

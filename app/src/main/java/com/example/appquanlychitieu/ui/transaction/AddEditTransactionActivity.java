@@ -1,6 +1,7 @@
 package com.example.appquanlychitieu.ui.transaction;
 
 import android.app.DatePickerDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -8,7 +9,10 @@ import android.widget.GridView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.widget.NestedScrollView;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.appquanlychitieu.R;
@@ -17,9 +21,13 @@ import com.example.appquanlychitieu.data.model.TransactionType;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
+import com.example.appquanlychitieu.data.remote.dto.CategoryRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.TransactionDto;
 import com.example.appquanlychitieu.data.remote.dto.TransactionRequestDto;
+import com.example.appquanlychitieu.ui.category.CategoryActivity;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
+import com.example.appquanlychitieu.ui.common.BudgetAlertDialog;
+import com.example.appquanlychitieu.ui.receipt.ReceiptScanActivity;
 import com.example.appquanlychitieu.util.DateUtils;
 import com.example.appquanlychitieu.util.NumberTextWatcher;
 import com.example.appquanlychitieu.util.SessionManager;
@@ -60,13 +68,16 @@ public class AddEditTransactionActivity extends AppCompatActivity {
     private TextInputEditText etAmount;
     private TextInputEditText etNote;
     private TextInputEditText etDate;
+    private TextInputEditText etCustomCategory;
     private TextInputLayout layoutAmount;
     private TextInputLayout layoutDate;
+    private TextInputLayout layoutCustomCategory;
     private MaterialButtonToggleGroup toggleType;
     private GridView categoriesView;
     private MaterialButton btnSave;
     private View progressSaving;
     private TextView categoryError;
+    private NestedScrollView formScroll;
 
     private final Map<Long, CategoryDto> categoryMap = new HashMap<>();
     private final List<Category> displayedCategories = new ArrayList<>();
@@ -81,12 +92,21 @@ public class AddEditTransactionActivity extends AppCompatActivity {
     private String remoteStoreName;
     private long version = 1L;
     private boolean isSubmitting;
+    private final ActivityResultLauncher<Intent> receiptScanLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    setResult(RESULT_OK);
+                    finish();
+                }
+            });
+    private final ActivityResultLauncher<Intent> categoryManagerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> loadCategories());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_edit_transaction);
-        EdgeToEdgeHelper.applySystemBars(findViewById(R.id.root_transaction_form));
+        EdgeToEdgeHelper.applySystemBarsAndIme(findViewById(R.id.root_transaction_form));
 
         SessionManager session = new SessionManager(this);
         if (!session.hasAuthToken()) {
@@ -114,16 +134,31 @@ public class AddEditTransactionActivity extends AppCompatActivity {
         etAmount = findViewById(R.id.et_amount);
         etNote = findViewById(R.id.et_note);
         etDate = findViewById(R.id.et_date);
+        etCustomCategory = findViewById(R.id.et_custom_category);
         layoutAmount = findViewById(R.id.layout_amount);
         layoutDate = findViewById(R.id.layout_date);
+        layoutCustomCategory = findViewById(R.id.layout_custom_category);
         toggleType = findViewById(R.id.toggle_type);
         categoriesView = findViewById(R.id.rv_categories);
         btnSave = findViewById(R.id.btn_save);
         progressSaving = findViewById(R.id.progress_saving);
         categoryError = findViewById(R.id.tv_category_error);
+        formScroll = findViewById(R.id.scroll_transaction_form);
+        MaterialButton btnScanReceipt = findViewById(R.id.btn_scan_receipt);
+        btnScanReceipt.setVisibility(remoteTransactionId == null ? View.VISIBLE : View.GONE);
+        btnScanReceipt.setOnClickListener(view -> receiptScanLauncher.launch(
+                new Intent(this, ReceiptScanActivity.class)));
+        findViewById(R.id.tv_manage_categories).setOnClickListener(view ->
+                categoryManagerLauncher.launch(new Intent(this, CategoryActivity.class)));
 
         etAmount.setKeyListener(android.text.method.DigitsKeyListener.getInstance("0123456789.,"));
         etAmount.addTextChangedListener(new NumberTextWatcher(etAmount));
+        etCustomCategory.setOnFocusChangeListener((view, hasFocus) -> {
+            if (hasFocus) {
+                formScroll.postDelayed(() -> formScroll.smoothScrollTo(
+                        0, layoutCustomCategory.getBottom()), 250L);
+            }
+        });
         etDate.setText(DateUtils.formatDate(selectedDate));
         categoryAdapter = new CategoryGridViewAdapter(this);
         categoriesView.setAdapter(categoryAdapter);
@@ -171,6 +206,7 @@ public class AddEditTransactionActivity extends AppCompatActivity {
             remoteCategoryId = selectedCategory == null ? null : selectedCategory.id;
             categoryAdapter.setSelectedPosition(position);
             categoryError.setVisibility(View.GONE);
+            updateCustomCategoryVisibility();
         });
         toggleType.addOnButtonCheckedListener((group, checkedId, checked) -> {
             if (!checked) return;
@@ -181,6 +217,8 @@ public class AddEditTransactionActivity extends AppCompatActivity {
             selectedCategoryId = -1L;
             selectedCategory = null;
             remoteCategoryId = null;
+            etCustomCategory.setText("");
+            updateCustomCategoryVisibility();
             loadCategories();
         });
         etDate.setOnClickListener(v -> showDatePicker());
@@ -194,9 +232,10 @@ public class AddEditTransactionActivity extends AppCompatActivity {
             public void onSuccess(List<CategoryDto> values) {
                 displayedCategories.clear();
                 categoryMap.clear();
+                selectedCategoryId = -1L;
+                selectedCategory = null;
                 int index = 1;
-                if (values != null) {
-                    for (CategoryDto dto : values) {
+                for (CategoryDto dto : CategoryDisplayOrder.orderedCopy(values, selectedType)) {
                         long localId = -index++;
                         Category category = new Category(dto.name,
                                 empty(dto.icon) ? "ic_other" : dto.icon,
@@ -209,11 +248,11 @@ public class AddEditTransactionActivity extends AppCompatActivity {
                             selectedCategoryId = localId;
                             selectedCategory = dto;
                         }
-                    }
                 }
                 categoryAdapter.setCategories(displayedCategories);
                 updateCategoryGridHeight(displayedCategories.size());
                 if (selectedCategoryId != -1L) categoryAdapter.setSelectedCategoryId(selectedCategoryId);
+                updateCustomCategoryVisibility();
                 setSubmitting(false, false);
                 btnSave.setEnabled(!displayedCategories.isEmpty());
             }
@@ -266,17 +305,70 @@ public class AddEditTransactionActivity extends AppCompatActivity {
             return;
         }
 
+        String customCategoryName = textOf(etCustomCategory);
+        if (CategoryDisplayOrder.isOther(selectedCategory)) {
+            if (customCategoryName.isEmpty()) {
+                layoutCustomCategory.setError(getString(R.string.custom_category_required));
+                etCustomCategory.requestFocus();
+                return;
+            }
+            if (findCategoryByName(customCategoryName) != null) {
+                layoutCustomCategory.setError(getString(R.string.category_already_exists_select));
+                etCustomCategory.requestFocus();
+                return;
+            }
+        }
+        layoutCustomCategory.setError(null);
+
         String transactionDate = Instant.ofEpochMilli(selectedDate)
                 .atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate().toString();
+        String note = textOf(etNote);
+        setSubmitting(true, true);
+        if (CategoryDisplayOrder.isOther(selectedCategory)) {
+            CategoryRequestDto categoryRequest = new CategoryRequestDto(
+                    customCategoryName,
+                    selectedType.name(),
+                    empty(selectedCategory.color) ? "#607D8B" : selectedCategory.color,
+                    "ic_other");
+            viewModel.createCategory(categoryRequest, new RemoteCallback<CategoryDto>() {
+                @Override
+                public void onSuccess(CategoryDto value) {
+                    selectedCategory = value;
+                    remoteCategoryId = value == null ? null : value.id;
+                    saveTransactionWithCategory(value, amount, transactionDate, note);
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    setSubmitting(false, true);
+                    layoutCustomCategory.setError(error.getMessage());
+                }
+            });
+            return;
+        }
+        saveTransactionWithCategory(selectedCategory, amount, transactionDate, note);
+    }
+
+    private void saveTransactionWithCategory(CategoryDto category, long amount,
+                                             String transactionDate, String note) {
+        if (category == null || category.id == null) {
+            setSubmitting(false, true);
+            categoryError.setText(R.string.category_load_failed);
+            categoryError.setVisibility(View.VISIBLE);
+            return;
+        }
         TransactionRequestDto request = new TransactionRequestDto(
                 BigDecimal.valueOf(amount), selectedType.name(), transactionDate,
-                selectedCategory.id, textOf(etNote), remoteStoreName);
-        setSubmitting(true, true);
+                category.id, note, remoteStoreName);
         RemoteCallback<TransactionDto> callback = new RemoteCallback<TransactionDto>() {
             @Override
             public void onSuccess(TransactionDto value) {
                 setSubmitting(false, true);
                 setResult(RESULT_OK);
+                if (BudgetAlertDialog.showIfPresent(
+                        AddEditTransactionActivity.this,
+                        value == null ? null : value.budgetAlert,
+                        AddEditTransactionActivity.this::finish)) return;
                 finish();
             }
 
@@ -288,6 +380,24 @@ public class AddEditTransactionActivity extends AppCompatActivity {
             }
         };
         viewModel.save(remoteTransactionId, version, request, callback);
+    }
+
+    private void updateCustomCategoryVisibility() {
+        boolean visible = CategoryDisplayOrder.isOther(selectedCategory);
+        layoutCustomCategory.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (!visible) layoutCustomCategory.setError(null);
+    }
+
+    private CategoryDto findCategoryByName(String name) {
+        String expected = name == null ? "" : name.trim();
+        for (CategoryDto category : categoryMap.values()) {
+            if (!CategoryDisplayOrder.isOther(category)
+                    && category.name != null
+                    && category.name.trim().equalsIgnoreCase(expected)) {
+                return category;
+            }
+        }
+        return null;
     }
 
     private void setSubmitting(boolean submitting, boolean showProgress) {

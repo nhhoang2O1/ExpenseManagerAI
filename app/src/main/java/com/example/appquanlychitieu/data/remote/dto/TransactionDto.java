@@ -18,6 +18,7 @@ public class TransactionDto {
     public String categoryIcon;
     public String receiptId;
     public String goalId;
+    public BudgetAlertDto budgetAlert;
     public CategoryDto category;
     public long version = 1L;
 

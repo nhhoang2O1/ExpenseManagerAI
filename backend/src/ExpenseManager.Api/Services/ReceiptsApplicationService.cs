@@ -161,6 +161,13 @@ public sealed class ReceiptsApplicationService(
     {
         var result = await confirmationService.ConfirmAsync(
             id, userContext.UserId, request, cancellationToken);
+        BudgetAlertResponse? budgetAlert = null;
+        if (result.Outcome == ConfirmationOutcome.SUCCESS && result.Transaction is not null)
+        {
+            budgetAlert = await BudgetAlertService.EvaluateProjectedAsync(
+                db, userContext.UserId, result.Transaction.CategoryId,
+                result.Transaction.TransactionDate, 0L, null, cancellationToken);
+        }
         return result.Outcome switch
         {
             ConfirmationOutcome.RECEIPT_NOT_FOUND =>
@@ -170,7 +177,8 @@ public sealed class ReceiptsApplicationService(
             ConfirmationOutcome.INVALID_RECEIPT_STATE =>
                 ApplicationServiceResult<TransactionResponse>.Conflict(
                     "Hóa đơn chưa sẵn sàng để xác nhận."),
-            _ => ApplicationServiceResult<TransactionResponse>.Ok(result.Transaction!.ToResponse())
+            _ => ApplicationServiceResult<TransactionResponse>.Ok(
+                result.Transaction!.ToResponse(budgetAlert))
         };
     }
 

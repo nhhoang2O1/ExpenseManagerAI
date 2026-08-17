@@ -12,8 +12,6 @@ import com.example.appquanlychitieu.data.model.Transaction;
 import com.example.appquanlychitieu.data.model.TransactionType;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
-import com.example.appquanlychitieu.data.remote.dto.AvailableBalanceDto;
-import com.example.appquanlychitieu.data.repository.RemoteGoalRepository;
 import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.data.repository.RemoteTransactionRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
@@ -33,12 +31,10 @@ import java.util.List;
 public class HomeViewModel extends AndroidViewModel {
     private final RemoteTransactionRepository transactionRepository;
     private final RemoteStatisticsRepository statisticsRepository;
-    private final RemoteGoalRepository goalRepository;
     private final long userId;
     private final boolean authenticated;
     private final MutableLiveData<Long> totalIncome = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> totalExpense = new MutableLiveData<>(0L);
-    private final MutableLiveData<Long> balance = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> availableBalance = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> reservedForGoals = new MutableLiveData<>(0L);
     private final MutableLiveData<List<Transaction>> recentTransactions =
@@ -59,7 +55,6 @@ public class HomeViewModel extends AndroidViewModel {
         super(application);
         transactionRepository = new RemoteTransactionRepository(application);
         statisticsRepository = new RemoteStatisticsRepository(application);
-        goalRepository = new RemoteGoalRepository(application);
         SessionManager session = new SessionManager(application);
         userId = session.getUserId();
         authenticated = session.hasAuthToken();
@@ -68,7 +63,6 @@ public class HomeViewModel extends AndroidViewModel {
 
     public LiveData<Long> getTotalIncome() { return totalIncome; }
     public LiveData<Long> getTotalExpense() { return totalExpense; }
-    public LiveData<Long> getBalance() { return balance; }
     public LiveData<Long> getAvailableBalance() { return availableBalance; }
     public LiveData<Long> getReservedForGoals() { return reservedForGoals; }
     public LiveData<List<Transaction>> getRecentTransactions() { return recentTransactions; }
@@ -116,11 +110,11 @@ public class HomeViewModel extends AndroidViewModel {
                 refreshing = false;
                 hasLoaded = true;
                 serverSnapshot = value == null ? new ArrayList<>() : new ArrayList<>(value);
+                // List.sort is stable. The API already orders same-day entries by CreatedAt,
+                // so sorting only by transaction date preserves the true newest-first tie order.
                 serverSnapshot.sort(Comparator
                         .comparingLong(Transaction::getDate)
-                        .reversed()
-                        .thenComparing(transaction -> transaction.getRemoteId() == null
-                                ? "" : transaction.getRemoteId(), Comparator.reverseOrder()));
+                        .reversed());
                 publishTransactions();
             }
 
@@ -148,37 +142,27 @@ public class HomeViewModel extends AndroidViewModel {
                         remoteError.setValue(error.getMessage());
                     }
                 });
-        goalRepository.getAvailableBalance(now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1,
-                new RemoteCallback<AvailableBalanceDto>() {
-            @Override public void onSuccess(AvailableBalanceDto value) {
-                if (generation != refreshGeneration || value == null) return;
-                availableBalance.setValue(value.availableAmount);
-                reservedForGoals.setValue(value.reservedAmount);
-            }
-
-            @Override public void onError(ApiError error) {
-                if (generation != refreshGeneration) return;
-                remoteError.setValue(error.getMessage());
-            }
-                });
     }
 
     private void publishMonthlyTotals(List<MonthlySummary> summaries) {
         String currentMonth = DateUtils.getCurrentMonthYear();
         long income = 0L;
         long expense = 0L;
+        long savings = 0L;
         if (summaries != null) {
             for (MonthlySummary summary : summaries) {
                 if (summary != null && currentMonth.equals(summary.getMonthYear())) {
                     income = summary.getTotalIncome();
                     expense = summary.getTotalExpense();
+                    savings = summary.getTotalSavings();
                     break;
                 }
             }
         }
         totalIncome.setValue(income);
         totalExpense.setValue(expense);
-        balance.setValue(income - expense);
+        reservedForGoals.setValue(savings);
+        availableBalance.setValue(income - expense - savings);
     }
 
     private void publishTransactions() {

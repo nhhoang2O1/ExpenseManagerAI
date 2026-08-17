@@ -1,5 +1,21 @@
 # Receipt OCR Service
 
+## Chọn recognition model
+
+Mặc định, khi không có `ocr-service/.env`, service dùng recognition model chính
+thức của PaddleOCR V6. Để dùng model custom, sao chép `.env.example` thành
+`.env`, đặt model trong `ocr-service/models/`, rồi recreate service:
+
+```powershell
+Copy-Item ocr-service/.env.example ocr-service/.env
+docker compose up -d --build --force-recreate ocr-service
+```
+
+Ba biến phải khớp với model đã export: đường dẫn trong container, tên model
+PaddleOCR và nhãn phiên bản trả về API. Muốn quay lại V6, xóa hoặc đổi tên
+`ocr-service/.env` rồi recreate service; không để các biến model thành chuỗi
+rỗng.
+
 Internal FastAPI service for Vietnamese retail receipt OCR. The service
 preprocesses an uploaded image, runs PaddleOCR, extracts receipt fields, and
 returns suggestions for mandatory user review.

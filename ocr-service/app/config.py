@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     parser_version: str = "receipt-parser-v1"
     language: str = "vi"
     device: Literal["cpu", "gpu"] = "cpu"
+    recognition_model_name: str | None = None
     recognition_model_dir: Path | None = None
     preload_model: bool = False
     use_doc_orientation_classify: bool = True

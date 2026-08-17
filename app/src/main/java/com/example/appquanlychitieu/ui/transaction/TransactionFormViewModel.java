@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel;
 
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
+import com.example.appquanlychitieu.data.remote.dto.CategoryRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.TransactionDto;
 import com.example.appquanlychitieu.data.remote.dto.TransactionRequestDto;
 import com.example.appquanlychitieu.data.repository.RemoteCategoryRepository;
@@ -27,6 +28,10 @@ public final class TransactionFormViewModel extends AndroidViewModel {
 
     public void loadCategories(String type, RemoteCallback<List<CategoryDto>> callback) {
         categories.getCategories(type, callback);
+    }
+
+    public void createCategory(CategoryRequestDto request, RemoteCallback<CategoryDto> callback) {
+        categories.create(request, callback);
     }
 
     public void save(String transactionId, long version, TransactionRequestDto request,

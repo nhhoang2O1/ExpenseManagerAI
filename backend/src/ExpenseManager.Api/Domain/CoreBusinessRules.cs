@@ -20,6 +20,17 @@ public static class BudgetRules
 
     public static bool CanUseCategory(TransactionType type) =>
         type == TransactionType.EXPENSE;
+
+    public static BudgetAlertLevel? AlertLevel(long budgetAmount, long spentAmount)
+    {
+        if (budgetAmount <= 0 || spentAmount < 0)
+            return null;
+        if (spentAmount >= budgetAmount)
+            return BudgetAlertLevel.EXCEEDED;
+        return spentAmount * 100m >= budgetAmount * 80m
+            ? BudgetAlertLevel.APPROACHING
+            : null;
+    }
 }
 
 public readonly record struct GoalFundingDecision(
@@ -43,18 +54,24 @@ public static class GoalFundingRules
             throw new ArgumentOutOfRangeException(nameof(requestedAmount));
 
         var remaining = targetAmount - currentAmount;
-        var applied = Math.Min(requestedAmount, remaining);
+        if (remaining == 0)
+            return new GoalFundingDecision(requestedAmount, 0, currentAmount, true);
+        if (requestedAmount > remaining)
+            throw new ArgumentOutOfRangeException(
+                nameof(requestedAmount), "Requested amount cannot exceed the remaining goal amount.");
         return new GoalFundingDecision(
             requestedAmount,
-            applied,
-            currentAmount + applied,
-            remaining == 0);
+            requestedAmount,
+            currentAmount + requestedAmount,
+            false);
     }
 }
 
 public static class StatisticsRules
 {
     public static long Balance(long income, long expense) => income - expense;
+    public static long Remaining(long income, long expense, long savings) =>
+        income - expense - savings;
     public static long AvailableBalance(long income, long expense, long reserved) =>
         Balance(income, expense) - reserved;
 }

@@ -111,11 +111,9 @@ public class RemoteGoalRepository {
         });
     }
 
-    public void complete(Goal goal, String categoryId, String transactionDate,
-                         RemoteCallback<Goal> callback) {
+    public void complete(Goal goal, RemoteCallback<Goal> callback) {
         if (goal.getRemoteId() == null || goal.getRemoteId().trim().isEmpty()) return;
-        CompleteGoalRequestDto request = new CompleteGoalRequestDto(
-                categoryId, transactionDate, "Hoàn thành mục tiêu: " + goal.getName());
+        CompleteGoalRequestDto request = new CompleteGoalRequestDto();
         enqueue(apiService.completeGoal(goal.getRemoteId(), UUID.randomUUID().toString(),
                         quote(goal.getVersion()), request), goal.getUserId(), callback);
     }

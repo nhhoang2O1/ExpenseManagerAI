@@ -23,10 +23,12 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class MainActivity extends AppCompatActivity {
+    public static final String EXTRA_OPEN_BUDGET = "open_budget";
     private SessionManager sessionManager;
     
     private FloatingActionButton fabAddTransaction;
     private BottomNavigationView bottomNav;
+    private NavController navController;
     private boolean sessionReceiverRegistered;
     private final BroadcastReceiver sessionExpiredReceiver = new BroadcastReceiver() {
         @Override
@@ -70,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
                 .findFragmentById(R.id.nav_host_fragment);
 
         if (navHostFragment != null) {
-            NavController navController = navHostFragment.getNavController();
+            navController = navHostFragment.getNavController();
             bottomNav = findViewById(R.id.bottom_navigation);
             NavigationUI.setupWithNavController(bottomNav, navController);
 
@@ -89,7 +91,24 @@ public class MainActivity extends AppCompatActivity {
                     fabAddTransaction.hide();
                 }
             });
+            openBudgetIfRequested(getIntent());
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        openBudgetIfRequested(intent);
+    }
+
+    private void openBudgetIfRequested(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(EXTRA_OPEN_BUDGET, false)
+                || navController == null) return;
+        intent.removeExtra(EXTRA_OPEN_BUDGET);
+        Bundle arguments = new Bundle();
+        arguments.putInt("initialTab", 0);
+        navController.navigate(R.id.navigation_planning, arguments);
     }
 
     private void navigateToLogin() {

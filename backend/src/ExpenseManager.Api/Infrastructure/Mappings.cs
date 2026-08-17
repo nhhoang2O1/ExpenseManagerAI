@@ -9,7 +9,9 @@ public static class Mappings
     public static CategoryResponse ToResponse(this Category category) =>
         new(category.Id, category.Name, category.Type, category.Color, category.Icon, category.Version);
 
-    public static TransactionResponse ToResponse(this Domain.Transaction transaction) =>
+    public static TransactionResponse ToResponse(
+        this Domain.Transaction transaction,
+        BudgetAlertResponse? budgetAlert = null) =>
         new(
             transaction.Id,
             transaction.Amount,
@@ -25,7 +27,8 @@ public static class Mappings
             transaction.CreatedAt,
             transaction.UpdatedAt,
             transaction.GoalId,
-            transaction.Version);
+            transaction.Version,
+            budgetAlert);
 
     public static BudgetResponse ToResponse(this Budget budget) =>
         new(

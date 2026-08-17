@@ -52,14 +52,6 @@
         android:paddingEnd="16dp"
         android:paddingBottom="8dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_scan_receipt"
-            style="@style/Widget.App.Button.Tonal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/scan_receipt"
-            app:icon="@drawable/ic_camera" />
-
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.App.TextInput"
             android:layout_width="match_parent"

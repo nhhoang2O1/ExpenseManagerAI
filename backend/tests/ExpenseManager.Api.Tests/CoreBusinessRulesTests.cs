@@ -121,6 +121,20 @@ public sealed class BudgetRulesTests
         Assert.False(BudgetRules.CanUseCategory(TransactionType.INCOME));
     }
 
+    [Theory]
+    [InlineData(50_000, 39_999, null)]
+    [InlineData(50_000, 40_000, BudgetAlertLevel.APPROACHING)]
+    [InlineData(50_000, 49_999, BudgetAlertLevel.APPROACHING)]
+    [InlineData(50_000, 50_000, BudgetAlertLevel.EXCEEDED)]
+    [InlineData(50_000, 70_000, BudgetAlertLevel.EXCEEDED)]
+    public void Budget_alert_uses_eighty_and_one_hundred_percent_thresholds(
+        long budget,
+        long spent,
+        BudgetAlertLevel? expected)
+    {
+        Assert.Equal(expected, BudgetRules.AlertLevel(budget, spent));
+    }
+
 }
 
 public sealed class GoalFundingRulesTests
@@ -152,12 +166,10 @@ public sealed class GoalFundingRulesTests
     }
 
     [Fact]
-    public void Add_funds_caps_request_at_remaining_amount()
+    public void Add_funds_rejects_request_above_remaining_amount()
     {
-        var result = GoalFundingRules.Calculate(1_000_000, 800_000, 500_000);
-
-        Assert.Equal(200_000, result.AppliedAmount);
-        Assert.Equal(1_000_000, result.BalanceAfter);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            GoalFundingRules.Calculate(1_000_000, 800_000, 500_000));
     }
 
     [Fact]
@@ -185,6 +197,18 @@ public sealed class StatisticsRulesTests
         long expected)
     {
         Assert.Equal(expected, StatisticsRules.Balance(income, expense));
+    }
+
+    [Theory]
+    [InlineData(5_000_000, 1_200_000, 800_000, 3_000_000)]
+    [InlineData(0, 700_000, 200_000, -900_000)]
+    public void Remaining_is_income_minus_expense_and_savings(
+        long income,
+        long expense,
+        long savings,
+        long expected)
+    {
+        Assert.Equal(expected, StatisticsRules.Remaining(income, expense, savings));
     }
 }
 

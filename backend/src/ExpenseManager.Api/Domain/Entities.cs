@@ -6,6 +6,12 @@ public enum TransactionType
     EXPENSE
 }
 
+public enum BudgetAlertLevel
+{
+    APPROACHING,
+    EXCEEDED
+}
+
 public enum GoalStatus
 {
     ACTIVE,

@@ -16,8 +16,9 @@ import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.util.SessionManager;
 
 import java.util.ArrayList;
+import java.text.Collator;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -28,13 +29,29 @@ public class TransactionListViewModel extends AndroidViewModel {
         final long startDate;
         final long endDate;
         final String category;
+        final TransactionType categoryType;
 
-        FilterOptions(String type, long startDate, long endDate, String category) {
+        FilterOptions(String type, long startDate, long endDate, String category,
+                      TransactionType categoryType) {
             this.type = type;
             this.startDate = startDate;
             this.endDate = endDate;
             this.category = category;
+            this.categoryType = categoryType;
         }
+    }
+
+    public static final class CategoryFilterOption {
+        private final String name;
+        private final TransactionType type;
+
+        CategoryFilterOption(String name, TransactionType type) {
+            this.name = name;
+            this.type = type;
+        }
+
+        public String getName() { return name; }
+        public TransactionType getType() { return type; }
     }
 
     private final RemoteTransactionRepository repository;
@@ -42,15 +59,16 @@ public class TransactionListViewModel extends AndroidViewModel {
     private final boolean authenticated;
     private final MutableLiveData<List<Transaction>> transactions =
             new MutableLiveData<>(new ArrayList<>());
-    private final MutableLiveData<List<String>> categoryNames =
+    private final MutableLiveData<List<CategoryFilterOption>> categoryOptions =
             new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<String> selectedCategory = new MutableLiveData<>("");
+    private TransactionType selectedCategoryType;
     private final MutableLiveData<LoadState> loadState =
             new MutableLiveData<>(LoadState.LOADING);
     private final MutableLiveData<String> remoteError = new MutableLiveData<>();
     private final MutableLiveData<String> feedback = new MutableLiveData<>();
 
-    private FilterOptions filters = new FilterOptions("ALL", 0L, Long.MAX_VALUE, "");
+    private FilterOptions filters = new FilterOptions("ALL", 0L, Long.MAX_VALUE, "", null);
     private List<Transaction> serverSnapshot = new ArrayList<>();
     private boolean hasLoaded;
     private boolean refreshing;
@@ -65,25 +83,39 @@ public class TransactionListViewModel extends AndroidViewModel {
     }
 
     public LiveData<List<Transaction>> getTransactions() { return transactions; }
-    public LiveData<List<String>> getCategoryNames() { return categoryNames; }
+    public LiveData<List<CategoryFilterOption>> getCategoryOptions() { return categoryOptions; }
     public LiveData<String> getSelectedCategory() { return selectedCategory; }
+    public TransactionType getSelectedCategoryType() { return selectedCategoryType; }
     public LiveData<LoadState> getLoadState() { return loadState; }
     public LiveData<String> getRemoteError() { return remoteError; }
     public LiveData<String> getFeedback() { return feedback; }
 
     public void setFilterType(String type) {
-        filters = new FilterOptions(type, filters.startDate, filters.endDate, filters.category);
+        TransactionType requiredType = "EXPENSE".equals(type) ? TransactionType.EXPENSE
+                : "INCOME".equals(type) ? TransactionType.INCOME : null;
+        String category = filters.category;
+        TransactionType categoryType = filters.categoryType;
+        if (requiredType != null && categoryType != null && requiredType != categoryType) {
+            category = "";
+            categoryType = null;
+            selectedCategory.setValue("");
+            selectedCategoryType = null;
+        }
+        filters = new FilterOptions(type, filters.startDate, filters.endDate, category, categoryType);
+        publishCategoryOptions();
         publish();
     }
 
     public void setDateRange(long start, long end) {
-        filters = new FilterOptions(filters.type, start, end, filters.category);
+        filters = new FilterOptions(filters.type, start, end, filters.category, filters.categoryType);
         publish();
     }
 
-    public void setCategoryFilter(String category) {
+    public void setCategoryFilter(String category, TransactionType categoryType) {
         selectedCategory.setValue(category == null ? "" : category);
-        filters = new FilterOptions(filters.type, filters.startDate, filters.endDate, category);
+        selectedCategoryType = categoryType;
+        filters = new FilterOptions(filters.type, filters.startDate, filters.endDate,
+                category, categoryType);
         publish();
     }
 
@@ -127,12 +159,7 @@ public class TransactionListViewModel extends AndroidViewModel {
                 refreshing = false;
                 hasLoaded = true;
                 serverSnapshot = value == null ? new ArrayList<>() : new ArrayList<>(value);
-                Set<String> names = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-                for (Transaction transaction : serverSnapshot) {
-                    String name = transaction.getRemoteCategoryName();
-                    if (name != null && !name.trim().isEmpty()) names.add(name.trim());
-                }
-                categoryNames.setValue(new ArrayList<>(names));
+                publishCategoryOptions();
                 publish();
                 remoteError.setValue(null);
             }
@@ -156,10 +183,34 @@ public class TransactionListViewModel extends AndroidViewModel {
             String category = transaction.getRemoteCategoryName() == null
                     ? "" : transaction.getRemoteCategoryName();
             if (!categoryFilter.isEmpty() && !category.equalsIgnoreCase(categoryFilter)) continue;
+            if (!categoryFilter.isEmpty() && filters.categoryType != null
+                    && transaction.getType() != filters.categoryType) continue;
             filtered.add(transaction);
         }
         filtered.sort(Comparator.comparingLong(Transaction::getDate).reversed());
         transactions.setValue(filtered);
         loadState.setValue(filtered.isEmpty() ? LoadState.EMPTY : LoadState.CONTENT);
+    }
+
+    private void publishCategoryOptions() {
+        List<CategoryFilterOption> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (Transaction transaction : serverSnapshot) {
+            String name = transaction.getRemoteCategoryName();
+            if (name == null || name.trim().isEmpty()) continue;
+            TransactionType type = transaction.getType();
+            if ("EXPENSE".equals(filters.type) && type != TransactionType.EXPENSE) continue;
+            if ("INCOME".equals(filters.type) && type != TransactionType.INCOME) continue;
+            String normalizedName = name.trim();
+            String key = type.name() + "\u0000" + normalizedName.toLowerCase(Locale.ROOT);
+            if (seen.add(key)) result.add(new CategoryFilterOption(normalizedName, type));
+        }
+        Collator collator = Collator.getInstance(new Locale("vi", "VN"));
+        collator.setStrength(Collator.PRIMARY);
+        result.sort(Comparator
+                .comparingInt((CategoryFilterOption option) ->
+                        option.type == TransactionType.EXPENSE ? 0 : 1)
+                .thenComparing(option -> option.name, collator));
+        categoryOptions.setValue(result);
     }
 }

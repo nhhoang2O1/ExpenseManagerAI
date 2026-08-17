@@ -15,33 +15,33 @@ public sealed class ReportExportService : IReportExportService
     {
         var lines = new List<string>
         {
-            $"Expense Manager - {from:yyyy-MM-dd} to {to:yyyy-MM-dd}"
+            $"Bao cao thu chi - {from:yyyy-MM-dd} den {to:yyyy-MM-dd}"
         };
 
         foreach (var month in transactions
                      .GroupBy(x => new { x.TransactionDate.Year, x.TransactionDate.Month })
                      .OrderBy(x => x.Key.Year).ThenBy(x => x.Key.Month))
         {
-            lines.Add($"MONTH {month.Key.Year}-{month.Key.Month:00}");
-            lines.Add("Date | Type | Category | Amount (VND) | Store");
+            lines.Add($"THANG {month.Key.Year}-{month.Key.Month:00}");
+            lines.Add("Ngay | Loai | Danh muc | So tien (VND) | Cua hang");
             lines.Add("------------------------------------------------------------");
             lines.AddRange(month.Select(x =>
-                $"{x.TransactionDate:yyyy-MM-dd} | {(x.Type == TransactionType.INCOME ? "IN" : "OUT")} | " +
+                $"{x.TransactionDate:yyyy-MM-dd} | {(x.Type == TransactionType.INCOME ? "THU" : "CHI")} | " +
                 $"{x.Category.Name} | {x.Amount.ToString("N0", CultureInfo.InvariantCulture)} | {x.StoreName ?? ""}"));
             var income = month.Where(x => x.Type == TransactionType.INCOME).Sum(x => x.Amount);
             var expense = month.Where(x => x.Type == TransactionType.EXPENSE).Sum(x => x.Amount);
-            lines.Add($"Month income: {income.ToString("N0", CultureInfo.InvariantCulture)} VND");
-            lines.Add($"Month expense: {expense.ToString("N0", CultureInfo.InvariantCulture)} VND");
-            lines.Add($"Month balance: {(income - expense).ToString("N0", CultureInfo.InvariantCulture)} VND");
+            lines.Add($"Tong thu thang: {income.ToString("N0", CultureInfo.InvariantCulture)} VND");
+            lines.Add($"Tong chi thang: {expense.ToString("N0", CultureInfo.InvariantCulture)} VND");
+            lines.Add($"Con lai trong thang: {(income - expense).ToString("N0", CultureInfo.InvariantCulture)} VND");
             lines.Add(string.Empty);
         }
 
         var totalIncome = transactions.Where(x => x.Type == TransactionType.INCOME).Sum(x => x.Amount);
         var totalExpense = transactions.Where(x => x.Type == TransactionType.EXPENSE).Sum(x => x.Amount);
-        lines.Add("GRAND TOTAL");
-        lines.Add($"Income: {totalIncome.ToString("N0", CultureInfo.InvariantCulture)} VND");
-        lines.Add($"Expense: {totalExpense.ToString("N0", CultureInfo.InvariantCulture)} VND");
-        lines.Add($"Balance: {(totalIncome - totalExpense).ToString("N0", CultureInfo.InvariantCulture)} VND");
+        lines.Add("TONG CONG");
+        lines.Add($"Tong thu: {totalIncome.ToString("N0", CultureInfo.InvariantCulture)} VND");
+        lines.Add($"Tong chi: {totalExpense.ToString("N0", CultureInfo.InvariantCulture)} VND");
+        lines.Add($"Con lai: {(totalIncome - totalExpense).ToString("N0", CultureInfo.InvariantCulture)} VND");
 
         const int linesPerPage = 50;
         var pages = new List<List<string>>();
@@ -60,7 +60,7 @@ public sealed class ReportExportService : IReportExportService
     }
 
     private static List<string> NewPageHeader(DateOnly from, DateOnly to) =>
-        [$"Expense Manager - {from:yyyy-MM-dd} to {to:yyyy-MM-dd}"];
+        [$"Bao cao thu chi - {from:yyyy-MM-dd} den {to:yyyy-MM-dd}"];
 
     private static byte[] BuildPdf(IReadOnlyList<List<string>> pages)
     {
@@ -96,9 +96,23 @@ public sealed class ReportExportService : IReportExportService
         return output.ToArray();
     }
 
-    private static string EscapePdf(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal)
-        .Replace("(", "\\(", StringComparison.Ordinal).Replace(")", "\\)", StringComparison.Ordinal)
-        .Where(c => c <= 127).Aggregate(new StringBuilder(), (builder, c) => builder.Append(c)).ToString();
+    private static string EscapePdf(string value)
+    {
+        var ascii = new StringBuilder();
+        foreach (var character in value.Normalize(NormalizationForm.FormD))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
+                continue;
+            ascii.Append(character switch { 'đ' => 'd', 'Đ' => 'D', _ => character });
+        }
+        return ascii.ToString().Normalize(NormalizationForm.FormC)
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("(", "\\(", StringComparison.Ordinal)
+            .Replace(")", "\\)", StringComparison.Ordinal)
+            .Where(character => character <= 127)
+            .Aggregate(new StringBuilder(), (builder, character) => builder.Append(character))
+            .ToString();
+    }
 
     private static void WriteObject(Stream output, List<long> offsets, string value)
     {

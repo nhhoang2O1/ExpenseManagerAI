@@ -4,6 +4,7 @@ public class MonthlySummary {
     private String monthYear;
     private long totalIncome;
     private long totalExpense;
+    private long totalSavings;
 
     public String getMonthYear() { return monthYear; }
     public void setMonthYear(String monthYear) { this.monthYear = monthYear; }
@@ -14,5 +15,8 @@ public class MonthlySummary {
     public long getTotalExpense() { return totalExpense; }
     public void setTotalExpense(long totalExpense) { this.totalExpense = totalExpense; }
 
-    public long getBalance() { return totalIncome - totalExpense; }
+    public long getTotalSavings() { return totalSavings; }
+    public void setTotalSavings(long totalSavings) { this.totalSavings = totalSavings; }
+
+    public long getBalance() { return totalIncome - totalExpense - totalSavings; }
 }

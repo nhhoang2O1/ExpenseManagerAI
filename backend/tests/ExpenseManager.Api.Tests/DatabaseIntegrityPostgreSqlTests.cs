@@ -117,7 +117,7 @@ public sealed class DatabaseIntegrityPostgreSqlTests(PostgreSqlIntegrationFixtur
     }
 
     [PostgreSqlFact]
-    public async Task Concurrent_goal_funding_for_one_user_cannot_overreserve_balance()
+    public async Task Concurrent_goal_funding_is_not_limited_by_transaction_balance()
     {
         await using (var seedDb = await fixture.ResetAndCreateDbAsync())
         {
@@ -170,14 +170,13 @@ public sealed class DatabaseIntegrityPostgreSqlTests(PostgreSqlIntegrationFixtur
                 secondController.AddFunds(
                     secondGoal.Id, new(80), CancellationToken.None));
 
-            Assert.Single(results, result => result.Result is OkObjectResult);
-            Assert.Single(results, result => result.Result is ConflictObjectResult);
+            Assert.All(results, result => Assert.IsType<OkObjectResult>(result.Result));
 
             await using var verificationDb = fixture.CreateDb();
             var reserved = await verificationDb.Goals
                 .Where(x => x.UserId == user.Id)
                 .SumAsync(x => x.CurrentAmount);
-            Assert.Equal(80, reserved);
+            Assert.Equal(160, reserved);
         }
     }
 

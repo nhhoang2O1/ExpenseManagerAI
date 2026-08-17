@@ -66,9 +66,34 @@ public sealed class StatisticsApplicationService(AppDbContext db, IUserContext u
             .OrderBy(x => x.Month)
             .ToListAsync(cancellationToken);
 
-        IReadOnlyList<MonthlyStatisticResponse> result = rows.Select(x =>
-            new MonthlyStatisticResponse(
-                x.Year, x.Month, x.Income, x.Expense, StatisticsRules.Balance(x.Income, x.Expense)))
+        var zone = LocalZone();
+        var localStart = DateTime.SpecifyKind(new DateTime(selectedYear, 1, 1), DateTimeKind.Unspecified);
+        var localEnd = localStart.AddYears(1);
+        var utcStart = TimeZoneInfo.ConvertTimeToUtc(localStart, zone);
+        var utcEnd = TimeZoneInfo.ConvertTimeToUtc(localEnd, zone);
+        var fundHistory = await db.GoalHistories.AsNoTracking()
+            .Where(x => x.Goal.UserId == userContext.UserId &&
+                        x.ActionType == GoalHistoryActionType.FUND &&
+                        x.Date >= utcStart && x.Date < utcEnd)
+            .Select(x => new { x.Date, x.AmountAdded })
+            .ToListAsync(cancellationToken);
+        var savingsByMonth = fundHistory
+            .GroupBy(x => TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.SpecifyKind(x.Date, DateTimeKind.Utc), zone).Month)
+            .ToDictionary(group => group.Key, group => group.Sum(x => x.AmountAdded));
+        var transactionsByMonth = rows.ToDictionary(x => x.Month);
+        var months = transactionsByMonth.Keys.Union(savingsByMonth.Keys).OrderBy(x => x);
+
+        IReadOnlyList<MonthlyStatisticResponse> result = months.Select(month =>
+        {
+            transactionsByMonth.TryGetValue(month, out var transaction);
+            var income = transaction?.Income ?? 0;
+            var expense = transaction?.Expense ?? 0;
+            var savings = savingsByMonth.GetValueOrDefault(month);
+            return new MonthlyStatisticResponse(
+                selectedYear, month, income, expense, savings,
+                StatisticsRules.Remaining(income, expense, savings));
+        })
             .ToList();
         return ApplicationServiceResult<IReadOnlyList<MonthlyStatisticResponse>>.Ok(result);
     }
@@ -116,8 +141,10 @@ public sealed class StatisticsApplicationService(AppDbContext db, IUserContext u
 
     private static DateOnly LocalToday()
     {
-        var zone = TimeZoneInfo.FindSystemTimeZoneById(
-            OperatingSystem.IsWindows() ? "SE Asia Standard Time" : "Asia/Ho_Chi_Minh");
+        var zone = LocalZone();
         return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
     }
+
+    private static TimeZoneInfo LocalZone() => TimeZoneInfo.FindSystemTimeZoneById(
+        OperatingSystem.IsWindows() ? "SE Asia Standard Time" : "Asia/Ho_Chi_Minh");
 }

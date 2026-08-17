@@ -14,6 +14,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
+import com.example.appquanlychitieu.data.remote.dto.BudgetAlertDto;
 import com.example.appquanlychitieu.data.remote.dto.ConfirmReceiptRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ReceiptDto;
 import com.example.appquanlychitieu.data.remote.dto.TransactionDto;
@@ -53,6 +54,7 @@ public class ReceiptViewModel extends AndroidViewModel {
     @Nullable private String imageUri;
     @Nullable private String idempotencyKey;
     @Nullable private String loadedImageReceiptId;
+    @Nullable private BudgetAlertDto confirmedBudgetAlert;
 
     public ReceiptViewModel(@NonNull Application application) {
         super(application);
@@ -71,6 +73,13 @@ public class ReceiptViewModel extends AndroidViewModel {
     }
 
     public LiveData<byte[]> getServerImage() { return serverImage; }
+
+    @Nullable
+    public BudgetAlertDto consumeConfirmedBudgetAlert() {
+        BudgetAlertDto alert = confirmedBudgetAlert;
+        confirmedBudgetAlert = null;
+        return alert;
+    }
 
     public void loadServerImage(@NonNull String id) {
         if (id.equals(loadedImageReceiptId)) return;
@@ -177,6 +186,7 @@ public class ReceiptViewModel extends AndroidViewModel {
                 if (token != operationToken) return;
                 cancelPolling();
                 draftStore.clear();
+                confirmedBudgetAlert = value == null ? null : value.budgetAlert;
                 state.setValue(new UiState(Phase.CONFIRMED, current.receipt, null));
             }
 

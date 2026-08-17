@@ -44,7 +44,6 @@ public class HomeFragment extends Fragment {
     private TextView balance;
     private TextView income;
     private TextView expense;
-    private TextView availableBalance;
     private TextView reservedForGoals;
     private TextView dailyDate;
     private TextView dailyIncome;
@@ -65,11 +64,9 @@ public class HomeFragment extends Fragment {
                 R.string.hello_user, session.getUserName()));
         ((TextView) view.findViewById(R.id.tv_month_year)).setText(getString(
                 R.string.today_format, DateUtils.formatDate(System.currentTimeMillis())));
-
         balance = view.findViewById(R.id.tv_balance);
         income = view.findViewById(R.id.tv_income);
         expense = view.findViewById(R.id.tv_expense);
-        availableBalance = view.findViewById(R.id.tv_available_balance);
         reservedForGoals = view.findViewById(R.id.tv_reserved_goals);
         dailyDate = view.findViewById(R.id.tv_daily_date);
         dailyIncome = view.findViewById(R.id.tv_daily_income);
@@ -110,13 +107,10 @@ public class HomeFragment extends Fragment {
                 income.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getTotalExpense().observe(getViewLifecycleOwner(), value ->
                 expense.setText(CurrencyFormatter.format(value == null ? 0L : value)));
-        viewModel.getBalance().observe(getViewLifecycleOwner(), value ->
-                balance.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getAvailableBalance().observe(getViewLifecycleOwner(), value ->
-                availableBalance.setText(CurrencyFormatter.format(value == null ? 0L : value)));
+                balance.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getReservedForGoals().observe(getViewLifecycleOwner(), value ->
-                reservedForGoals.setText(getString(R.string.reserved_for_goals,
-                        CurrencyFormatter.format(value == null ? 0L : value))));
+                reservedForGoals.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getDailyIncome().observe(getViewLifecycleOwner(), value ->
                 dailyIncome.setText(getString(R.string.positive_amount,
                         CurrencyFormatter.format(value == null ? 0L : value))));

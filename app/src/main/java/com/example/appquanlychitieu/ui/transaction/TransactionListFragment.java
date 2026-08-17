@@ -1,10 +1,14 @@
 package com.example.appquanlychitieu.ui.transaction;
 
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,14 +22,12 @@ import com.example.appquanlychitieu.R;
 import com.example.appquanlychitieu.data.model.Transaction;
 import com.example.appquanlychitieu.data.model.TransactionType;
 import com.example.appquanlychitieu.ui.common.LoadState;
-import com.example.appquanlychitieu.ui.receipt.ReceiptScanActivity;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
-import android.widget.ArrayAdapter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,14 +66,15 @@ public class TransactionListFragment extends Fragment {
         chipIncome = view.findViewById(R.id.chip_income);
         MaterialAutoCompleteTextView categoryDropdown =
                 view.findViewById(R.id.dropdown_transaction_category);
+        CategoryDropdownAdapter categoryDropdownAdapter =
+                new CategoryDropdownAdapter(requireContext());
+        categoryDropdown.setAdapter(categoryDropdownAdapter);
 
         adapter = new TransactionListAdapter(requireContext());
         transactionsView.setLayoutManager(new LinearLayoutManager(requireContext()));
         transactionsView.setAdapter(adapter);
         viewModel = new ViewModelProvider(this).get(TransactionListViewModel.class);
 
-        view.findViewById(R.id.btn_scan_receipt).setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), ReceiptScanActivity.class)));
         view.findViewById(R.id.btn_filter_date).setOnClickListener(v -> showDateRangePicker());
         view.findViewById(R.id.btn_retry).setOnClickListener(v -> viewModel.refreshRemoteTransactions());
         view.findViewById(R.id.btn_banner_retry).setOnClickListener(v -> viewModel.refreshRemoteTransactions());
@@ -86,8 +89,11 @@ public class TransactionListFragment extends Fragment {
         chipIncome.setOnCheckedChangeListener((button, checked) -> {
             if (checked) viewModel.setFilterType("INCOME");
         });
-        categoryDropdown.setOnItemClickListener((parent, itemView, position, id) ->
-                viewModel.setCategoryFilter(position == 0 ? "" : String.valueOf(parent.getItemAtPosition(position))));
+        categoryDropdown.setOnItemClickListener((parent, itemView, position, id) -> {
+            CategoryDropdownItem item = categoryDropdownAdapter.getItem(position);
+            if (item == null || item.header) return;
+            viewModel.setCategoryFilter(item.categoryName, item.type);
+        });
 
         adapter.setOnItemClickListener(new TransactionListAdapter.OnItemClickListener() {
             @Override public void onClick(Transaction transaction) { openTransaction(transaction); }
@@ -95,15 +101,11 @@ public class TransactionListFragment extends Fragment {
         });
 
         viewModel.getTransactions().observe(getViewLifecycleOwner(), adapter::setTransactions);
-        viewModel.getCategoryNames().observe(getViewLifecycleOwner(), names -> {
-            List<String> options = new ArrayList<>();
-            options.add("Tất cả danh mục");
-            if (names != null) options.addAll(names);
-            categoryDropdown.setAdapter(new ArrayAdapter<>(requireContext(),
-                    android.R.layout.simple_spinner_dropdown_item, options));
+        viewModel.getCategoryOptions().observe(getViewLifecycleOwner(), options -> {
+            categoryDropdownAdapter.replace(options, chipAll.isChecked());
             String selected = viewModel.getSelectedCategory().getValue();
             categoryDropdown.setText(selected == null || selected.trim().isEmpty()
-                    ? options.get(0) : selected, false);
+                    ? getString(R.string.all_categories) : selected, false);
         });
         viewModel.getLoadState().observe(getViewLifecycleOwner(), this::renderState);
         viewModel.getRemoteError().observe(getViewLifecycleOwner(), message -> {
@@ -199,5 +201,104 @@ public class TransactionListFragment extends Fragment {
         if (viewModel != null) viewModel.refreshRemoteTransactions();
         FloatingActionButton fab = requireActivity().findViewById(R.id.fab_add_transaction);
         if (fab != null) fab.setOnClickListener(v -> openAddTransaction());
+    }
+
+    private static final class CategoryDropdownItem {
+        final String label;
+        final String categoryName;
+        final TransactionType type;
+        final boolean header;
+
+        private CategoryDropdownItem(
+                String label, String categoryName, TransactionType type, boolean header) {
+            this.label = label;
+            this.categoryName = categoryName;
+            this.type = type;
+            this.header = header;
+        }
+
+        static CategoryDropdownItem all(String label) {
+            return new CategoryDropdownItem(label, "", null, false);
+        }
+
+        static CategoryDropdownItem header(String label) {
+            return new CategoryDropdownItem(label, null, null, true);
+        }
+
+        static CategoryDropdownItem category(
+                TransactionListViewModel.CategoryFilterOption option) {
+            return new CategoryDropdownItem(
+                    option.getName(), option.getName(), option.getType(), false);
+        }
+
+        @NonNull
+        @Override public String toString() { return label; }
+    }
+
+    private static final class CategoryDropdownAdapter extends ArrayAdapter<CategoryDropdownItem> {
+        CategoryDropdownAdapter(Context context) {
+            super(context, android.R.layout.simple_dropdown_item_1line, new ArrayList<>());
+        }
+
+        void replace(
+                List<TransactionListViewModel.CategoryFilterOption> options,
+                boolean grouped) {
+            setNotifyOnChange(false);
+            clear();
+            add(CategoryDropdownItem.all(getContext().getString(R.string.all_categories)));
+            if (grouped) {
+                addGroup(options, TransactionType.EXPENSE, R.string.category_group_expense);
+                addGroup(options, TransactionType.INCOME, R.string.category_group_income);
+            } else if (options != null) {
+                for (TransactionListViewModel.CategoryFilterOption option : options) {
+                    add(CategoryDropdownItem.category(option));
+                }
+            }
+            notifyDataSetChanged();
+        }
+
+        private void addGroup(
+                List<TransactionListViewModel.CategoryFilterOption> options,
+                TransactionType type,
+                int titleResource) {
+            if (options == null) return;
+            boolean hasItems = false;
+            for (TransactionListViewModel.CategoryFilterOption option : options) {
+                if (option.getType() == type) { hasItems = true; break; }
+            }
+            if (!hasItems) return;
+            add(CategoryDropdownItem.header(getContext().getString(titleResource)));
+            for (TransactionListViewModel.CategoryFilterOption option : options) {
+                if (option.getType() == type) add(CategoryDropdownItem.category(option));
+            }
+        }
+
+        @Override public boolean areAllItemsEnabled() { return false; }
+
+        @Override public boolean isEnabled(int position) {
+            CategoryDropdownItem item = getItem(position);
+            return item != null && !item.header;
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            TextView row = (TextView) super.getView(position, convertView, parent);
+            CategoryDropdownItem item = getItem(position);
+            boolean header = item != null && item.header;
+            row.setText(item == null ? "" : item.label);
+            row.setTextColor(getContext().getColor(
+                    header ? R.color.primary : R.color.text_primary));
+            row.setTypeface(Typeface.DEFAULT, header ? Typeface.BOLD : Typeface.NORMAL);
+            row.setTextSize(header ? 11f : 14f);
+            int horizontal = dp(16);
+            row.setPadding(horizontal, 0, horizontal, 0);
+            row.setMinHeight(dp(header ? 36 : 48));
+            return row;
+        }
+
+        private int dp(int value) {
+            return Math.round(value * getContext().getResources().getDisplayMetrics().density);
+        }
     }
 }

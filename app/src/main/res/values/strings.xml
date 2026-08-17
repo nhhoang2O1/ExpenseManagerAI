@@ -59,6 +59,9 @@
     <string name="all">Tất cả</string>
     <string name="please_enter_amount">Vui lòng nhập số tiền</string>
     <string name="please_select_category">Vui lòng chọn danh mục</string>
+    <string name="custom_category_name">Tên danh mục mới</string>
+    <string name="custom_category_required">Vui lòng nhập tên danh mục cụ thể</string>
+    <string name="category_already_exists_select">Danh mục này đã tồn tại. Hãy chọn danh mục có sẵn.</string>
 
     <!-- Empty State — Home -->
     <string name="empty_home_title">Hành trình tiết kiệm bắt đầu từ đây!</string>
@@ -118,7 +121,8 @@
     <!-- Modern fintech UI -->
     <string name="hello_user">Xin chào, %1$s</string>
     <string name="today_format">Hôm nay, %1$s</string>
-    <string name="monthly_overview">Tổng quan tháng</string>
+    <string name="monthly_overview">TỔNG QUAN TRONG THÁNG</string>
+    <string name="monthly_remaining">Còn lại</string>
     <string name="daily_overview">Tình hình trong ngày</string>
     <string name="quick_actions">Thao tác nhanh</string>
     <string name="quick_scan">Quét hóa đơn</string>
@@ -131,6 +135,7 @@
     <string name="goal_name_hint">Tên mục tiêu</string>
     <string name="goal_amount_hint">Số tiền mục tiêu (VND)</string>
     <string name="fund_amount_hint">Số tiền nạp thêm (VND)</string>
+    <string name="goal_fund_exceeds_remaining">Mục tiêu chỉ còn thiếu %1$s</string>
     <string name="goal_completed">Hoàn thành</string>
     <string name="goal_ready">Đã đủ tiền</string>
     <string name="goal_cancelled">Đã hủy</string>
@@ -139,9 +144,9 @@
     <string name="confirm">Xác nhận</string>
     <string name="confirm_cancel_goal">Tiền đã dành sẽ được trả lại số dư khả dụng. Bạn có muốn hủy mục tiêu này?</string>
     <string name="no_expense_category_for_goal">Cần có ít nhất một danh mục chi tiêu để hoàn thành mục tiêu</string>
-    <string name="complete_goal_summary">Mục tiêu: %1$s\nSố tiền sẽ tạo giao dịch chi tiêu: %2$s\n\nChọn danh mục giao dịch</string>
+    <string name="complete_goal_summary">Xác nhận hoàn thành mục tiêu “%1$s”? Thao tác này chỉ cập nhật trạng thái mục tiêu và không tạo giao dịch.</string>
     <string name="available_balance">Số dư khả dụng</string>
-    <string name="reserved_for_goals">Đã dành cho mục tiêu: %1$s</string>
+    <string name="reserved_for_goals">Đã dành cho mục tiêu</string>
     <string name="goal_history_completed">Đã tạo giao dịch hoàn thành mục tiêu</string>
     <string name="goal_history_cancelled">Đã hủy và hoàn lại số dư khả dụng</string>
     <string name="goal_transaction_read_only">Giao dịch này được tạo khi hoàn thành mục tiêu và không thể chỉnh sửa hoặc xóa</string>
@@ -153,6 +158,17 @@
     <string name="budget_over_value">Vượt: %1$s</string>
     <string name="budget_warning">Sắp chạm hạn mức</string>
     <string name="budget_exceeded_label">Đã vượt hạn mức</string>
+    <string name="budget_alert_approaching_title">Sắp chạm ngân sách</string>
+    <string name="budget_alert_reached_title">Đã dùng hết ngân sách</string>
+    <string name="budget_alert_exceeded_title">Đã vượt ngân sách</string>
+    <string name="budget_alert_category">Danh mục: %1$s</string>
+    <string name="budget_alert_spent">Đã chi %1$s</string>
+    <string name="budget_alert_limit">Ngân sách %1$s</string>
+    <string name="budget_alert_approaching_detail">Còn lại %2$s · %1$d%% đã dùng</string>
+    <string name="budget_alert_reached_detail">Đã sử dụng hết ngân sách · %1$d%%</string>
+    <string name="budget_alert_exceeded_detail">Vượt %2$s · %1$d%% đã dùng</string>
+    <string name="understood">Đã hiểu</string>
+    <string name="view_budget">Xem ngân sách</string>
     <string name="budget_amount_hint">Hạn mức (VND)</string>
     <string name="select_expense_category">Chọn danh mục chi tiêu</string>
     <string name="select_date">Chọn ngày</string>
@@ -169,7 +185,11 @@
     <string name="receipt_process_step">Nhận diện</string>
     <string name="receipt_confirm_step">Xác nhận</string>
     <string name="receipt_preview">Xem trước hóa đơn</string>
-    <string name="statistics_balance">Số dư tháng</string>
+    <string name="statistics_savings">Đã tiết kiệm</string>
+    <string name="statistics_balance">Còn lại</string>
+    <string name="all_categories">Tất cả danh mục</string>
+    <string name="category_group_expense">CHI TIÊU</string>
+    <string name="category_group_income">THU NHẬP</string>
     <string name="financial_history">Lịch sử tài chính</string>
     <plurals name="transactions_count">
         <item quantity="one">%1$d giao dịch</item>
@@ -212,7 +232,13 @@
     <string name="forgot_password">Quên mật khẩu?</string>
     <string name="manage_categories">Quản lý danh mục</string>
     <string name="add_category">Thêm danh mục</string>
+    <string name="add_expense_category">Thêm danh mục chi tiêu</string>
+    <string name="add_income_category">Thêm danh mục thu nhập</string>
     <string name="edit_category">Sửa danh mục</string>
+    <string name="delete_category">Xóa danh mục</string>
+    <string name="confirm_delete_category">Bạn có muốn xóa danh mục “%1$s” không?</string>
+    <string name="no_expense_categories">Chưa có danh mục chi tiêu</string>
+    <string name="no_income_categories">Chưa có danh mục thu nhập</string>
     <string name="category_name_hint">Tên danh mục</string>
     <string name="category_emoji_hint">Emoji danh mục (ví dụ: ☕)</string>
     <string name="invalid_category_emoji">Vui lòng nhập một emoji cho danh mục</string>

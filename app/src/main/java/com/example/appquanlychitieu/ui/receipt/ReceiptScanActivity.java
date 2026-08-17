@@ -26,6 +26,7 @@ import com.example.appquanlychitieu.data.remote.dto.ReceiptDto;
 import com.example.appquanlychitieu.util.SessionManager;
 import com.example.appquanlychitieu.util.NumberTextWatcher;
 import com.example.appquanlychitieu.ui.common.EdgeToEdgeHelper;
+import com.example.appquanlychitieu.ui.common.BudgetAlertDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
@@ -262,9 +263,11 @@ public class ReceiptScanActivity extends AppCompatActivity {
                 tvStatus.setText(R.string.confirming_receipt);
                 break;
             case CONFIRMED:
-                Toast.makeText(this, R.string.receipt_confirmed, Toast.LENGTH_SHORT).show();
-                setResult(RESULT_OK);
-                finish();
+                if (BudgetAlertDialog.showIfPresent(
+                        this,
+                        viewModel.consumeConfirmedBudgetAlert(),
+                        this::completeConfirmedReceipt)) return;
+                completeConfirmedReceipt();
                 return;
             case ERROR:
                 tvStatus.setText(R.string.receipt_error);
@@ -288,6 +291,12 @@ public class ReceiptScanActivity extends AppCompatActivity {
             btnRetry.setVisibility(View.VISIBLE);
             btnRetry.setEnabled(!busy);
         }
+    }
+
+    private void completeConfirmedReceipt() {
+        Toast.makeText(this, R.string.receipt_confirmed, Toast.LENGTH_SHORT).show();
+        setResult(RESULT_OK);
+        finish();
     }
 
     private void populateReview(ReceiptDto receipt) {

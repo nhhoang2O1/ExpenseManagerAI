@@ -54,3 +54,16 @@ replay_pid*.log
 # Local report documents and temporary Microsoft Office lock files.
 /HuynhTrongThua_C44_BaoCao_ExpenseManagerAI.docx
 /~$*.docx
+
+# Virtual environments
+.venv/
+.venv*/
+
+# OCR heavy datasets, PaddleOCR clone, exported models & evaluation output
+ocr-service/PaddleOCR/
+ocr-service/models/
+ocr-service/train_ocr/dataset/
+ocr-service/train_ocr/evaluation_results/
+*.zip
+*.tar
+*.tar.gz

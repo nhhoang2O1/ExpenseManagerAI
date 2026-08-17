@@ -1,13 +1,11 @@
 package com.example.appquanlychitieu.ui.settings;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.Editable;
-import android.text.InputFilter;
-import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,7 +16,7 @@ import android.widget.TextView;
 import android.app.DatePickerDialog;
 
 import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -40,7 +38,6 @@ import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 
@@ -50,11 +47,12 @@ public class SettingsFragment extends Fragment {
     private final java.util.concurrent.ExecutorService ioExecutor =
             java.util.concurrent.Executors.newSingleThreadExecutor();
     private SessionManager sessionManager;
-    private ActivityResultLauncher<String> exportReportLauncher;
+    private ActivityResultLauncher<Intent> exportReportLauncher;
     private SettingsViewModel viewModel;
     private String exportFromDate;
     private String exportToDate;
     private String exportFormat = "xlsx";
+    private byte[] pendingReport;
     
     private View cardExportReport, cardLogout, cardReminders;
     private SwitchMaterial switchDarkMode;
@@ -64,10 +62,14 @@ public class SettingsFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         exportReportLauncher = registerForActivityResult(
-                new ActivityResultContracts.CreateDocument("*/*"),
-                uri -> {
-                    if (uri != null) {
-                        exportReport(uri);
+                new StartActivityForResult(),
+                result -> {
+                    Intent data = result.getData();
+                    if (result.getResultCode() == Activity.RESULT_OK
+                            && data != null && data.getData() != null) {
+                        saveReport(data.getData());
+                    } else {
+                        pendingReport = null;
                     }
                 });
     }
@@ -145,12 +147,11 @@ public class SettingsFragment extends Fragment {
     }
 
     private void showAccountActions() {
-        String[] actions = {"Sửa tên", "Đổi mật khẩu", "Đổi email", "Xóa tài khoản"};
+        String[] actions = {"Sửa tên", "Đổi mật khẩu", "Xóa tài khoản"};
         new AlertDialog.Builder(requireContext()).setTitle("Tài khoản")
                 .setItems(actions, (dialog, which) -> {
                     if (which == 0) editName();
                     else if (which == 1) changePassword();
-                    else if (which == 2) changeEmail();
                     else deleteAccount();
                 }).show();
     }
@@ -193,45 +194,6 @@ public class SettingsFragment extends Fragment {
                 .setNegativeButton(R.string.cancel, null).show();
     }
 
-    private void changeEmail() {
-        EditText email = input("Email mới", false);
-        EditText password = input("Mật khẩu hiện tại", true);
-        new AlertDialog.Builder(requireContext()).setTitle("Đổi email")
-                .setView(form(email, password)).setPositiveButton("Gửi mã", (d, w) ->
-                        viewModel.requestEmailChange(email.getText().toString().trim(),
-                                password.getText().toString(), new RemoteCallback<Void>() {
-                                    @Override public void onSuccess(Void value) { confirmEmailCode(); }
-                                    @Override public void onError(ApiError error) { showToast(error.getMessage()); }
-                                }))
-                .setNegativeButton(R.string.cancel, null).show();
-    }
-
-    private void confirmEmailCode() {
-        EditText code = input("Mã xác nhận 6 số", false);
-        code.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        code.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)});
-        AlertDialog dialog = new AlertDialog.Builder(requireContext()).setTitle("Xác nhận email").setView(code)
-                .setPositiveButton(R.string.save, (d, w) -> viewModel.confirmEmailChange(
-                        code.getText().toString().trim(), profileCallback()))
-                .setNegativeButton(R.string.cancel, null).create();
-        dialog.setOnShowListener(ignored -> {
-            android.widget.Button save = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-            Runnable updateButtonState = () -> save.setEnabled(
-                    code.getText() != null && code.getText().toString().matches("\\d{6}"));
-            updateButtonState.run();
-            code.addTextChangedListener(new TextWatcher() {
-                @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
-
-                @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
-                    updateButtonState.run();
-                }
-
-                @Override public void afterTextChanged(Editable value) { }
-            });
-        });
-        dialog.show();
-    }
-
     private void deleteAccount() {
         EditText password = input("Nhập mật khẩu để xác nhận", true);
         new AlertDialog.Builder(requireContext()).setTitle("Xóa tài khoản")
@@ -270,23 +232,33 @@ public class SettingsFragment extends Fragment {
         requireActivity().finish();
     }
 
-    private void exportReport(Uri uri) {
-        android.content.Context appContext = requireContext().getApplicationContext();
-        String successMessage = getString(R.string.export_report_success);
+    private void downloadReport() {
         String errorMessage = getString(R.string.export_report_error);
         viewModel.export(exportFromDate, exportToDate, exportFormat,
                 new RemoteCallback<ResponseBody>() {
                     @Override
                     public void onSuccess(ResponseBody body) {
+                        if (ioExecutor.isShutdown()) {
+                            body.close();
+                            return;
+                        }
                         ioExecutor.execute(() -> {
-                            try (OutputStream outputStream =
-                                         appContext.getContentResolver().openOutputStream(uri)) {
-                                if (outputStream == null) {
-                                    throw new IOException("Cannot open report output stream");
-                                }
-                                outputStream.write(body.bytes());
-                                showToast(successMessage);
+                            try {
+                                pendingReport = body.bytes();
+                                new Handler(Looper.getMainLooper()).post(() -> {
+                                    if (!isAdded() || pendingReport == null) return;
+                                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+                                            .addCategory(Intent.CATEGORY_OPENABLE)
+                                            .setType("pdf".equalsIgnoreCase(exportFormat)
+                                                    ? "application/pdf"
+                                                    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                            .putExtra(Intent.EXTRA_TITLE, String.format(
+                                                    Locale.US, "bao_cao_%s_%s.%s",
+                                                    exportFromDate, exportToDate, exportFormat));
+                                    exportReportLauncher.launch(intent);
+                                });
                             } catch (Exception e) {
+                                pendingReport = null;
                                 showToast(errorMessage);
                             }
                         });
@@ -294,9 +266,32 @@ public class SettingsFragment extends Fragment {
 
                     @Override
                     public void onError(ApiError error) {
-                        showToast(errorMessage);
+                        String detail = error == null ? null : error.getMessage();
+                        showToast(detail == null || detail.trim().isEmpty()
+                                ? errorMessage : detail);
                     }
                 });
+    }
+
+    private void saveReport(Uri uri) {
+        android.content.Context appContext = requireContext().getApplicationContext();
+        byte[] report = pendingReport;
+        pendingReport = null;
+        if (report == null) {
+            showToast(getString(R.string.export_report_error));
+            return;
+        }
+        String successMessage = getString(R.string.export_report_success);
+        String errorMessage = getString(R.string.export_report_error);
+        ioExecutor.execute(() -> {
+            try (OutputStream outputStream = appContext.getContentResolver().openOutputStream(uri)) {
+                if (outputStream == null) throw new IOException("Cannot open report output stream");
+                outputStream.write(report);
+                showToast(successMessage);
+            } catch (Exception exception) {
+                showToast(errorMessage);
+            }
+        });
     }
 
     private void chooseReport() {
@@ -365,12 +360,7 @@ public class SettingsFragment extends Fragment {
             }
             exportFromDate = formatReportDate(from);
             exportToDate = formatReportDate(to);
-            exportReportLauncher.launch(String.format(
-                    Locale.US,
-                    "bao_cao_%s_%s.%s",
-                    exportFromDate,
-                    exportToDate,
-                    exportFormat));
+            downloadReport();
         }, today.get(Calendar.YEAR), today.get(Calendar.MONTH), today.get(Calendar.DAY_OF_MONTH));
         picker.setTitle("Chọn ngày kết thúc");
         picker.getDatePicker().setMinDate(from.getTimeInMillis());

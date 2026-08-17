@@ -60,7 +60,19 @@ public sealed record TransactionResponse(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     Guid? GoalId = null,
-    long Version = 1);
+    long Version = 1,
+    BudgetAlertResponse? BudgetAlert = null);
+
+public sealed record BudgetAlertResponse(
+    BudgetAlertLevel Level,
+    Guid BudgetId,
+    Guid CategoryId,
+    string CategoryName,
+    long BudgetAmount,
+    long SpentAmount,
+    long RemainingAmount,
+    long ExceededAmount,
+    int UsagePercent);
 
 public sealed record PagedResponse<T>(
     IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount, int TotalPages);
@@ -110,7 +122,7 @@ public sealed record DailyStatisticResponse(
     DateOnly Date, long Income, long Expense, long Balance);
 
 public sealed record MonthlyStatisticResponse(
-    int Year, int Month, long Income, long Expense, long Balance);
+    int Year, int Month, long Income, long Expense, long Savings, long Balance);
 
 public sealed record CategoryStatisticResponse(
     Guid CategoryId,
@@ -146,10 +158,7 @@ public sealed record GoalRequest(
 public sealed record AddGoalFundsRequest(
     [Range(1, long.MaxValue)] long Amount);
 
-public sealed record CompleteGoalRequest(
-    Guid CategoryId,
-    DateOnly TransactionDate,
-    [StringLength(1000)] string? Note);
+public sealed record CompleteGoalRequest;
 
 public sealed record AvailableBalanceResponse(
     long Balance,

@@ -35,4 +35,22 @@ public final class EdgeToEdgeHelper {
         });
         ViewCompat.requestApplyInsets(view);
     }
+
+    public static void applySystemBarsAndIme(View root) {
+        int start = root.getPaddingLeft();
+        int top = root.getPaddingTop();
+        int end = root.getPaddingRight();
+        int bottom = root.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+            view.setPadding(
+                    start + bars.left,
+                    top + bars.top,
+                    end + bars.right,
+                    bottom + Math.max(bars.bottom, ime.bottom));
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
+    }
 }

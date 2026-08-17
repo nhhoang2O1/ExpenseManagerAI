@@ -26,6 +26,9 @@ services:
     build:
       context: ./ocr-service
       dockerfile: Dockerfile.gpu
+    env_file:
+      - path: ./ocr-service/.env
+        required: false
     gpus: all
     restart: unless-stopped
     expose:
@@ -39,6 +42,8 @@ services:
       OCR_USE_DOC_UNWARPING: "false"
       OCR_USE_TEXTLINE_ORIENTATION: "true"
       OCR_MAX_IMAGE_SIDE: "1600"
+    volumes:
+      - ./ocr-service/models:/service/models:ro
     healthcheck:
       test:
         [

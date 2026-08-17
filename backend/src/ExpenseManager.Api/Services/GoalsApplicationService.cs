@@ -142,15 +142,14 @@ public sealed class GoalsApplicationService(AppDbContext db, IUserContext userCo
             return ApplicationServiceResult<GoalResponse>.Conflict(
                 "Chỉ có thể nạp tiền vào mục tiêu đang hoạt động.");
 
+        var remainingAmount = goal.TargetAmount - goal.CurrentAmount;
+        if (request.Amount > remainingAmount)
+            return ApplicationServiceResult<GoalResponse>.Conflict(
+                $"Mục tiêu chỉ còn thiếu {remainingAmount:N0} đ.");
         var funding = GoalFundingRules.Calculate(goal.TargetAmount, goal.CurrentAmount, request.Amount);
         if (funding.WasAlreadyFunded)
             return ApplicationServiceResult<GoalResponse>.Conflict("This goal is already fully funded.");
         var appliedAmount = funding.AppliedAmount;
-        var available = await CalculateAvailableBalance(cancellationToken);
-        if (appliedAmount > available.AvailableAmount)
-            return ApplicationServiceResult<GoalResponse>.Conflict(
-                $"Số dư khả dụng không đủ. Hiện còn {available.AvailableAmount:N0} đ.");
-
         goal.CurrentAmount = funding.BalanceAfter;
         goal.Status = goal.CurrentAmount == goal.TargetAmount
             ? GoalStatus.READY_TO_COMPLETE : GoalStatus.ACTIVE;
@@ -232,24 +231,8 @@ public sealed class GoalsApplicationService(AppDbContext db, IUserContext userCo
         if (goal.Status != GoalStatus.READY_TO_COMPLETE || goal.CurrentAmount != goal.TargetAmount)
             return ApplicationServiceResult<GoalResponse>.Conflict(
                 "Mục tiêu chưa tích lũy đủ hoặc đã được xử lý.");
-        var category = await FinanceDatabaseLocks.GetOwnedCategoryForReferenceAsync(
-            db, request.CategoryId, userContext.UserId, cancellationToken);
-        if (category is null || category.Type != TransactionType.EXPENSE)
-            return ApplicationServiceResult<GoalResponse>.BadRequest(
-                "Vui lòng chọn một danh mục chi tiêu hợp lệ.");
-
-        var completion = new Transaction
-        {
-            UserId = userContext.UserId, CategoryId = category.Id, Category = category,
-            Amount = goal.CurrentAmount, Type = TransactionType.EXPENSE,
-            TransactionDate = request.TransactionDate, Note = string.IsNullOrWhiteSpace(request.Note)
-                ? $"Hoàn thành mục tiêu: {goal.Name}" : request.Note.Trim(),
-            GoalId = goal.Id, Goal = goal
-        };
         goal.Status = GoalStatus.COMPLETED;
         goal.CompletedAt = DateTime.UtcNow;
-        goal.CompletionTransaction = completion;
-        db.Transactions.Add(completion);
         db.GoalHistories.Add(new GoalHistory
         {
             GoalId = goal.Id, Goal = goal, AmountAdded = 0, BalanceAfter = goal.CurrentAmount,

@@ -97,6 +97,50 @@ public sealed class FinancialControllerBehaviorTests
     }
 
     [Fact]
+    public async Task Transaction_create_returns_non_blocking_budget_alert()
+    {
+        await using var db = TestSupport.CreateDb();
+        var owner = User("budget-alert");
+        var expense = Category(owner, "Food", TransactionType.EXPENSE);
+        db.AddRange(owner, expense);
+        db.Budgets.Add(new Budget
+        {
+            UserId = owner.Id,
+            User = owner,
+            CategoryId = expense.Id,
+            Category = expense,
+            Amount = 50_000,
+            MonthYear = "2026-08"
+        });
+        db.Transactions.Add(Transaction(
+            owner, expense, 35_000, new DateOnly(2026, 8, 2)));
+        await db.SaveChangesAsync();
+        var controller = WithHttpContext(
+            new TransactionsController(new ExpenseManager.Api.Services.TransactionsApplicationService(
+                db, new TestUserContext(owner.Id))));
+
+        var result = await controller.Create(
+            new TransactionRequest(
+                20_000,
+                TransactionType.EXPENSE,
+                new DateOnly(2026, 8, 16),
+                expense.Id,
+                null,
+                null),
+            CancellationToken.None);
+
+        var response = Assert.IsType<TransactionResponse>(
+            Assert.IsType<ObjectResult>(result.Result).Value);
+        Assert.NotNull(response.BudgetAlert);
+        Assert.Equal(BudgetAlertLevel.EXCEEDED, response.BudgetAlert.Level);
+        Assert.Equal(50_000, response.BudgetAlert.BudgetAmount);
+        Assert.Equal(55_000, response.BudgetAlert.SpentAmount);
+        Assert.Equal(5_000, response.BudgetAlert.ExceededAmount);
+        Assert.Equal(110, response.BudgetAlert.UsagePercent);
+        Assert.Equal(2, await db.Transactions.CountAsync());
+    }
+
+    [Fact]
     public async Task Statistics_calculate_balances_and_exclude_other_users()
     {
         await using var db = TestSupport.CreateDb();
@@ -111,6 +155,40 @@ public sealed class FinancialControllerBehaviorTests
             Transaction(owner, ownerExpense, 250_000, new DateOnly(2026, 7, 1)),
             Transaction(owner, ownerExpense, 100_000, new DateOnly(2026, 7, 2)),
             Transaction(anotherUser, foreignExpense, 9_000_000, new DateOnly(2026, 7, 1)));
+        var ownerGoal = new Goal
+        {
+            UserId = owner.Id,
+            User = owner,
+            Name = "Laptop",
+            TargetAmount = 5_000_000,
+            CurrentAmount = 200_000
+        };
+        var foreignGoal = new Goal
+        {
+            UserId = anotherUser.Id,
+            User = anotherUser,
+            Name = "Foreign goal",
+            TargetAmount = 9_000_000,
+            CurrentAmount = 9_000_000
+        };
+        db.Goals.AddRange(ownerGoal, foreignGoal);
+        db.GoalHistories.AddRange(
+            new GoalHistory
+            {
+                Goal = ownerGoal,
+                GoalId = ownerGoal.Id,
+                AmountAdded = 200_000,
+                ActionType = GoalHistoryActionType.FUND,
+                Date = new DateTime(2026, 7, 10, 3, 0, 0, DateTimeKind.Utc)
+            },
+            new GoalHistory
+            {
+                Goal = foreignGoal,
+                GoalId = foreignGoal.Id,
+                AmountAdded = 9_000_000,
+                ActionType = GoalHistoryActionType.FUND,
+                Date = new DateTime(2026, 7, 10, 3, 0, 0, DateTimeKind.Utc)
+            });
         await db.SaveChangesAsync();
         var controller = new StatisticsController(
             new ExpenseManager.Api.Services.StatisticsApplicationService(
@@ -149,7 +227,8 @@ public sealed class FinancialControllerBehaviorTests
             Assert.IsType<OkObjectResult>(monthlyResult.Result).Value));
         Assert.Equal(1_000_000, monthly.Income);
         Assert.Equal(350_000, monthly.Expense);
-        Assert.Equal(650_000, monthly.Balance);
+        Assert.Equal(200_000, monthly.Savings);
+        Assert.Equal(450_000, monthly.Balance);
 
         var categories = Assert.IsAssignableFrom<IEnumerable<CategoryStatisticResponse>>(
             Assert.IsType<OkObjectResult>(categoryResult.Result).Value).ToList();

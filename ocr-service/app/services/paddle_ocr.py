@@ -71,6 +71,10 @@ class PaddleOCREngine:
                     options["text_recognition_model_dir"] = str(
                         self.settings.recognition_model_dir
                     )
+                if self.settings.recognition_model_name is not None:
+                    options["text_recognition_model_name"] = (
+                        self.settings.recognition_model_name
+                    )
                 self._model = PaddleOCR(**options)
             except Exception as exc:
                 raise OCRExecutionError(

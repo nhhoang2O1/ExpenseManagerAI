@@ -103,8 +103,13 @@ public sealed class TransactionsApplicationService(AppDbContext db, IUserContext
             Note = Clean(request.Note),
             StoreName = Clean(request.StoreName)
         };
+        var budgetAlert = request.Type == TransactionType.EXPENSE
+            ? await BudgetAlertService.EvaluateProjectedAsync(
+                db, userContext.UserId, category.Id, request.TransactionDate,
+                request.Amount, null, cancellationToken)
+            : null;
         db.Transactions.Add(transaction);
-        var response = transaction.ToResponse();
+        var response = transaction.ToResponse(budgetAlert);
         IdempotencySupport.Add(db, userContext.UserId, idempotency,
             StatusCodes.Status201Created, response);
         try
@@ -155,6 +160,12 @@ public sealed class TransactionsApplicationService(AppDbContext db, IUserContext
             return ApplicationServiceResult<TransactionResponse>.BadRequest(
                 "Loại giao dịch phải khớp với danh mục.");
 
+        var budgetAlert = request.Type == TransactionType.EXPENSE
+            ? await BudgetAlertService.EvaluateProjectedAsync(
+                db, userContext.UserId, category.Id, request.TransactionDate,
+                request.Amount, transaction.Id, cancellationToken)
+            : null;
+
         transaction.Amount = request.Amount;
         transaction.Type = request.Type;
         transaction.TransactionDate = request.TransactionDate;
@@ -173,7 +184,7 @@ public sealed class TransactionsApplicationService(AppDbContext db, IUserContext
         if (databaseTransaction is not null)
             await databaseTransaction.CommitAsync(cancellationToken);
         return ApplicationServiceResult<TransactionResponse>.Ok(
-            transaction.ToResponse(), transaction.Version);
+            transaction.ToResponse(budgetAlert), transaction.Version);
     }
 
     public async Task<ApplicationServiceResult<object?>> DeleteAsync(
