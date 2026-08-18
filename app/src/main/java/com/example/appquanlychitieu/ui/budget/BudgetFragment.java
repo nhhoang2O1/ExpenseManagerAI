@@ -154,12 +154,23 @@ public class BudgetFragment extends Fragment {
         MaterialAutoCompleteTextView dropdown = content.findViewById(R.id.dropdown_category);
         TextInputEditText amount = content.findViewById(R.id.et_amount);
         TextInputLayout amountLayout = content.findViewById(R.id.layout_amount);
+        TextInputLayout customCategoryLayout = content.findViewById(R.id.layout_custom_category);
+        TextInputEditText customCategory = content.findViewById(R.id.et_custom_category);
         ArrayAdapter<CategoryDto> categoriesAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_dropdown_item_1line, categories);
         dropdown.setAdapter(categoriesAdapter);
         final CategoryDto[] selected = {categories.get(0)};
         dropdown.setText(selected[0].toString(), false);
-        dropdown.setOnItemClickListener((parent, view, position, id) -> selected[0] = categories.get(position));
+        boolean initialIsOther = selected[0].name != null
+                && "khác".equalsIgnoreCase(selected[0].name.trim());
+        customCategoryLayout.setVisibility(initialIsOther ? View.VISIBLE : View.GONE);
+        dropdown.setOnItemClickListener((parent, view, position, id) -> {
+            selected[0] = categories.get(position);
+            boolean isOther = selected[0].name != null
+                    && "khác".equalsIgnoreCase(selected[0].name.trim());
+            customCategoryLayout.setVisibility(isOther ? View.VISIBLE : View.GONE);
+            if (!isOther) customCategory.setText("");
+        });
         amount.setKeyListener(android.text.method.DigitsKeyListener.getInstance("0123456789.,"));
         amount.addTextChangedListener(new NumberTextWatcher(amount));
 
@@ -183,20 +194,46 @@ public class BudgetFragment extends Fragment {
                         amountLayout.setError(getString(R.string.amount_must_be_positive));
                         return;
                     }
+                    boolean isOther = selected[0].name != null
+                            && "khác".equalsIgnoreCase(selected[0].name.trim());
+                    String customName = customCategory.getText() == null ? ""
+                            : customCategory.getText().toString().trim();
+                    if (isOther && customName.isEmpty()) {
+                        customCategoryLayout.setError("Vui lòng nhập tên danh mục");
+                        return;
+                    }
                     int[] month = viewModel.getSelectedMonthYear().getValue();
                     if (month == null) return;
                     java.time.LocalDate cycleStart = FinancialCycleUtils.cycleStartForMonth(
                             month[0], month[1], new com.example.appquanlychitieu.util.SessionManager(requireContext()).getFinancialCycleStartDay());
                     String key = String.format(Locale.ROOT, "%04d-%02d", cycleStart.getYear(), cycleStart.getMonthValue());
-                    Budget budget = new Budget(selected[0].id.hashCode(), value, key, viewModel.getUserId());
-                    budget.setRemoteCategoryId(selected[0].id);
-                    budget.setRemoteCategoryName(selected[0].name);
-                    budget.setRemoteCategoryColor(selected[0].color);
-                    budget.setRemoteCategoryIcon(selected[0].icon);
-                    viewModel.insertBudget(budget);
-                    dialog.dismiss();
+                    final String budgetKey = key;
+                    final long budgetAmount = value;
+                    if (isOther) {
+                        viewModel.createCategory(customName, new com.example.appquanlychitieu.data.remote.RemoteCallback<CategoryDto>() {
+                            @Override public void onSuccess(CategoryDto category) {
+                                createBudget(category, budgetAmount, budgetKey);
+                                dialog.dismiss();
+                            }
+                            @Override public void onError(com.example.appquanlychitieu.data.remote.ApiError error) {
+                                customCategoryLayout.setError(error.getMessage());
+                            }
+                        });
+                    } else {
+                        createBudget(selected[0], budgetAmount, budgetKey);
+                        dialog.dismiss();
+                    }
                 }));
         dialog.show();
+    }
+
+    private void createBudget(CategoryDto category, long amount, String key) {
+        Budget budget = new Budget(category.id.hashCode(), amount, key, viewModel.getUserId());
+        budget.setRemoteCategoryId(category.id);
+        budget.setRemoteCategoryName(category.name);
+        budget.setRemoteCategoryColor(category.color);
+        budget.setRemoteCategoryIcon(category.icon);
+        viewModel.insertBudget(budget);
     }
 
     private void showEditBudgetDialog(Budget budget) {

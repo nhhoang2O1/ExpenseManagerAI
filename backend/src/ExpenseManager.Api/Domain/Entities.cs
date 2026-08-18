@@ -75,6 +75,7 @@ public sealed class Category
     public TransactionType Type { get; set; }
     public string? Color { get; set; }
     public string? Icon { get; set; }
+    public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public long Version { get; set; } = 1;
     public User User { get; set; } = null!;

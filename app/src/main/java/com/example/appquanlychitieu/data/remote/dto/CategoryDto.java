@@ -7,6 +7,7 @@ public class CategoryDto {
     public String color;
     public String icon;
     public long version = 1L;
+    public boolean isActive = true;
 
     @Override
     public String toString() {

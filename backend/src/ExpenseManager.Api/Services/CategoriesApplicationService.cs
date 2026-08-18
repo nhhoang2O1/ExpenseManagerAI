@@ -23,7 +23,7 @@ public sealed class CategoriesApplicationService(AppDbContext db, IUserContext u
         var items = await db.Categories.AsNoTracking()
             .Where(x => x.UserId == userContext.UserId)
             .OrderBy(x => x.Type).ThenBy(x => x.Name)
-            .Select(x => new CategoryResponse(x.Id, x.Name, x.Type, x.Color, x.Icon, x.Version))
+            .Select(x => new CategoryResponse(x.Id, x.Name, x.Type, x.Color, x.Icon, x.Version, x.IsActive))
             .ToListAsync(cancellationToken);
         IReadOnlyList<CategoryResponse> result = items;
         return ApplicationServiceResult<IReadOnlyList<CategoryResponse>>.Ok(result);
@@ -49,7 +49,8 @@ public sealed class CategoriesApplicationService(AppDbContext db, IUserContext u
             Name = name,
             Type = request.Type,
             Color = CategoryRules.NormalizeOptionalText(request.Color),
-            Icon = CategoryRules.NormalizeOptionalText(request.Icon)
+            Icon = CategoryRules.NormalizeOptionalText(request.Icon),
+            IsActive = request.IsActive
         };
         db.Categories.Add(category);
         try
@@ -100,6 +101,7 @@ public sealed class CategoriesApplicationService(AppDbContext db, IUserContext u
         category.Type = request.Type;
         category.Color = CategoryRules.NormalizeOptionalText(request.Color);
         category.Icon = CategoryRules.NormalizeOptionalText(request.Icon);
+        category.IsActive = request.IsActive;
         try
         {
             await db.SaveChangesAsync(cancellationToken);

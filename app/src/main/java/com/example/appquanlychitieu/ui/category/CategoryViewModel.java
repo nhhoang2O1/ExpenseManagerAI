@@ -31,7 +31,7 @@ public final class CategoryViewModel extends AndroidViewModel {
     public CategoryViewModel(@NonNull Application application) {
         super(application);
         repository = new RemoteCategoryRepository(application);
-        refresh();
+        refreshIncludingInactive();
     }
 
     public LiveData<List<CategoryDto>> getCategories() { return categories; }
@@ -46,6 +46,15 @@ public final class CategoryViewModel extends AndroidViewModel {
         });
     }
 
+    public void refreshIncludingInactive() {
+        repository.getCategories(null, new RemoteCallback<List<CategoryDto>>() {
+            @Override public void onSuccess(List<CategoryDto> value) {
+                categories.setValue(value == null ? new ArrayList<>() : value);
+            }
+            @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }
+        }, true);
+    }
+
     public void save(CategoryDto existing, String name, String type, String icon) {
         String color = existing == null ? chooseUnusedColor() : existing.color;
         if (color == null) {
@@ -54,7 +63,7 @@ public final class CategoryViewModel extends AndroidViewModel {
         }
         CategoryRequestDto request = new CategoryRequestDto(name, type,
                 color,
-                icon);
+                icon, existing == null || existing.isActive);
         RemoteCallback<CategoryDto> callback = new RemoteCallback<CategoryDto>() {
             @Override public void onSuccess(CategoryDto value) { refresh(); }
             @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }
@@ -84,6 +93,16 @@ public final class CategoryViewModel extends AndroidViewModel {
     public void delete(CategoryDto category) {
         repository.delete(category, new RemoteCallback<Void>() {
             @Override public void onSuccess(Void value) { refresh(); }
+            @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }
+        });
+    }
+
+    public void setActive(CategoryDto category, boolean active) {
+        if (category == null) return;
+        CategoryRequestDto request = new CategoryRequestDto(category.name, category.type,
+                category.color, category.icon, active);
+        repository.update(category, request, new RemoteCallback<CategoryDto>() {
+            @Override public void onSuccess(CategoryDto value) { refreshIncludingInactive(); }
             @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }
         });
     }

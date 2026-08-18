@@ -7,7 +7,7 @@ namespace ExpenseManager.Api.Infrastructure;
 public static class Mappings
 {
     public static CategoryResponse ToResponse(this Category category) =>
-        new(category.Id, category.Name, category.Type, category.Color, category.Icon, category.Version);
+        new(category.Id, category.Name, category.Type, category.Color, category.Icon, category.Version, category.IsActive);
 
     public static TransactionResponse ToResponse(
         this Domain.Transaction transaction,

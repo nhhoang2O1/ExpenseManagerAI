@@ -104,7 +104,7 @@ public class RemoteTransactionRepository {
                     List<CategoryDto> categories = new ArrayList<>();
                     for (JsonElement item : resolveArray(response.body())) {
                         CategoryDto category = gson.fromJson(item, CategoryDto.class);
-                        if (type == null || type.equalsIgnoreCase(category.type)) {
+                        if ((type == null || type.equalsIgnoreCase(category.type)) && category.isActive) {
                             categories.add(category);
                         }
                     }

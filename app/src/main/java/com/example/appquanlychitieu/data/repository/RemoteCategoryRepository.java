@@ -29,6 +29,10 @@ public final class RemoteCategoryRepository {
     }
 
     public void getCategories(String type, RemoteCallback<List<CategoryDto>> callback) {
+        getCategories(type, callback, false);
+    }
+
+    public void getCategories(String type, RemoteCallback<List<CategoryDto>> callback, boolean includeInactive) {
         apiService.getCategories().enqueue(new Callback<JsonElement>() {
             @Override
             public void onResponse(Call<JsonElement> call, Response<JsonElement> response) {
@@ -40,7 +44,8 @@ public final class RemoteCategoryRepository {
                     List<CategoryDto> result = new ArrayList<>();
                     for (JsonElement item : resolveArray(response.body())) {
                         CategoryDto category = gson.fromJson(item, CategoryDto.class);
-                        if (type == null || type.equalsIgnoreCase(category.type)) result.add(category);
+                        if ((type == null || type.equalsIgnoreCase(category.type))
+                                && (includeInactive || category.isActive)) result.add(category);
                     }
                     callback.onSuccess(result);
                 } catch (RuntimeException exception) {

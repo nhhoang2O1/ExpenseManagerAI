@@ -32,6 +32,17 @@
             android:textAppearance="@style/TextAppearance.App.SectionTitle" />
 
         <ImageButton
+            android:id="@+id/btn_toggle_category"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/toggle_category"
+            android:focusable="false"
+            android:padding="12dp"
+            android:src="@drawable/ic_visibility_off"
+            app:tint="@color/primary" />
+
+        <ImageButton
             android:id="@+id/btn_delete_category"
             android:layout_width="48dp"
             android:layout_height="48dp"

@@ -12,6 +12,7 @@ import com.example.appquanlychitieu.data.model.CategorySummary;
 import com.example.appquanlychitieu.data.remote.ApiError;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.CategoryDto;
+import com.example.appquanlychitieu.data.remote.dto.CategoryRequestDto;
 import com.example.appquanlychitieu.data.repository.RemoteBudgetRepository;
 import com.example.appquanlychitieu.data.repository.RemoteCategoryRepository;
 import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
@@ -92,6 +93,10 @@ public class BudgetViewModel extends AndroidViewModel {
             }
             @Override public void onError(ApiError apiError) { error.setValue(apiError.getMessage()); }
         });
+    }
+
+    public void createCategory(String name, RemoteCallback<CategoryDto> callback) {
+        categoryRepository.create(new CategoryRequestDto(name, "EXPENSE", "#607D8B", "other"), callback);
     }
 
     public void loadSpent(int year, int monthIndex) {

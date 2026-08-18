@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.HashSet;
+import java.util.Set;
 
 public class StatisticsFragment extends Fragment {
     private StatisticsViewModel viewModel;
@@ -123,10 +125,14 @@ public class StatisticsFragment extends Fragment {
 
         List<PieEntry> entries = new ArrayList<>();
         List<Integer> colors = new ArrayList<>();
+        Set<Integer> customColors = new HashSet<>();
         for (CategorySummary summary : summaries) {
             entries.add(new PieEntry((float) summary.getTotalAmount(), summary.getCategoryName()));
-            int color = CategoryVisualResolver.resolveChartColor(
-                    String.valueOf(summary.getCategoryId()), summary.getCategoryColor());
+            int color = CategoryVisualResolver.isDefaultCategoryName(summary.getCategoryName())
+                    ? CategoryVisualResolver.resolveChartColor(
+                    String.valueOf(summary.getCategoryId()), summary.getCategoryColor())
+                    : CategoryVisualResolver.resolveCustomChartColor(
+                    String.valueOf(summary.getCategoryId()), customColors);
             colors.add(color);
             View item = LayoutInflater.from(requireContext()).inflate(
                     R.layout.item_category_summary, categoryList, false);

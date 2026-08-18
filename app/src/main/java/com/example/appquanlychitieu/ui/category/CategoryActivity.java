@@ -106,12 +106,19 @@ public final class CategoryActivity extends AppCompatActivity {
 
                 CategoryDto item = getItem(position);
                 holder.name.setText(item == null ? "" : item.name);
+                if (item != null && !item.isActive) {
+                    holder.name.setText(item.name + " (Đã ẩn)");
+                    holder.name.setAlpha(0.55f);
+                } else {
+                    holder.name.setAlpha(1f);
+                }
                 int iconSize = Math.round(24 * getResources().getDisplayMetrics().density);
                 Drawable icon = CategoryVisualResolver.resolveIconDrawable(
                         CategoryActivity.this, item == null ? null : item.icon, iconSize);
                 holder.icon.setImageDrawable(icon);
                 row.setOnClickListener(v -> showEditor(item));
                 holder.delete.setOnClickListener(v -> confirmDelete(item));
+                holder.toggle.setOnClickListener(v -> viewModel.setActive(item, item == null || !item.isActive));
                 return row;
             }
         };
@@ -224,11 +231,13 @@ public final class CategoryActivity extends AppCompatActivity {
         final ImageView icon;
         final TextView name;
         final ImageButton delete;
+        final ImageButton toggle;
 
         RowHolder(View row) {
             icon = row.findViewById(R.id.iv_category_icon);
             name = row.findViewById(R.id.tv_category_name);
             delete = row.findViewById(R.id.btn_delete_category);
+            toggle = row.findViewById(R.id.btn_toggle_category);
         }
     }
 

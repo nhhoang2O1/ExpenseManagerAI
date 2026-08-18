@@ -20,6 +20,7 @@ import androidx.core.graphics.ColorUtils;
 import com.example.appquanlychitieu.R;
 
 import java.util.Locale;
+import java.util.Set;
 
 public final class CategoryVisualResolver {
     private static final String EMOJI_PREFIX = "emoji:";
@@ -32,6 +33,11 @@ public final class CategoryVisualResolver {
             0xFF0891B2,
             0xFFBE185D,
             0xFF475569
+    };
+    private static final int[] CUSTOM_CHART_COLORS = {
+            0xFF0F766E, 0xFFDB2777, 0xFF7C3AED, 0xFF0284C7,
+            0xFF65A30D, 0xFFB45309, 0xFF9333EA, 0xFF0E7490,
+            0xFFC026D3, 0xFF15803D
     };
 
     private CategoryVisualResolver() {}
@@ -52,6 +58,26 @@ public final class CategoryVisualResolver {
     @ColorInt
     public static int resolveChartColor(String categoryId, String rawColor) {
         return parseColor(rawColor, fallback(categoryId));
+    }
+
+    public static int resolveCustomChartColor(String categoryId, Set<Integer> usedColors) {
+        int start = Math.floorMod(categoryId == null ? 0 : categoryId.hashCode(),
+                CUSTOM_CHART_COLORS.length);
+        for (int offset = 0; offset < CUSTOM_CHART_COLORS.length; offset++) {
+            int candidate = CUSTOM_CHART_COLORS[(start + offset) % CUSTOM_CHART_COLORS.length];
+            if (usedColors == null || usedColors.add(candidate)) return candidate;
+        }
+        return CUSTOM_CHART_COLORS[start];
+    }
+
+    public static boolean isDefaultCategoryName(String name) {
+        if (name == null) return false;
+        String value = name.trim().toLowerCase(Locale.ROOT);
+        return value.equals("ăn uống") || value.equals("di chuyển") || value.equals("mua sắm")
+                || value.equals("nhà ở") || value.equals("giải trí") || value.equals("sức khỏe")
+                || value.equals("giáo dục") || value.equals("hóa đơn") || value.equals("khác")
+                || value.equals("lương") || value.equals("quà tặng") || value.equals("đầu tư")
+                || value.equals("làm thêm");
     }
 
     public static int resolveIcon(String rawIcon) {

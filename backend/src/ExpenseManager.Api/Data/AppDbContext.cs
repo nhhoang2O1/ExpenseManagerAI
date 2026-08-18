@@ -34,6 +34,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Email).HasMaxLength(320);
             entity.Property(x => x.PasswordHash).HasMaxLength(500);
             entity.Property(x => x.IsEmailVerified).HasDefaultValue(false);
+            
             entity.Property(x => x.FinancialCycleStartDay).HasDefaultValue(1);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
         });
@@ -49,6 +50,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Color).HasMaxLength(20);
             entity.Property(x => x.Icon).HasMaxLength(50);
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Categories)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);

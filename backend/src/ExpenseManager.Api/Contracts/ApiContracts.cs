@@ -31,11 +31,12 @@ public sealed record CategoryRequest(
     [Required, StringLength(100)] string Name,
     TransactionType Type,
     [StringLength(20)] string? Color,
-    [StringLength(50)] string? Icon);
+    [StringLength(50)] string? Icon,
+    bool IsActive = true);
 
 public sealed record CategoryResponse(
     Guid Id, string Name, TransactionType Type, string? Color, string? Icon,
-    long Version = 1);
+    long Version = 1, bool IsActive = true);
 
 public sealed record TransactionRequest(
     [Range(1, long.MaxValue)] long Amount,

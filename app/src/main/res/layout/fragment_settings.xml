@@ -112,7 +112,8 @@
                         android:layout_weight="1"
                         android:text="@string/dark_mode"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp" />
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
                     <com.google.android.material.switchmaterial.SwitchMaterial
                         android:id="@+id/switch_dark_mode"
                         android:layout_width="wrap_content"
@@ -231,7 +232,8 @@
                         android:layout_marginStart="14dp"
                         android:layout_weight="1"
                         android:text="@string/manage_reminders"
-                        android:textColor="@color/text_primary" />
+                        android:textColor="@color/text_primary"
+                        android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
