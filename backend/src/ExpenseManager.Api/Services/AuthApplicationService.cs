@@ -142,7 +142,7 @@ public sealed class AuthApplicationService(
             throw new InvalidOperationException("Auth session service is not configured.");
         return Task.FromResult(new AuthSessionResponse(
             legacyTokenService.Create(user), string.Empty, 900,
-            new UserResponse(user.Id, user.Name, user.Email)));
+            new UserResponse(user.Id, user.Name, user.Email, user.FinancialCycleStartDay)));
     }
 
     private async Task SendRegistrationCodeAsync(User user, CancellationToken cancellationToken)

@@ -33,10 +33,14 @@ public sealed record ProfileResponse(
     Guid Id,
     string Name,
     string Email,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    int FinancialCycleStartDay = 1);
 
 public sealed record UpdateProfileRequest(
     [Required, StringLength(100, MinimumLength = 2)] string Name);
+
+public sealed record UpdateFinancialCycleRequest(
+    [Range(1, 31)] int StartDay);
 
 public sealed record ChangePasswordRequest(
     [Required] string CurrentPassword,

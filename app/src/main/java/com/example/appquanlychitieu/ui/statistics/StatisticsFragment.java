@@ -22,6 +22,8 @@ import com.example.appquanlychitieu.ui.common.CategoryVisualResolver;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.util.CurrencyFormatter;
 import com.example.appquanlychitieu.util.DateUtils;
+import com.example.appquanlychitieu.util.FinancialCycleUtils;
+import com.example.appquanlychitieu.util.SessionManager;
 import com.github.mikephil.charting.charts.PieChart;
 import com.github.mikephil.charting.data.PieData;
 import com.github.mikephil.charting.data.PieDataSet;
@@ -181,7 +183,9 @@ public class StatisticsFragment extends Fragment {
 
     private void updateKpis(List<MonthlySummary> summaries) {
         MonthlySummary selected = null;
-        String key = String.format(Locale.ROOT, "%04d-%02d", selectedYear, selectedMonth + 1);
+        java.time.LocalDate cycleStart = FinancialCycleUtils.cycleStartForMonth(selectedYear, selectedMonth,
+                new SessionManager(requireContext()).getFinancialCycleStartDay());
+        String key = String.format(Locale.ROOT, "%04d-%02d", cycleStart.getYear(), cycleStart.getMonthValue());
         if (summaries != null) {
             for (MonthlySummary summary : summaries) {
                 if (key.equals(summary.getMonthYear())) { selected = summary; break; }

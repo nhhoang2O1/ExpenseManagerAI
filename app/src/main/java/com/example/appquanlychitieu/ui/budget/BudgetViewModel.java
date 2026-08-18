@@ -18,6 +18,7 @@ import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.ui.common.LatestRequest;
 import com.example.appquanlychitieu.util.SessionManager;
+import com.example.appquanlychitieu.util.FinancialCycleUtils;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
+import java.time.LocalDate;
 
 public class BudgetViewModel extends AndroidViewModel {
     private final RemoteBudgetRepository repository;
@@ -32,6 +34,7 @@ public class BudgetViewModel extends AndroidViewModel {
     private final RemoteStatisticsRepository statisticsRepository;
     private final long userId;
     private final boolean authenticated;
+    private final int financialCycleStartDay;
     private final MutableLiveData<int[]> selectedMonthYear = new MutableLiveData<>();
     private final MutableLiveData<List<Budget>> budgets = new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<LoadState> loadState = new MutableLiveData<>(LoadState.LOADING);
@@ -51,6 +54,7 @@ public class BudgetViewModel extends AndroidViewModel {
         SessionManager session = new SessionManager(application);
         userId = session.getUserId();
         authenticated = session.hasAuthToken();
+        financialCycleStartDay = session.getFinancialCycleStartDay();
         Calendar calendar = Calendar.getInstance();
         selectedMonthYear.setValue(new int[]{calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH)});
         refreshBudgets();
@@ -92,11 +96,10 @@ public class BudgetViewModel extends AndroidViewModel {
 
     public void loadSpent(int year, int monthIndex) {
         final int generation = spentRequests.begin();
-        String from = String.format(Locale.ROOT, "%04d-%02d-01", year, monthIndex + 1);
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(year, monthIndex, 1);
-        String to = String.format(Locale.ROOT, "%04d-%02d-%02d", year, monthIndex + 1,
-                calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
+        LocalDate cycleStart = FinancialCycleUtils.cycleStartForMonth(year, monthIndex, financialCycleStartDay);
+        LocalDate cycleEnd = FinancialCycleUtils.endFor(cycleStart, financialCycleStartDay);
+        String from = cycleStart.toString();
+        String to = cycleEnd.toString();
         statisticsRepository.getCategorySummary(from, to,
                 new RemoteCallback<List<CategorySummary>>() {
                     @Override public void onSuccess(List<CategorySummary> value) {
@@ -158,7 +161,8 @@ public class BudgetViewModel extends AndroidViewModel {
         int[] month = selectedMonthYear.getValue();
         if (month == null) return;
         if (!hasLoaded) loadState.setValue(LoadState.LOADING);
-        String key = String.format(Locale.ROOT, "%04d-%02d", month[0], month[1] + 1);
+        LocalDate cycleStart = FinancialCycleUtils.cycleStartForMonth(month[0], month[1], financialCycleStartDay);
+        String key = String.format(Locale.ROOT, "%04d-%02d", cycleStart.getYear(), cycleStart.getMonthValue());
         final int generation = budgetRequests.begin();
         repository.getBudgets(key, userId, new RemoteCallback<List<Budget>>() {
             @Override

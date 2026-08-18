@@ -22,6 +22,7 @@ import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.ui.planning.PlanningFragment;
 import com.example.appquanlychitieu.util.CurrencyFormatter;
 import com.example.appquanlychitieu.util.DateUtils;
+import com.example.appquanlychitieu.util.FinancialCycleUtils;
 import com.example.appquanlychitieu.util.NumberTextWatcher;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
@@ -184,7 +185,9 @@ public class BudgetFragment extends Fragment {
                     }
                     int[] month = viewModel.getSelectedMonthYear().getValue();
                     if (month == null) return;
-                    String key = String.format(Locale.ROOT, "%04d-%02d", month[0], month[1] + 1);
+                    java.time.LocalDate cycleStart = FinancialCycleUtils.cycleStartForMonth(
+                            month[0], month[1], new com.example.appquanlychitieu.util.SessionManager(requireContext()).getFinancialCycleStartDay());
+                    String key = String.format(Locale.ROOT, "%04d-%02d", cycleStart.getYear(), cycleStart.getMonthValue());
                     Budget budget = new Budget(selected[0].id.hashCode(), value, key, viewModel.getUserId());
                     budget.setRemoteCategoryId(selected[0].id);
                     budget.setRemoteCategoryName(selected[0].name);

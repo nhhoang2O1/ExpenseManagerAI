@@ -13,6 +13,7 @@ public class SessionManager {
     private static final String KEY_USER_EMAIL = "user_email";
     private static final String KEY_REMEMBER_ME = "remember_me";
     private static final String KEY_REMOTE_USER_ID = "remote_user_id";
+    private static final String KEY_FINANCIAL_CYCLE_START_DAY = "financial_cycle_start_day";
 
     private final SharedPreferences prefs;
     private final SharedPreferences.Editor editor;
@@ -42,7 +43,7 @@ public class SessionManager {
             String token) {
         createRemoteLoginSession(
                 cacheUserId, remoteUserId, name, email, rememberMe,
-                token, null, 0);
+                token, null, 0, 1);
     }
 
     public void createRemoteLoginSession(
@@ -54,8 +55,23 @@ public class SessionManager {
             String accessToken,
             String refreshToken,
             int expiresIn) {
+        createRemoteLoginSession(cacheUserId, remoteUserId, name, email, rememberMe,
+                accessToken, refreshToken, expiresIn, 1);
+    }
+
+    public void createRemoteLoginSession(
+            long cacheUserId,
+            String remoteUserId,
+            String name,
+            String email,
+            boolean rememberMe,
+            String accessToken,
+            String refreshToken,
+            int expiresIn,
+            int financialCycleStartDay) {
         createLoginSession(cacheUserId, name, email, rememberMe);
         editor.putString(KEY_REMOTE_USER_ID, remoteUserId == null ? "" : remoteUserId).apply();
+        setFinancialCycleStartDay(financialCycleStartDay);
         if (refreshToken != null && !refreshToken.trim().isEmpty()) {
             tokenStore.savePair(accessToken, refreshToken, expiresIn);
         } else {
@@ -86,6 +102,15 @@ public class SessionManager {
 
     public String getRemoteUserId() {
         return prefs.getString(KEY_REMOTE_USER_ID, "");
+    }
+
+    public int getFinancialCycleStartDay() {
+        return Math.max(1, Math.min(31,
+                prefs.getInt(KEY_FINANCIAL_CYCLE_START_DAY, 1)));
+    }
+
+    public void setFinancialCycleStartDay(int day) {
+        editor.putInt(KEY_FINANCIAL_CYCLE_START_DAY, Math.max(1, Math.min(31, day))).apply();
     }
 
     public void updateIdentity(String name, String email) {

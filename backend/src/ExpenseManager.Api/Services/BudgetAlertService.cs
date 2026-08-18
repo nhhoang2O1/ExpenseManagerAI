@@ -16,7 +16,14 @@ public static class BudgetAlertService
         Guid? excludedTransactionId,
         CancellationToken cancellationToken)
     {
-        var monthYear = $"{transactionDate.Year:0000}-{transactionDate.Month:00}";
+        var startDay = await db.Users.AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => x.FinancialCycleStartDay)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (!FinancialCycleRules.IsValidStartDay(startDay)) startDay = 1;
+        var cycleStart = FinancialCycleRules.StartFor(transactionDate, startDay);
+        var cycleEnd = FinancialCycleRules.EndFor(cycleStart, startDay);
+        var monthYear = $"{cycleStart.Year:0000}-{cycleStart.Month:00}";
         var budget = await db.Budgets.AsNoTracking()
             .Include(x => x.Category)
             .SingleOrDefaultAsync(
@@ -26,12 +33,10 @@ public static class BudgetAlertService
         if (budget is null)
             return null;
 
-        var start = new DateOnly(transactionDate.Year, transactionDate.Month, 1);
-        var end = start.AddMonths(1);
         var query = db.Transactions.AsNoTracking().Where(
             x => x.UserId == userId && x.CategoryId == categoryId &&
                  x.Type == TransactionType.EXPENSE &&
-                 x.TransactionDate >= start && x.TransactionDate < end);
+                 x.TransactionDate >= cycleStart && x.TransactionDate <= cycleEnd);
         if (excludedTransactionId.HasValue)
             query = query.Where(x => x.Id != excludedTransactionId.Value);
         var existingSpent = await query.SumAsync(x => (long?)x.Amount, cancellationToken) ?? 0L;

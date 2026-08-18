@@ -193,7 +193,8 @@ public class LoginActivity extends AppCompatActivity {
                         cbRememberMe.isChecked(),
                         response.resolvedToken(),
                         response.resolvedRefreshToken(),
-                        response.expiresIn);
+                        response.expiresIn,
+                        response.resolvedFinancialCycleStartDay());
                 Toast.makeText(LoginActivity.this, R.string.login_success, Toast.LENGTH_SHORT).show();
                 navigateToMain();
             }

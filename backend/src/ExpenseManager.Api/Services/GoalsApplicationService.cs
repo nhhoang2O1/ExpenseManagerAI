@@ -182,8 +182,15 @@ public sealed class GoalsApplicationService(AppDbContext db, IUserContext userCo
         if (selectedYear is < 2000 or > 2100 || selectedMonth is < 1 or > 12)
             return ApplicationServiceResult<AvailableBalanceResponse>.BadRequest(
                 "year hoặc month không hợp lệ.");
-        var start = new DateOnly(selectedYear, selectedMonth, 1);
-        var end = start.AddMonths(1);
+        var startDay = await db.Users.AsNoTracking()
+            .Where(x => x.Id == userContext.UserId)
+            .Select(x => x.FinancialCycleStartDay)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (!FinancialCycleRules.IsValidStartDay(startDay)) startDay = 1;
+        var start = FinancialCycleRules.StartFor(
+            new DateOnly(selectedYear, selectedMonth,
+                DateTime.DaysInMonth(selectedYear, selectedMonth)), startDay);
+        var end = FinancialCycleRules.EndFor(start, startDay).AddDays(1);
         var income = await db.Transactions.AsNoTracking().Where(
             x => x.UserId == userContext.UserId && x.Type == TransactionType.INCOME &&
                  x.TransactionDate >= start && x.TransactionDate < end)

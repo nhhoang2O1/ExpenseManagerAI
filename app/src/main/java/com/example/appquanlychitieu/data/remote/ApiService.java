@@ -21,6 +21,7 @@ import com.example.appquanlychitieu.data.remote.dto.ForgotPasswordRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ResetPasswordRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ProfileDto;
 import com.example.appquanlychitieu.data.remote.dto.UpdateProfileRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.UpdateFinancialCycleRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ChangePasswordRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.EmailChangeRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.EmailChangeConfirmRequestDto;
@@ -75,6 +76,9 @@ public interface ApiService {
 
     @PUT("api/account/profile")
     Call<ProfileDto> updateProfile(@Body UpdateProfileRequestDto request);
+
+    @PUT("api/account/financial-cycle")
+    Call<ProfileDto> updateFinancialCycle(@Body UpdateFinancialCycleRequestDto request);
 
     @POST("api/account/change-password")
     Call<Void> changePassword(@Body ChangePasswordRequestDto request);

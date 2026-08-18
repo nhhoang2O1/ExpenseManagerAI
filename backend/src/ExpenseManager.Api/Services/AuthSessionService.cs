@@ -229,7 +229,7 @@ public sealed class AuthSessionService(
             jwtTokenService.Create(user),
             rawRefreshToken,
             _accessTokenLifetimeSeconds,
-            new UserResponse(user.Id, user.Name, user.Email));
+            new UserResponse(user.Id, user.Name, user.Email, user.FinancialCycleStartDay));
 
     private static void Revoke(
         RefreshToken token,

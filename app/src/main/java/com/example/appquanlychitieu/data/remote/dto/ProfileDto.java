@@ -5,4 +5,5 @@ public class ProfileDto {
     public String name;
     public String email;
     public String createdAt;
+    public int financialCycleStartDay = 1;
 }

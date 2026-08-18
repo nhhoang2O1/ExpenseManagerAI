@@ -13,6 +13,7 @@ import android.widget.Toast;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.NumberPicker;
 import android.app.DatePickerDialog;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -110,6 +111,8 @@ public class SettingsFragment extends Fragment {
                 startActivity(new Intent(requireContext(), ReminderActivity.class)));
         view.findViewById(R.id.card_categories).setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), CategoryActivity.class)));
+        view.findViewById(R.id.card_financial_cycle).setOnClickListener(v ->
+                editFinancialCycleStartDay());
 
         cardLogout.setOnClickListener(v -> {
             new AlertDialog.Builder(requireContext())
@@ -142,6 +145,7 @@ public class SettingsFragment extends Fragment {
     private void applyProfile(ProfileDto profile) {
         if (!isAdded() || profile == null) return;
         sessionManager.updateIdentity(profile.name, profile.email);
+        sessionManager.setFinancialCycleStartDay(profile.financialCycleStartDay);
         tvUsername.setText(profile.name);
         tvEmail.setText(profile.email);
     }
@@ -154,6 +158,26 @@ public class SettingsFragment extends Fragment {
                     else if (which == 1) changePassword();
                     else deleteAccount();
                 }).show();
+    }
+
+    private void editFinancialCycleStartDay() {
+        NumberPicker picker = new NumberPicker(requireContext());
+        picker.setMinValue(1);
+        picker.setMaxValue(31);
+        picker.setValue(sessionManager.getFinancialCycleStartDay());
+        LinearLayout container = new LinearLayout(requireContext());
+        int padding = Math.round(24 * getResources().getDisplayMetrics().density);
+        container.setPadding(padding, 0, padding, 0);
+        container.addView(picker, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Ngày bắt đầu chu kỳ tài chính")
+                .setMessage("Nếu tháng không có ngày đã chọn, hệ thống sẽ dùng ngày cuối tháng.")
+                .setView(container)
+                .setPositiveButton(R.string.save, (dialog, which) ->
+                        viewModel.updateFinancialCycle(picker.getValue(), profileCallback()))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private EditText input(String hint, boolean password) {

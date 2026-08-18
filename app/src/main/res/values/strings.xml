@@ -231,6 +231,9 @@
     <string name="register_action">Đăng ký</string>
     <string name="forgot_password">Quên mật khẩu?</string>
     <string name="manage_categories">Quản lý danh mục</string>
+    <string name="financial_cycle">Ngày bắt đầu chu kỳ tài chính</string>
+    <string name="financial_cycle_summary">Chọn ngày nhận lương hoặc ngày bắt đầu tháng của bạn</string>
+    <string name="account_settings_hint">Cài đặt tài khoản</string>
     <string name="add_category">Thêm danh mục</string>
     <string name="add_expense_category">Thêm danh mục chi tiêu</string>
     <string name="add_income_category">Thêm danh mục thu nhập</string>

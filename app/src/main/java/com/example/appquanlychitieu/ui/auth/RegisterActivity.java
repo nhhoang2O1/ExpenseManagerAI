@@ -237,7 +237,8 @@ public class RegisterActivity extends AppCompatActivity {
                 sessionManager.createRemoteLoginSession(
                         stableCacheUserId(remoteId == null ? resolvedEmail : remoteId), remoteId,
                         resolvedName, resolvedEmail, true, response.resolvedToken(),
-                        response.resolvedRefreshToken(), response.expiresIn);
+                        response.resolvedRefreshToken(), response.expiresIn,
+                        response.resolvedFinancialCycleStartDay());
                 startActivity(new Intent(RegisterActivity.this, MainActivity.class)
                         .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
                 finish();

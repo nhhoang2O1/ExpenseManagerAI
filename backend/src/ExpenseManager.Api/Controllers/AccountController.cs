@@ -1,4 +1,5 @@
 using ExpenseManager.Api.Contracts;
+using ExpenseManager.Api.Domain;
 using ExpenseManager.Api.Infrastructure;
 using ExpenseManager.Api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -35,6 +36,18 @@ public sealed class AccountController(
             userContext.UserId,
             request.Name,
             cancellationToken);
+        return profile is null ? NotFound() : Ok(profile);
+    }
+
+    [HttpPut("financial-cycle")]
+    public async Task<ActionResult<ProfileResponse>> UpdateFinancialCycle(
+        UpdateFinancialCycleRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!FinancialCycleRules.IsValidStartDay(request.StartDay))
+            return BadRequest(new { message = "Ngày bắt đầu chu kỳ phải từ 1 đến 31." });
+        var profile = await accountSecurityService.UpdateFinancialCycleAsync(
+            userContext.UserId, request.StartDay, cancellationToken);
         return profile is null ? NotFound() : Ok(profile);
     }
 

@@ -38,6 +38,10 @@ public final class SettingsViewModel extends AndroidViewModel {
     public void updateProfile(String name, RemoteCallback<ProfileDto> callback) {
         account.updateProfile(name, callback);
     }
+
+    public void updateFinancialCycle(int startDay, RemoteCallback<ProfileDto> callback) {
+        account.updateFinancialCycle(startDay, callback);
+    }
     public void changePassword(String current, String next, RemoteCallback<Void> callback) {
         account.changePassword(current, next, callback);
     }

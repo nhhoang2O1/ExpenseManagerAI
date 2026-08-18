@@ -58,6 +58,10 @@ public interface IAccountSecurityService
         Guid userId,
         string name,
         CancellationToken cancellationToken);
+    Task<ProfileResponse?> UpdateFinancialCycleAsync(
+        Guid userId,
+        int startDay,
+        CancellationToken cancellationToken);
     Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken);
     Task<PasswordResetStatus> ResetPasswordAsync(
         string email,
@@ -103,7 +107,8 @@ public sealed class AccountSecurityService(
         CancellationToken cancellationToken) =>
         await db.Users.AsNoTracking()
             .Where(x => x.Id == userId)
-            .Select(x => new ProfileResponse(x.Id, x.Name, x.Email, x.CreatedAt))
+            .Select(x => new ProfileResponse(
+                x.Id, x.Name, x.Email, x.CreatedAt, x.FinancialCycleStartDay))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<ProfileResponse?> UpdateProfileAsync(
@@ -118,6 +123,17 @@ public sealed class AccountSecurityService(
             return null;
 
         user.Name = name.Trim();
+        await db.SaveChangesAsync(cancellationToken);
+        return ToProfile(user);
+    }
+
+    public async Task<ProfileResponse?> UpdateFinancialCycleAsync(
+        Guid userId, int startDay, CancellationToken cancellationToken)
+    {
+        if (!FinancialCycleRules.IsValidStartDay(startDay)) return null;
+        var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (user is null) return null;
+        user.FinancialCycleStartDay = startDay;
         await db.SaveChangesAsync(cancellationToken);
         return ToProfile(user);
     }
@@ -486,5 +502,5 @@ public sealed class AccountSecurityService(
         email.Trim().ToLowerInvariant();
 
     private static ProfileResponse ToProfile(User user) =>
-        new(user.Id, user.Name, user.Email, user.CreatedAt);
+        new(user.Id, user.Name, user.Email, user.CreatedAt, user.FinancialCycleStartDay);
 }

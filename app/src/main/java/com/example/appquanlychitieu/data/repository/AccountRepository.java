@@ -12,6 +12,7 @@ import com.example.appquanlychitieu.data.remote.dto.EmailChangeConfirmRequestDto
 import com.example.appquanlychitieu.data.remote.dto.EmailChangeRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ProfileDto;
 import com.example.appquanlychitieu.data.remote.dto.UpdateProfileRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.UpdateFinancialCycleRequestDto;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -28,6 +29,10 @@ public final class AccountRepository {
 
     public void updateProfile(String name, RemoteCallback<ProfileDto> callback) {
         enqueueProfile(api.updateProfile(new UpdateProfileRequestDto(name)), callback);
+    }
+
+    public void updateFinancialCycle(int startDay, RemoteCallback<ProfileDto> callback) {
+        enqueueProfile(api.updateFinancialCycle(new UpdateFinancialCycleRequestDto(startDay)), callback);
     }
 
     public void changePassword(String current, String next, RemoteCallback<Void> callback) {

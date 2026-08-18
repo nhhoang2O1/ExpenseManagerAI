@@ -16,7 +16,7 @@ public sealed record RegistrationConfirmationRequest(
     [Required, EmailAddress, StringLength(320)] string Email,
     [Required, RegularExpression("^[0-9]{6}$")] string Code);
 
-public sealed record UserResponse(Guid Id, string Name, string Email);
+public sealed record UserResponse(Guid Id, string Name, string Email, int FinancialCycleStartDay = 1);
 /// <summary>
 /// Base login/register response retained for older clients. The new
 /// AuthSessionResponse derives from it and adds the refresh-token pair.

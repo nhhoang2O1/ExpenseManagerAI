@@ -55,6 +55,7 @@ public sealed class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     /// <summary>Incremented whenever all access tokens must be invalidated.</summary>
     public int TokenVersion { get; set; }
+    public int FinancialCycleStartDay { get; set; } = 1;
     public long Version { get; set; } = 1;
     public ICollection<Category> Categories { get; set; } = [];
     public ICollection<Transaction> Transactions { get; set; } = [];

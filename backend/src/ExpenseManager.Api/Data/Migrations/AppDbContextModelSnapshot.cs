@@ -787,6 +787,12 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("FinancialCycleStartDay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("financial_cycle_start_day");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(320)
@@ -830,6 +836,7 @@ namespace ExpenseManager.Api.Data.Migrations
                     b.ToTable("users", t =>
                         {
                             t.HasCheckConstraint("ck_users_email_lowercase", "email = lower(email)");
+                            t.HasCheckConstraint("ck_users_financial_cycle_start_day", "financial_cycle_start_day BETWEEN 1 AND 31");
                         });
                 });
 

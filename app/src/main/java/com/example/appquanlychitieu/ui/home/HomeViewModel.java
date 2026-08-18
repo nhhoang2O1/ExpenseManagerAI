@@ -16,12 +16,13 @@ import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.data.repository.RemoteTransactionRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.util.DateUtils;
+import com.example.appquanlychitieu.util.FinancialCycleUtils;
 import com.example.appquanlychitieu.util.SessionManager;
 
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Comparator;
 import java.util.List;
+import java.time.LocalDate;
 
 /**
  * Home owns remote loading and derives only the day/recent presentation data.
@@ -33,6 +34,7 @@ public class HomeViewModel extends AndroidViewModel {
     private final RemoteStatisticsRepository statisticsRepository;
     private final long userId;
     private final boolean authenticated;
+    private final int financialCycleStartDay;
     private final MutableLiveData<Long> totalIncome = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> totalExpense = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> availableBalance = new MutableLiveData<>(0L);
@@ -58,6 +60,7 @@ public class HomeViewModel extends AndroidViewModel {
         SessionManager session = new SessionManager(application);
         userId = session.getUserId();
         authenticated = session.hasAuthToken();
+        financialCycleStartDay = session.getFinancialCycleStartDay();
         refreshRemoteTransactions();
     }
 
@@ -127,8 +130,9 @@ public class HomeViewModel extends AndroidViewModel {
             }
         });
 
-        Calendar now = Calendar.getInstance();
-        statisticsRepository.getMonthlySummary(now.get(Calendar.YEAR),
+        LocalDate today = LocalDate.now();
+        LocalDate cycleStart = FinancialCycleUtils.startFor(today, financialCycleStartDay);
+        statisticsRepository.getMonthlySummary(cycleStart.getYear(),
                 new RemoteCallback<List<MonthlySummary>>() {
                     @Override
                     public void onSuccess(List<MonthlySummary> summaries) {
@@ -145,7 +149,7 @@ public class HomeViewModel extends AndroidViewModel {
     }
 
     private void publishMonthlyTotals(List<MonthlySummary> summaries) {
-        String currentMonth = DateUtils.getCurrentMonthYear();
+        String currentMonth = FinancialCycleUtils.keyFor(LocalDate.now(), financialCycleStartDay);
         long income = 0L;
         long expense = 0L;
         long savings = 0L;

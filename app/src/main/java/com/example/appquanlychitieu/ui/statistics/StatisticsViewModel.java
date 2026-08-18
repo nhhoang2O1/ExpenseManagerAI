@@ -14,10 +14,11 @@ import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.repository.RemoteStatisticsRepository;
 import com.example.appquanlychitieu.ui.common.LoadState;
 import com.example.appquanlychitieu.ui.common.LatestRequest;
-import com.example.appquanlychitieu.util.DateUtils;
+import com.example.appquanlychitieu.util.FinancialCycleUtils;
 import com.example.appquanlychitieu.util.SessionManager;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -26,6 +27,7 @@ import java.util.List;
 public class StatisticsViewModel extends AndroidViewModel {
     private final RemoteStatisticsRepository repository;
     private final boolean authenticated;
+    private final int financialCycleStartDay;
     private final MutableLiveData<int[]> selectedMonthYear = new MutableLiveData<>();
     private final MutableLiveData<List<CategorySummary>> categorySummary =
             new MutableLiveData<>(new ArrayList<>());
@@ -41,7 +43,9 @@ public class StatisticsViewModel extends AndroidViewModel {
     public StatisticsViewModel(@NonNull Application application) {
         super(application);
         repository = new RemoteStatisticsRepository(application);
-        authenticated = new SessionManager(application).hasAuthToken();
+        SessionManager session = new SessionManager(application);
+        authenticated = session.hasAuthToken();
+        financialCycleStartDay = session.getFinancialCycleStartDay();
         Calendar calendar = Calendar.getInstance();
         selectedMonthYear.setValue(new int[]{calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH)});
         refreshRemoteStatistics();
@@ -78,8 +82,10 @@ public class StatisticsViewModel extends AndroidViewModel {
         monthlyLoaded = false;
         final int generation = requests.begin();
         loadState.setValue(LoadState.LOADING);
-        String from = toIsoDate(DateUtils.getStartOfMonth(month[0], month[1]));
-        String to = toIsoDate(DateUtils.getEndOfMonth(month[0], month[1]));
+        LocalDate cycleStart = FinancialCycleUtils.cycleStartForMonth(month[0], month[1], financialCycleStartDay);
+        LocalDate cycleEnd = FinancialCycleUtils.endFor(cycleStart, financialCycleStartDay);
+        String from = cycleStart.toString();
+        String to = cycleEnd.toString();
         repository.getCategorySummary(from, to, new RemoteCallback<List<CategorySummary>>() {
             @Override public void onSuccess(List<CategorySummary> value) {
                 if (!requests.isCurrent(generation)) return;

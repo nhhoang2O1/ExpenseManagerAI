@@ -35,10 +35,16 @@ public class AuthResponseDto {
         return user != null && user.email != null ? user.email : email;
     }
 
+    public int resolvedFinancialCycleStartDay() {
+        return user == null || user.financialCycleStartDay < 1
+                ? 1 : user.financialCycleStartDay;
+    }
+
     public static class UserDto {
         @SerializedName("id")
         public String id;
         public String name;
         public String email;
+        public int financialCycleStartDay = 1;
     }
 }

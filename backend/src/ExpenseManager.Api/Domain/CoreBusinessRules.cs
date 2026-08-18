@@ -33,6 +33,34 @@ public static class BudgetRules
     }
 }
 
+public static class FinancialCycleRules
+{
+    public static bool IsValidStartDay(int day) => day is >= 1 and <= 31;
+
+    public static DateOnly StartFor(DateOnly date, int configuredDay)
+    {
+        if (!IsValidStartDay(configuredDay))
+            throw new ArgumentOutOfRangeException(nameof(configuredDay));
+        var currentDay = Math.Min(configuredDay, DateTime.DaysInMonth(date.Year, date.Month));
+        if (date.Day >= currentDay)
+            return new DateOnly(date.Year, date.Month, currentDay);
+        var previous = date.AddMonths(-1);
+        return new DateOnly(previous.Year, previous.Month,
+            Math.Min(configuredDay, DateTime.DaysInMonth(previous.Year, previous.Month)));
+    }
+
+    public static DateOnly EndFor(DateOnly cycleStart, int configuredDay)
+    {
+        var nextMonth = cycleStart.AddMonths(1);
+        var nextStart = new DateOnly(nextMonth.Year, nextMonth.Month,
+            Math.Min(configuredDay, DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month)));
+        return nextStart.AddDays(-1);
+    }
+
+    public static string KeyFor(DateOnly date, int configuredDay) =>
+        StartFor(date, configuredDay).ToString("yyyy-MM");
+}
+
 public readonly record struct GoalFundingDecision(
     long RequestedAmount,
     long AppliedAmount,
