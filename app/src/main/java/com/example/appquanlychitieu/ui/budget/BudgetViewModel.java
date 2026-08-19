@@ -75,6 +75,12 @@ public class BudgetViewModel extends AndroidViewModel {
     public void previousMonth() { moveMonth(-1); }
     public void nextMonth() { moveMonth(1); }
 
+    public void selectMonth(int year, int monthIndex) {
+        selectedMonthYear.setValue(new int[]{year, monthIndex});
+        hasLoaded = false;
+        refreshBudgets();
+    }
+
     private void moveMonth(int amount) {
         int[] current = selectedMonthYear.getValue();
         if (current == null) return;

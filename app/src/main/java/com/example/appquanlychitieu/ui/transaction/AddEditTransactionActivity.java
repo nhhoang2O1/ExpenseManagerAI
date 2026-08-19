@@ -430,7 +430,7 @@ public class AddEditTransactionActivity extends AppCompatActivity {
 
     private void buildCalculatorPad() {
         String[][] rows = {{"7", "8", "9", "÷"}, {"4", "5", "6", "×"},
-                {"1", "2", "3", "−"}, {"C", "0", "⌫", "+", "="}};
+                {"1", "2", "3", "−"}, {"C", "0", "⌫", "+"}, {"="}};
         for (String[] row : rows) {
             LinearLayout line = new LinearLayout(this);
             line.setOrientation(LinearLayout.HORIZONTAL);

@@ -131,7 +131,7 @@
     <string name="planning_budget_tab">Ngân sách</string>
     <string name="planning_goal_tab">Mục tiêu</string>
     <string name="add_goal">Thêm mục tiêu</string>
-    <string name="add_funds">Nạp tiền</string>
+    <string name="add_funds">Thêm vào</string>
     <string name="goal_name_hint">Tên mục tiêu</string>
     <string name="goal_amount_hint">Số tiền mục tiêu (VND)</string>
     <string name="goal_target_value">Mục tiêu: %1$s</string>
@@ -139,7 +139,7 @@
     <string name="goal_fund_exceeds_remaining">Mục tiêu chỉ còn thiếu %1$s</string>
     <string name="goal_completed">Đã đủ tiền</string>
     <string name="goal_ready">Đã đủ tiền</string>
-    <string name="withdraw_funds">Rút tiền</string>
+    <string name="withdraw_funds">Rút ra</string>
     <string name="withdraw_amount_hint">Số tiền muốn rút</string>
     <string name="goal_history_withdraw">Rút tiền</string>
     <string name="goal_cancelled">Đã hủy</string>
@@ -266,6 +266,8 @@
     <string name="negative_amount">- %1$s</string>
     <string name="content_description_previous_month">Tháng trước</string>
     <string name="content_description_next_month">Tháng sau</string>
+    <string name="content_description_pick_month">Chọn tháng</string>
+    <string name="pick_month_title">Chọn tháng và năm</string>
     <string name="content_description_more">Tùy chọn</string>
     <string name="content_description_category">Danh mục</string>
     <string name="content_description_profile">Tài khoản</string>

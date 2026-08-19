@@ -6,6 +6,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
+import android.widget.NumberPicker;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -77,6 +79,7 @@ public class BudgetFragment extends Fragment {
 
         view.findViewById(R.id.btn_prev_month).setOnClickListener(v -> viewModel.previousMonth());
         view.findViewById(R.id.btn_next_month).setOnClickListener(v -> viewModel.nextMonth());
+        view.findViewById(R.id.btn_pick_month).setOnClickListener(v -> showMonthPicker());
         view.findViewById(R.id.btn_empty_cta).setOnClickListener(v -> showAddBudgetDialog());
         view.findViewById(R.id.btn_retry).setOnClickListener(v -> viewModel.refreshBudgets());
         adapter.setListener(new BudgetListAdapter.Listener() {
@@ -226,6 +229,26 @@ public class BudgetFragment extends Fragment {
                 }));
         dialog.show();
     }
+
+    private void showMonthPicker() {
+        int[] selected = viewModel.getSelectedMonthYear().getValue();
+        Calendar now = Calendar.getInstance();
+        int year = selected == null ? now.get(Calendar.YEAR) : selected[0];
+        int month = selected == null ? now.get(Calendar.MONTH) + 1 : selected[1] + 1;
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setGravity(android.view.Gravity.CENTER);
+        content.setPadding(dp(24), dp(8), dp(24), dp(8));
+        NumberPicker monthPicker = new NumberPicker(requireContext());
+        monthPicker.setMinValue(1); monthPicker.setMaxValue(12); monthPicker.setValue(month);
+        NumberPicker yearPicker = new NumberPicker(requireContext());
+        yearPicker.setMinValue(now.get(Calendar.YEAR) - 10); yearPicker.setMaxValue(now.get(Calendar.YEAR) + 1); yearPicker.setValue(year);
+        content.addView(monthPicker); content.addView(yearPicker);
+        new MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.pick_month_title)
+                .setView(content).setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.confirm, (dialog, which) -> viewModel.selectMonth(yearPicker.getValue(), monthPicker.getValue() - 1)).show();
+    }
+
+    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 
     private void createBudget(CategoryDto category, long amount, String key) {
         Budget budget = new Budget(category.id.hashCode(), amount, key, viewModel.getUserId());

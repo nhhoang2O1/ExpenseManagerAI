@@ -33,13 +33,26 @@
                     android:contentDescription="@string/content_description_previous_month"
                     android:src="@drawable/ic_back"
                     app:tint="@color/text_secondary" />
-                <TextView
-                    android:id="@+id/tv_current_month"
+                <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="48dp"
                     android:layout_weight="1"
                     android:gravity="center"
-                    android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    android:orientation="horizontal">
+                    <TextView
+                        android:id="@+id/tv_current_month"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <ImageButton
+                        android:id="@+id/btn_pick_month"
+                        android:layout_width="40dp"
+                        android:layout_height="48dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/content_description_pick_month"
+                        android:src="@drawable/ic_calendar"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
                 <ImageButton
                     android:id="@+id/btn_next_month"
                     android:layout_width="48dp"

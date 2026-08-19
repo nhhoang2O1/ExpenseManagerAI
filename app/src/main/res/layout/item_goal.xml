@@ -96,23 +96,23 @@
             android:layout_marginTop="8dp"
             android:orientation="horizontal">
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_add_funds"
+                android:id="@+id/btn_complete_goal"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="4dp"
                 android:layout_weight="1"
                 android:minHeight="44dp"
-                android:text="@string/add_funds" />
+                android:text="@string/withdraw_funds" />
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_complete_goal"
+                android:id="@+id/btn_add_funds"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
                 android:layout_weight="1"
                 android:minHeight="44dp"
-                android:text="@string/withdraw_funds" />
+                android:text="@string/add_funds" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

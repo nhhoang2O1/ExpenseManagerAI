@@ -9,6 +9,8 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.NumberPicker;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -80,6 +82,7 @@ public class StatisticsFragment extends Fragment {
         viewModel = new ViewModelProvider(this).get(StatisticsViewModel.class);
         view.findViewById(R.id.btn_prev_month).setOnClickListener(v -> viewModel.previousMonth());
         view.findViewById(R.id.btn_next_month).setOnClickListener(v -> viewModel.nextMonth());
+        view.findViewById(R.id.btn_pick_month).setOnClickListener(v -> showMonthPicker());
         view.findViewById(R.id.btn_retry).setOnClickListener(v -> viewModel.refreshRemoteStatistics());
         viewModel.getSelectedMonthYear().observe(getViewLifecycleOwner(), month -> {
             selectedYear = month[0];
@@ -206,6 +209,26 @@ public class StatisticsFragment extends Fragment {
         loading.setVisibility(state == LoadState.LOADING ? View.VISIBLE : View.GONE);
         errorState.setVisibility(state == LoadState.ERROR ? View.VISIBLE : View.GONE);
     }
+
+    private void showMonthPicker() {
+        int[] selected = viewModel.getSelectedMonthYear().getValue();
+        Calendar now = Calendar.getInstance();
+        int year = selected == null ? now.get(Calendar.YEAR) : selected[0];
+        int month = selected == null ? now.get(Calendar.MONTH) + 1 : selected[1] + 1;
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setGravity(android.view.Gravity.CENTER);
+        content.setPadding(dp(24), dp(8), dp(24), dp(8));
+        NumberPicker monthPicker = new NumberPicker(requireContext());
+        monthPicker.setMinValue(1); monthPicker.setMaxValue(12); monthPicker.setValue(month);
+        NumberPicker yearPicker = new NumberPicker(requireContext());
+        yearPicker.setMinValue(now.get(Calendar.YEAR) - 10); yearPicker.setMaxValue(now.get(Calendar.YEAR) + 1); yearPicker.setValue(year);
+        content.addView(monthPicker); content.addView(yearPicker);
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.pick_month_title)
+                .setView(content).setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.confirm, (dialog, which) -> viewModel.selectMonth(yearPicker.getValue(), monthPicker.getValue() - 1)).show();
+    }
+
+    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 
     @Override
     public void onResume() {
