@@ -10,7 +10,6 @@ public class Goal {
     private String remoteId;
     private long version = 1L;
     private String status = "ACTIVE";
-    private String completedAt;
 
     public Goal(String name, long targetAmount, long currentAmount, long userId) {
         this.name = name;
@@ -40,10 +39,7 @@ public class Goal {
     public void setVersion(long version) { this.version = version; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status == null ? "ACTIVE" : status; }
-    public String getCompletedAt() { return completedAt; }
-    public void setCompletedAt(String completedAt) { this.completedAt = completedAt; }
     public boolean isActive() { return "ACTIVE".equals(status); }
-    public boolean isReadyToComplete() { return "READY_TO_COMPLETE".equals(status); }
     public boolean isCompleted() { return "COMPLETED".equals(status); }
     public boolean isCancelled() { return "CANCELLED".equals(status); }
 }

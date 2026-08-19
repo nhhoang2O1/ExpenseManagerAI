@@ -2,6 +2,7 @@ package com.example.appquanlychitieu.data.remote;
 
 import com.example.appquanlychitieu.data.remote.dto.AuthResponseDto;
 import com.example.appquanlychitieu.data.remote.dto.AddGoalFundsRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.WithdrawGoalFundsRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.BudgetDto;
 import com.example.appquanlychitieu.data.remote.dto.BudgetRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.ConfirmReceiptRequestDto;
@@ -165,16 +166,16 @@ public interface ApiService {
             @Header("If-Match") String ifMatch,
             @Body AddGoalFundsRequestDto request);
 
-    @GET("api/goals/available-balance")
-    Call<com.example.appquanlychitieu.data.remote.dto.AvailableBalanceDto> getAvailableBalance(
-            @Query("year") int year, @Query("month") int month);
-
-    @POST("api/goals/{id}/complete")
-    Call<GoalDto> completeGoal(
+    @POST("api/goals/{id}/withdraw")
+    Call<GoalDto> withdrawGoalFunds(
             @Path("id") String goalId,
             @Header("Idempotency-Key") String idempotencyKey,
             @Header("If-Match") String ifMatch,
-            @Body com.example.appquanlychitieu.data.remote.dto.CompleteGoalRequestDto request);
+            @Body WithdrawGoalFundsRequestDto request);
+
+    @GET("api/goals/available-balance")
+    Call<com.example.appquanlychitieu.data.remote.dto.AvailableBalanceDto> getAvailableBalance(
+            @Query("year") int year, @Query("month") int month);
 
     @POST("api/goals/{id}/cancel")
     Call<GoalDto> cancelGoal(

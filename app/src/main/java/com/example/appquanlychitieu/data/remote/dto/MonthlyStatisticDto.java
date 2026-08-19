@@ -6,6 +6,5 @@ public class MonthlyStatisticDto {
     public int month;
     public Long income;
     public Long expense;
-    public Long savings;
     public Long balance;
 }

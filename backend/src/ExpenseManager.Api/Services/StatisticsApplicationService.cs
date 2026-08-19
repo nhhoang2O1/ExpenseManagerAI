@@ -64,24 +64,6 @@ public sealed class StatisticsApplicationService(AppDbContext db, IUserContext u
         var transactions = await OwnedTransactions(firstCycle, FinancialCycleRules.EndFor(lastCycle, startDay))
             .ToListAsync(cancellationToken);
 
-        var zone = LocalZone();
-        var localStart = DateTime.SpecifyKind(firstCycle.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
-        var localEnd = FinancialCycleRules.EndFor(lastCycle, startDay).AddDays(1)
-            .ToDateTime(TimeOnly.MinValue);
-        var utcStart = TimeZoneInfo.ConvertTimeToUtc(localStart, zone);
-        var utcEnd = TimeZoneInfo.ConvertTimeToUtc(localEnd, zone);
-        var fundHistory = await db.GoalHistories.AsNoTracking()
-            .Where(x => x.Goal.UserId == userContext.UserId &&
-                        x.ActionType == GoalHistoryActionType.FUND &&
-                        x.Date >= utcStart && x.Date < utcEnd)
-            .Select(x => new { x.Date, x.AmountAdded })
-            .ToListAsync(cancellationToken);
-        var localFunds = fundHistory.Select(x => new
-        {
-            Date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
-                DateTime.SpecifyKind(x.Date, DateTimeKind.Utc), zone)),
-            x.AmountAdded
-        }).ToList();
         var result = new List<MonthlyStatisticResponse>();
         for (var month = 1; month <= 12; month++)
         {
@@ -94,12 +76,10 @@ public sealed class StatisticsApplicationService(AppDbContext db, IUserContext u
             var expense = transactions.Where(x => x.TransactionDate >= cycleStart &&
                     x.TransactionDate <= cycleEnd && x.Type == TransactionType.EXPENSE)
                 .Sum(x => x.Amount);
-            var savings = localFunds.Where(x => x.Date >= cycleStart && x.Date <= cycleEnd)
-                .Sum(x => x.AmountAdded);
-            if (income != 0 || expense != 0 || savings != 0)
+            if (income != 0 || expense != 0)
                 result.Add(new MonthlyStatisticResponse(
-                    cycleStart.Year, cycleStart.Month, income, expense, savings,
-                    StatisticsRules.Remaining(income, expense, savings)));
+                    cycleStart.Year, cycleStart.Month, income, expense,
+                    StatisticsRules.Balance(income, expense)));
         }
         return ApplicationServiceResult<IReadOnlyList<MonthlyStatisticResponse>>.Ok(result);
     }

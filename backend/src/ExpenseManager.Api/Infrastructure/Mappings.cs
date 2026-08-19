@@ -42,21 +42,19 @@ public static class Mappings
             budget.UpdatedAt,
             budget.Version);
 
-    public static GoalResponse ToResponse(this Goal goal) =>
+    public static GoalResponse ToResponse(this Goal goal, long currentAmount) =>
         new(
             goal.Id,
             goal.Name,
             goal.TargetAmount,
-            goal.CurrentAmount,
+            currentAmount,
             goal.CreatedAt,
             goal.UpdatedAt,
             goal.Status,
-            goal.CompletedAt,
             goal.Version);
 
     public static GoalHistoryResponse ToResponse(this GoalHistory history) =>
-        new(history.Id, history.GoalId, history.AmountAdded, history.Date,
-            history.RequestedAmount, history.BalanceAfter, history.ActionType);
+        new(history.Id, history.GoalId, history.AmountAdded, history.Date, history.ActionType);
 
     public static ReminderResponse ToResponse(this Reminder reminder) =>
         new(

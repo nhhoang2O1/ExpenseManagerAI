@@ -44,7 +44,6 @@ public class HomeFragment extends Fragment {
     private TextView balance;
     private TextView income;
     private TextView expense;
-    private TextView reservedForGoals;
     private TextView dailyDate;
     private TextView dailyIncome;
     private TextView dailyExpense;
@@ -67,7 +66,6 @@ public class HomeFragment extends Fragment {
         balance = view.findViewById(R.id.tv_balance);
         income = view.findViewById(R.id.tv_income);
         expense = view.findViewById(R.id.tv_expense);
-        reservedForGoals = view.findViewById(R.id.tv_reserved_goals);
         dailyDate = view.findViewById(R.id.tv_daily_date);
         dailyIncome = view.findViewById(R.id.tv_daily_income);
         dailyExpense = view.findViewById(R.id.tv_daily_expense);
@@ -109,8 +107,6 @@ public class HomeFragment extends Fragment {
                 expense.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getAvailableBalance().observe(getViewLifecycleOwner(), value ->
                 balance.setText(CurrencyFormatter.format(value == null ? 0L : value)));
-        viewModel.getReservedForGoals().observe(getViewLifecycleOwner(), value ->
-                reservedForGoals.setText(CurrencyFormatter.format(value == null ? 0L : value)));
         viewModel.getDailyIncome().observe(getViewLifecycleOwner(), value ->
                 dailyIncome.setText(getString(R.string.positive_amount,
                         CurrencyFormatter.format(value == null ? 0L : value))));

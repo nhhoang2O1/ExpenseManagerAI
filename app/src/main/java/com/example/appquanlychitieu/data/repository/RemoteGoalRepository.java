@@ -10,7 +10,7 @@ import com.example.appquanlychitieu.data.remote.ApiService;
 import com.example.appquanlychitieu.data.remote.RemoteCallback;
 import com.example.appquanlychitieu.data.remote.dto.AddGoalFundsRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.AvailableBalanceDto;
-import com.example.appquanlychitieu.data.remote.dto.CompleteGoalRequestDto;
+import com.example.appquanlychitieu.data.remote.dto.WithdrawGoalFundsRequestDto;
 import com.example.appquanlychitieu.data.remote.dto.GoalDto;
 import com.example.appquanlychitieu.data.remote.dto.GoalHistoryDto;
 import com.example.appquanlychitieu.data.remote.dto.GoalRequestDto;
@@ -111,11 +111,10 @@ public class RemoteGoalRepository {
         });
     }
 
-    public void complete(Goal goal, RemoteCallback<Goal> callback) {
+    public void withdraw(Goal goal, long amount, RemoteCallback<Goal> callback) {
         if (goal.getRemoteId() == null || goal.getRemoteId().trim().isEmpty()) return;
-        CompleteGoalRequestDto request = new CompleteGoalRequestDto();
-        enqueue(apiService.completeGoal(goal.getRemoteId(), UUID.randomUUID().toString(),
-                        quote(goal.getVersion()), request), goal.getUserId(), callback);
+        enqueue(apiService.withdrawGoalFunds(goal.getRemoteId(), UUID.randomUUID().toString(),
+                quote(goal.getVersion()), new WithdrawGoalFundsRequestDto(amount)), goal.getUserId(), callback);
     }
 
     public void cancel(Goal goal, RemoteCallback<Goal> callback) {
@@ -197,7 +196,6 @@ public class RemoteGoalRepository {
         goal.setRemoteId(dto.id);
         goal.setVersion(dto.version);
         goal.setStatus(dto.status);
-        goal.setCompletedAt(dto.completedAt);
         return goal;
     }
 

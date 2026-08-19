@@ -98,8 +98,6 @@ public static class GoalFundingRules
 public static class StatisticsRules
 {
     public static long Balance(long income, long expense) => income - expense;
-    public static long Remaining(long income, long expense, long savings) =>
-        income - expense - savings;
     public static long AvailableBalance(long income, long expense, long reserved) =>
         Balance(income, expense) - reserved;
 }

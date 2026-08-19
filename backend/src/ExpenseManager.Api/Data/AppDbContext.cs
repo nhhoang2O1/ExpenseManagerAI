@@ -105,14 +105,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.ToTable(table =>
             {
-                table.HasCheckConstraint("ck_goals_amounts", "target_amount > 0 AND current_amount >= 0 AND current_amount <= target_amount");
+                table.HasCheckConstraint("ck_goals_amounts", "target_amount > 0");
                 table.HasCheckConstraint("ck_goals_status", "status IN ('ACTIVE', 'READY_TO_COMPLETE', 'COMPLETED', 'CANCELLED')");
             });
             entity.HasIndex(x => new { x.UserId, x.Name });
             entity.HasAlternateKey(x => new { x.Id, x.UserId });
             entity.Property(x => x.Name).HasMaxLength(200);
             entity.Property(x => x.TargetAmount).HasColumnType("bigint");
-            entity.Property(x => x.CurrentAmount).HasColumnType("bigint");
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
             entity.HasOne(x => x.User).WithMany(x => x.Goals)
@@ -123,13 +122,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.ToTable(table =>
             {
-                table.HasCheckConstraint("ck_goal_histories_amounts", "((action_type = 'FUND' AND amount_added > 0) OR (action_type IN ('COMPLETE', 'CANCEL') AND amount_added = 0)) AND (requested_amount IS NULL OR requested_amount > 0) AND (balance_after IS NULL OR balance_after >= 0)");
-                table.HasCheckConstraint("ck_goal_histories_action", "action_type IN ('FUND', 'COMPLETE', 'CANCEL')");
+                table.HasCheckConstraint("ck_goal_histories_amounts", "((action_type = 'FUND' AND amount_added > 0) OR (action_type = 'WITHDRAW' AND amount_added < 0) OR (action_type IN ('COMPLETE', 'CANCEL') AND amount_added = 0))");
+                table.HasCheckConstraint("ck_goal_histories_action", "action_type IN ('FUND', 'WITHDRAW', 'COMPLETE', 'CANCEL')");
             });
             entity.HasIndex(x => new { x.GoalId, x.Date });
             entity.Property(x => x.AmountAdded).HasColumnType("bigint");
-            entity.Property(x => x.RequestedAmount).HasColumnType("bigint");
-            entity.Property(x => x.BalanceAfter).HasColumnType("bigint");
             entity.Property(x => x.ActionType).HasConversion<string>().HasMaxLength(20);
             entity.HasOne(x => x.Goal).WithMany(x => x.History)
                 .HasForeignKey(x => x.GoalId).OnDelete(DeleteBehavior.Cascade);

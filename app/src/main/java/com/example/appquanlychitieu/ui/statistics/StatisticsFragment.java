@@ -44,7 +44,6 @@ public class StatisticsFragment extends Fragment {
     private TextView currentMonth;
     private TextView income;
     private TextView expense;
-    private TextView savings;
     private TextView balance;
     private TextView categoryEmpty;
     private TextView historyEmpty;
@@ -69,7 +68,6 @@ public class StatisticsFragment extends Fragment {
         currentMonth = view.findViewById(R.id.tv_current_month);
         income = view.findViewById(R.id.tv_kpi_income);
         expense = view.findViewById(R.id.tv_kpi_expense);
-        savings = view.findViewById(R.id.tv_kpi_savings);
         balance = view.findViewById(R.id.tv_kpi_balance);
         categoryEmpty = view.findViewById(R.id.tv_empty);
         historyEmpty = view.findViewById(R.id.tv_history_empty);
@@ -199,11 +197,9 @@ public class StatisticsFragment extends Fragment {
         }
         long in = selected == null ? 0L : selected.getTotalIncome();
         long out = selected == null ? 0L : selected.getTotalExpense();
-        long saved = selected == null ? 0L : selected.getTotalSavings();
         income.setText(CurrencyFormatter.format(in));
         expense.setText(CurrencyFormatter.format(out));
-        savings.setText(CurrencyFormatter.format(saved));
-        balance.setText(CurrencyFormatter.format(in - out - saved));
+        balance.setText(CurrencyFormatter.format(in - out));
     }
 
     private void renderState(LoadState state) {

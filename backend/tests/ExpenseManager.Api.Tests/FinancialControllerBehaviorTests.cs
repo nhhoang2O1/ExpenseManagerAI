@@ -227,8 +227,7 @@ public sealed class FinancialControllerBehaviorTests
             Assert.IsType<OkObjectResult>(monthlyResult.Result).Value));
         Assert.Equal(1_000_000, monthly.Income);
         Assert.Equal(350_000, monthly.Expense);
-        Assert.Equal(200_000, monthly.Savings);
-        Assert.Equal(450_000, monthly.Balance);
+        Assert.Equal(650_000, monthly.Balance);
 
         var categories = Assert.IsAssignableFrom<IEnumerable<CategoryStatisticResponse>>(
             Assert.IsType<OkObjectResult>(categoryResult.Result).Value).ToList();

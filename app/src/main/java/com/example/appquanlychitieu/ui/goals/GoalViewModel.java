@@ -79,9 +79,9 @@ public class GoalViewModel extends AndroidViewModel {
         });
     }
 
-    public void completeGoal(Goal goal, RemoteCallback<Goal> callback) {
-        repository.complete(goal,
-                new RefreshCallback("Đã hoàn thành mục tiêu", callback));
+    public void withdrawFunds(Goal goal, long amount, RemoteCallback<Goal> callback) {
+        repository.withdraw(goal, amount,
+                new RefreshCallback("Đã rút tiền khỏi mục tiêu", callback));
     }
 
     public void cancelGoal(Goal goal) {

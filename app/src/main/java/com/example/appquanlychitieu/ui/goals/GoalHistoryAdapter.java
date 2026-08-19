@@ -53,6 +53,10 @@ public class GoalHistoryAdapter extends ArrayAdapter<GoalHistory> {
             } else if ("CANCEL".equals(history.getActionType())) {
                 tvAction.setText(R.string.goal_history_cancelled);
                 tvAmount.setText(R.string.goal_cancelled);
+            } else if ("WITHDRAW".equals(history.getActionType())) {
+                tvAction.setText(R.string.goal_history_withdraw);
+                tvAmount.setText(context.getString(R.string.negative_amount,
+                        CurrencyFormatter.format(Math.abs(history.getAmountAdded()))));
             } else {
                 tvAction.setText(R.string.goal_history_entry);
                 tvAmount.setText(context.getString(R.string.positive_amount,

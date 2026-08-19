@@ -136,13 +136,6 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
                         amountLayout.setError(getString(R.string.amount_must_be_positive));
                         return;
                     }
-                    long remaining = goal.getTargetAmount() - goal.getCurrentAmount();
-                    if (value > remaining) {
-                        amountLayout.setError(getString(
-                                R.string.goal_fund_exceeds_remaining,
-                                CurrencyFormatter.format(remaining)));
-                        return;
-                    }
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
                     viewModel.addFunds(goal, value, dialogCallback(dialog, amountLayout));
                 }));
@@ -182,7 +175,10 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
                         nameLayout.setError(getString(R.string.invalid_name));
                         return;
                     }
-                    if (target <= 0 || target < goal.getCurrentAmount()) {
+                    // The target may be lowered below the accumulated balance. In that
+                    // case the goal remains completed; changing the target must not
+                    // discard or block the existing savings history.
+                    if (target <= 0) {
                         amountLayout.setError(getString(R.string.amount_must_be_positive));
                         return;
                     }
@@ -204,18 +200,28 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
     }
 
     @Override
-    public void onCompleteGoalClick(Goal goal) {
+    public void onWithdrawFundsClick(Goal goal) {
+        View content = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_goal_amount, null);
         AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.complete_goal_action)
-                .setMessage(getString(R.string.complete_goal_summary, goal.getName()))
+                .setTitle(R.string.withdraw_funds)
+                .setView(content)
                 .setPositiveButton(R.string.confirm, null)
                 .setNegativeButton(R.string.cancel, null)
                 .create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+        dialog.setOnShowListener(ignored -> {
+            TextInputLayout nameLayout = content.findViewById(R.id.layout_goal_name);
+            TextInputLayout amountLayout = content.findViewById(R.id.layout_goal_amount);
+            TextInputEditText amount = content.findViewById(R.id.et_goal_amount);
+            nameLayout.setVisibility(View.GONE); amountLayout.setHint(R.string.withdraw_amount_hint);
+            amount.addTextChangedListener(new NumberTextWatcher(amount));
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                 .setOnClickListener(v -> {
+                    long value = parseAmount(amount);
+                    if (value <= 0) { amountLayout.setError(getString(R.string.amount_must_be_positive)); return; }
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-                    viewModel.completeGoal(goal, goalActionCallback(dialog));
-                }));
+                    viewModel.withdrawFunds(goal, value, goalActionCallback(dialog));
+                });
+        });
         dialog.show();
     }
 
@@ -273,7 +279,11 @@ public class GoalFragment extends Fragment implements GoalListAdapter.OnGoalInte
             @Override public void onError(ApiError error) {
                 if (!dialog.isShowing()) return;
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
-                Snackbar.make(requireView(), error.getMessage(), Snackbar.LENGTH_LONG).show();
+                new MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.withdraw_funds)
+                        .setMessage(error.getMessage())
+                        .setPositiveButton(R.string.confirm, null)
+                        .show();
             }
         };
     }

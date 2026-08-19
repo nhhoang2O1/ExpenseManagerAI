@@ -89,7 +89,6 @@ public class RemoteStatisticsRepository {
                         summary.setMonthYear(String.format(Locale.ROOT, "%04d-%02d", dto.year, dto.month));
                         summary.setTotalIncome(amount(dto.income));
                         summary.setTotalExpense(amount(dto.expense));
-                        summary.setTotalSavings(amount(dto.savings));
                         summaries.add(summary);
                     }
                     summaries.sort((first, second) ->

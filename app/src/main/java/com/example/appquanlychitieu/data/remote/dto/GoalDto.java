@@ -7,6 +7,5 @@ public class GoalDto {
     public Long targetAmount;
     public Long currentAmount;
     public String status;
-    public String completedAt;
     public long version = 1L;
 }

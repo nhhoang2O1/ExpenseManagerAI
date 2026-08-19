@@ -122,7 +122,7 @@
     <string name="hello_user">Xin chào, %1$s</string>
     <string name="today_format">Hôm nay, %1$s</string>
     <string name="monthly_overview">TỔNG QUAN TRONG THÁNG</string>
-    <string name="monthly_remaining">Còn lại</string>
+    <string name="net_cash_flow">Còn lại</string>
     <string name="daily_overview">Tình hình trong ngày</string>
     <string name="quick_actions">Thao tác nhanh</string>
     <string name="quick_scan">Quét hóa đơn</string>
@@ -134,10 +134,14 @@
     <string name="add_funds">Nạp tiền</string>
     <string name="goal_name_hint">Tên mục tiêu</string>
     <string name="goal_amount_hint">Số tiền mục tiêu (VND)</string>
+    <string name="goal_target_value">Mục tiêu: %1$s</string>
     <string name="fund_amount_hint">Số tiền nạp thêm (VND)</string>
     <string name="goal_fund_exceeds_remaining">Mục tiêu chỉ còn thiếu %1$s</string>
-    <string name="goal_completed">Hoàn thành</string>
+    <string name="goal_completed">Đã đủ tiền</string>
     <string name="goal_ready">Đã đủ tiền</string>
+    <string name="withdraw_funds">Rút tiền</string>
+    <string name="withdraw_amount_hint">Số tiền muốn rút</string>
+    <string name="goal_history_withdraw">Rút tiền</string>
     <string name="goal_cancelled">Đã hủy</string>
     <string name="complete_goal_action">Hoàn thành mục tiêu</string>
     <string name="cancel_goal">Hủy mục tiêu</string>
@@ -147,7 +151,7 @@
     <string name="complete_goal_summary">Xác nhận hoàn thành mục tiêu “%1$s”? Thao tác này chỉ cập nhật trạng thái mục tiêu và không tạo giao dịch.</string>
     <string name="available_balance">Số dư khả dụng</string>
     <string name="reserved_for_goals">Đã dành cho mục tiêu</string>
-    <string name="goal_history_completed">Đã tạo giao dịch hoàn thành mục tiêu</string>
+    <string name="goal_history_completed">Đã đạt mục tiêu</string>
     <string name="goal_history_cancelled">Đã hủy và hoàn lại số dư khả dụng</string>
     <string name="goal_history_title">Lịch sử nạp: %1$s</string>
     <string name="no_goal_history">Chưa có lần nạp tiền nào</string>
@@ -184,8 +188,6 @@
     <string name="receipt_process_step">Nhận diện</string>
     <string name="receipt_confirm_step">Xác nhận</string>
     <string name="receipt_preview">Xem trước hóa đơn</string>
-    <string name="statistics_savings">Đã tiết kiệm</string>
-    <string name="statistics_balance">Còn lại</string>
     <string name="all_categories">Tất cả danh mục</string>
     <string name="category_group_expense">CHI TIÊU</string>
     <string name="category_group_income">THU NHẬP</string>

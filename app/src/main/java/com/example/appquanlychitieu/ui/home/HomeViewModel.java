@@ -38,7 +38,6 @@ public class HomeViewModel extends AndroidViewModel {
     private final MutableLiveData<Long> totalIncome = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> totalExpense = new MutableLiveData<>(0L);
     private final MutableLiveData<Long> availableBalance = new MutableLiveData<>(0L);
-    private final MutableLiveData<Long> reservedForGoals = new MutableLiveData<>(0L);
     private final MutableLiveData<List<Transaction>> recentTransactions =
             new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<Long> selectedDate =
@@ -67,7 +66,6 @@ public class HomeViewModel extends AndroidViewModel {
     public LiveData<Long> getTotalIncome() { return totalIncome; }
     public LiveData<Long> getTotalExpense() { return totalExpense; }
     public LiveData<Long> getAvailableBalance() { return availableBalance; }
-    public LiveData<Long> getReservedForGoals() { return reservedForGoals; }
     public LiveData<List<Transaction>> getRecentTransactions() { return recentTransactions; }
     public LiveData<Long> getSelectedDate() { return selectedDate; }
     public LiveData<Long> getDailyIncome() { return dailyIncome; }
@@ -152,21 +150,18 @@ public class HomeViewModel extends AndroidViewModel {
         String currentMonth = FinancialCycleUtils.keyFor(LocalDate.now(), financialCycleStartDay);
         long income = 0L;
         long expense = 0L;
-        long savings = 0L;
         if (summaries != null) {
             for (MonthlySummary summary : summaries) {
                 if (summary != null && currentMonth.equals(summary.getMonthYear())) {
                     income = summary.getTotalIncome();
                     expense = summary.getTotalExpense();
-                    savings = summary.getTotalSavings();
                     break;
                 }
             }
         }
         totalIncome.setValue(income);
         totalExpense.setValue(expense);
-        reservedForGoals.setValue(savings);
-        availableBalance.setValue(income - expense - savings);
+        availableBalance.setValue(income - expense);
     }
 
     private void publishTransactions() {

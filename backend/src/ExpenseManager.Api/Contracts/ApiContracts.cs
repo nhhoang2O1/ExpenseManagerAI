@@ -122,7 +122,7 @@ public sealed record DailyStatisticResponse(
     DateOnly Date, long Income, long Expense, long Balance);
 
 public sealed record MonthlyStatisticResponse(
-    int Year, int Month, long Income, long Expense, long Savings, long Balance);
+    int Year, int Month, long Income, long Expense, long Balance);
 
 public sealed record CategoryStatisticResponse(
     Guid CategoryId,
@@ -158,7 +158,8 @@ public sealed record GoalRequest(
 public sealed record AddGoalFundsRequest(
     [Range(1, long.MaxValue)] long Amount);
 
-public sealed record CompleteGoalRequest;
+public sealed record WithdrawGoalFundsRequest(
+    [Range(1, long.MaxValue)] long Amount);
 
 public sealed record AvailableBalanceResponse(
     long Balance,
@@ -173,7 +174,6 @@ public sealed record GoalResponse(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     GoalStatus Status = GoalStatus.ACTIVE,
-    DateTime? CompletedAt = null,
     long Version = 1);
 
 public sealed record GoalHistoryResponse(
@@ -181,8 +181,6 @@ public sealed record GoalHistoryResponse(
     Guid GoalId,
     long AmountAdded,
     DateTime Date,
-    long? RequestedAmount = null,
-    long? BalanceAfter = null,
     GoalHistoryActionType ActionType = GoalHistoryActionType.FUND);
 
 public sealed record ReminderRequest(

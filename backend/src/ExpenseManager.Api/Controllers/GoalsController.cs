@@ -37,17 +37,17 @@ public sealed class GoalsController(IGoalsApplicationService service) : Controll
             id, request, ControllerContext.HttpContext?.Request.Headers["Idempotency-Key"].ToString(),
             ControllerContext.HttpContext?.Request.Headers["If-Match"].ToString(), cancellationToken));
 
+    [HttpPost("{id:guid}/withdraw")]
+    public async Task<ActionResult<GoalResponse>> Withdraw(
+        Guid id, WithdrawGoalFundsRequest request, CancellationToken cancellationToken) =>
+        this.ToActionResult(await service.WithdrawAsync(
+            id, request, ControllerContext.HttpContext?.Request.Headers["Idempotency-Key"].ToString(),
+            ControllerContext.HttpContext?.Request.Headers["If-Match"].ToString(), cancellationToken));
+
     [HttpGet("available-balance")]
     public async Task<ActionResult<AvailableBalanceResponse>> GetAvailableBalance(
         [FromQuery] int? year, [FromQuery] int? month, CancellationToken cancellationToken) =>
         this.ToActionResult(await service.GetAvailableBalanceAsync(year, month, cancellationToken));
-
-    [HttpPost("{id:guid}/complete")]
-    public async Task<ActionResult<GoalResponse>> Complete(
-        Guid id, CompleteGoalRequest request, CancellationToken cancellationToken) =>
-        this.ToActionResult(await service.CompleteAsync(
-            id, request, ControllerContext.HttpContext?.Request.Headers["Idempotency-Key"].ToString(),
-            ControllerContext.HttpContext?.Request.Headers["If-Match"].ToString(), cancellationToken));
 
     [HttpPost("{id:guid}/cancel")]
     public async Task<ActionResult<GoalResponse>> Cancel(

@@ -86,42 +86,13 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/monthly_remaining"
-                        android:textColor="@color/on_primary"
-                        android:textSize="12sp" />
-                    <TextView
                         android:id="@+id/tv_balance"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
                         android:text="@string/zero_currency"
                         android:textColor="@color/on_primary"
                         android:textSize="32sp"
                         android:textStyle="bold" />
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:orientation="vertical">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/reserved_for_goals"
-                            android:textColor="@color/on_primary"
-                            android:textSize="12sp" />
-                        <TextView
-                            android:id="@+id/tv_reserved_goals"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="@string/zero_currency"
-                            android:textColor="@color/on_primary"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

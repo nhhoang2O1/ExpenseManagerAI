@@ -54,7 +54,7 @@
             <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:columnCount="2"
+                android:columnCount="3"
                 android:paddingStart="12dp"
                 android:paddingTop="4dp"
                 android:paddingEnd="12dp"
@@ -137,42 +137,6 @@
                     android:layout_height="88dp"
                     android:layout_columnWeight="1"
                     android:layout_margin="4dp"
-                    app:cardBackgroundColor="@color/warning_bg">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="8dp">
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center"
-                            android:maxLines="2"
-                            android:text="@string/statistics_savings"
-                            android:textColor="@color/warning_color"
-                            android:textSize="11sp" />
-                        <TextView
-                            android:id="@+id/tv_kpi_savings"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="5dp"
-                            android:autoSizeMaxTextSize="14sp"
-                            android:autoSizeMinTextSize="10sp"
-                            android:autoSizeStepGranularity="1sp"
-                            android:autoSizeTextType="uniform"
-                            android:gravity="center"
-                            android:maxLines="1"
-                            android:textColor="@color/warning_color"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-                <com.google.android.material.card.MaterialCardView
-                    style="@style/Widget.App.CardView"
-                    android:layout_width="0dp"
-                    android:layout_height="88dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
                     app:cardBackgroundColor="@color/info_bg">
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -185,7 +149,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:maxLines="2"
-                            android:text="@string/statistics_balance"
+                            android:text="@string/net_cash_flow"
                             android:textColor="@color/info_color"
                             android:textSize="11sp" />
                         <TextView

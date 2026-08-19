@@ -210,17 +210,9 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("completed_at");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<long>("CurrentAmount")
-                        .HasColumnType("bigint")
-                        .HasColumnName("current_amount");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -262,7 +254,7 @@ namespace ExpenseManager.Api.Data.Migrations
 
                     b.ToTable("goals", t =>
                         {
-                            t.HasCheckConstraint("ck_goals_amounts", "target_amount > 0 AND current_amount >= 0 AND current_amount <= target_amount");
+                            t.HasCheckConstraint("ck_goals_amounts", "target_amount > 0");
 
                             t.HasCheckConstraint("ck_goals_status", "status IN ('ACTIVE', 'READY_TO_COMPLETE', 'COMPLETED', 'CANCELLED')");
                         });
@@ -285,10 +277,6 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("amount_added");
 
-                    b.Property<long?>("BalanceAfter")
-                        .HasColumnType("bigint")
-                        .HasColumnName("balance_after");
-
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("date");
@@ -296,10 +284,6 @@ namespace ExpenseManager.Api.Data.Migrations
                     b.Property<Guid>("GoalId")
                         .HasColumnType("uuid")
                         .HasColumnName("goal_id");
-
-                    b.Property<long?>("RequestedAmount")
-                        .HasColumnType("bigint")
-                        .HasColumnName("requested_amount");
 
                     b.HasKey("Id")
                         .HasName("pk_goal_histories");
@@ -309,9 +293,9 @@ namespace ExpenseManager.Api.Data.Migrations
 
                     b.ToTable("goal_histories", t =>
                         {
-                            t.HasCheckConstraint("ck_goal_histories_action", "action_type IN ('FUND', 'COMPLETE', 'CANCEL')");
+                            t.HasCheckConstraint("ck_goal_histories_action", "action_type IN ('FUND', 'WITHDRAW', 'COMPLETE', 'CANCEL')");
 
-                            t.HasCheckConstraint("ck_goal_histories_amounts", "((action_type = 'FUND' AND amount_added > 0) OR (action_type IN ('COMPLETE', 'CANCEL') AND amount_added = 0)) AND (requested_amount IS NULL OR requested_amount > 0) AND (balance_after IS NULL OR balance_after >= 0)");
+                            t.HasCheckConstraint("ck_goal_histories_amounts", "((action_type = 'FUND' AND amount_added > 0) OR (action_type = 'WITHDRAW' AND amount_added < 0) OR (action_type IN ('COMPLETE', 'CANCEL') AND amount_added = 0))");
                         });
                 });
 

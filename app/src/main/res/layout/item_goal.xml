@@ -90,23 +90,29 @@
             app:trackColor="@color/surface_variant"
             app:trackCornerRadius="4dp"
             app:trackThickness="8dp" />
-        <ImageButton
-            android:id="@+id/btn_add_funds"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_gravity="end"
-            android:layout_marginTop="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/add_funds"
-            android:src="@drawable/ic_add"
-            app:tint="@color/primary" />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_complete_goal"
-            style="@style/Widget.App.Button.Primary"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="@string/complete_goal_action"
-            android:visibility="gone" />
+            android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_add_funds"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:minHeight="44dp"
+                android:text="@string/add_funds" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_complete_goal"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:minHeight="44dp"
+                android:text="@string/withdraw_funds" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

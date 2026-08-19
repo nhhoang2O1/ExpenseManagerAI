@@ -23,6 +23,7 @@ public enum GoalStatus
 public enum GoalHistoryActionType
 {
     FUND,
+    WITHDRAW,
     COMPLETE,
     CANCEL
 }
@@ -103,9 +104,8 @@ public sealed class Goal
     public Guid UserId { get; set; }
     public required string Name { get; set; }
     public long TargetAmount { get; set; }
-    public long CurrentAmount { get; set; }
+    // Current balance is derived from goal history.
     public GoalStatus Status { get; set; } = GoalStatus.ACTIVE;
-    public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public long Version { get; set; } = 1;
@@ -118,8 +118,6 @@ public sealed class GoalHistory
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid GoalId { get; set; }
     public long AmountAdded { get; set; }
-    public long? RequestedAmount { get; set; }
-    public long? BalanceAfter { get; set; }
     public GoalHistoryActionType ActionType { get; set; } = GoalHistoryActionType.FUND;
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public Goal Goal { get; set; } = null!;

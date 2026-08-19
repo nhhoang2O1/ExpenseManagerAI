@@ -4,7 +4,6 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 
@@ -28,7 +27,7 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
         void onAddFundsClick(Goal goal);
         void onEditGoalClick(Goal goal);
         void onGoalLongClick(Goal goal);
-        void onCompleteGoalClick(Goal goal);
+        void onWithdrawFundsClick(Goal goal);
         void onCancelGoalClick(Goal goal);
     }
 
@@ -60,8 +59,8 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
     final class ViewHolder extends RecyclerView.ViewHolder {
         final TextView name, current, target, percent, completed;
         final LinearProgressIndicator progress;
-        final ImageButton addFunds, more;
-        final MaterialButton completeGoal;
+        final com.google.android.material.button.MaterialButton addFunds, completeGoal;
+        final android.widget.ImageButton more;
 
         ViewHolder(View view) {
             super(view);
@@ -81,28 +80,28 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
                     Math.round(goal.getCurrentAmount() * 100d / goal.getTargetAmount()));
             name.setText(goal.getName());
             current.setText(CurrencyFormatter.format(goal.getCurrentAmount()));
-            target.setText(context.getString(R.string.budget_limit,
+            target.setText(context.getString(R.string.goal_target_value,
                     CurrencyFormatter.format(goal.getTargetAmount())));
-            percent.setText(context.getString(R.string.percentage_format, value));
+            int displayedPercent = goal.getTargetAmount() <= 0 ? 0 : (int) Math.round(goal.getCurrentAmount() * 100d / goal.getTargetAmount());
+            percent.setText(context.getString(R.string.percentage_format, displayedPercent));
             progress.setProgressCompat(value, false);
             if (goal.isCompleted()) {
-                completed.setText(R.string.goal_completed);
+                completed.setText(R.string.goal_ready);
                 completed.setVisibility(View.VISIBLE);
             } else if (goal.isCancelled()) {
                 completed.setText(R.string.goal_cancelled);
                 completed.setVisibility(View.VISIBLE);
-            } else if (goal.isReadyToComplete()) {
-                completed.setText(R.string.goal_ready);
-                completed.setVisibility(View.VISIBLE);
             } else {
                 completed.setVisibility(View.GONE);
             }
-            addFunds.setVisibility(goal.isActive() ? View.VISIBLE : View.GONE);
-            completeGoal.setVisibility(goal.isReadyToComplete() ? View.VISIBLE : View.GONE);
-            more.setVisibility(goal.isCompleted() || goal.isCancelled() ? View.GONE : View.VISIBLE);
+            addFunds.setVisibility(goal.isCancelled() ? View.GONE : View.VISIBLE);
+            completeGoal.setVisibility(goal.isCancelled() ? View.GONE : View.VISIBLE);
+            addFunds.setText(R.string.add_funds);
+            completeGoal.setText(R.string.withdraw_funds);
+            more.setVisibility(goal.isCancelled() ? View.GONE : View.VISIBLE);
             itemView.setOnClickListener(v -> listener.onGoalClick(goal));
             addFunds.setOnClickListener(v -> listener.onAddFundsClick(goal));
-            completeGoal.setOnClickListener(v -> listener.onCompleteGoalClick(goal));
+            completeGoal.setOnClickListener(v -> listener.onWithdrawFundsClick(goal));
             more.setOnClickListener(v -> {
                 PopupMenu menu = new PopupMenu(context, v);
                 menu.getMenu().add(R.string.edit).setOnMenuItemClickListener(item -> {

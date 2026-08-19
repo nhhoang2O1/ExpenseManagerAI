@@ -199,17 +199,6 @@ public sealed class StatisticsRulesTests
         Assert.Equal(expected, StatisticsRules.Balance(income, expense));
     }
 
-    [Theory]
-    [InlineData(5_000_000, 1_200_000, 800_000, 3_000_000)]
-    [InlineData(0, 700_000, 200_000, -900_000)]
-    public void Remaining_is_income_minus_expense_and_savings(
-        long income,
-        long expense,
-        long savings,
-        long expected)
-    {
-        Assert.Equal(expected, StatisticsRules.Remaining(income, expense, savings));
-    }
 }
 
 public sealed class CategoryRulesTests
