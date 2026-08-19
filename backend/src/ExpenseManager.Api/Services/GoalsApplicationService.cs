@@ -23,7 +23,12 @@ public sealed class GoalsApplicationService(AppDbContext db, IUserContext userCo
 {
     public async Task<ApplicationServiceResult<IReadOnlyList<GoalResponse>>> GetAllAsync(CancellationToken ct)
     {
-        var goals = await db.Goals.AsNoTracking().Where(x => x.UserId == userContext.UserId).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).ToListAsync(ct);
+        // Cancelled goals are removed by the current cancel flow. Exclude any
+        // legacy CANCELLED rows so goals cancelled before that change do not
+        // reappear in the app.
+        var goals = await db.Goals.AsNoTracking()
+            .Where(x => x.UserId == userContext.UserId && x.Status != GoalStatus.CANCELLED)
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).ToListAsync(ct);
         var balances = await BalancesAsync(goals.Select(x => x.Id), ct);
         return ApplicationServiceResult<IReadOnlyList<GoalResponse>>.Ok(goals.Select(x => x.ToResponse(balances.GetValueOrDefault(x.Id))).ToList());
     }
@@ -111,8 +116,12 @@ public sealed class GoalsApplicationService(AppDbContext db, IUserContext userCo
     {
         var goal = await db.Goals.SingleOrDefaultAsync(x => x.Id == id && x.UserId == userContext.UserId, ct); if (goal is null) return ApplicationServiceResult<GoalResponse>.NotFound();
         if (!OptimisticConcurrency.IfMatchSatisfied(ifMatch, goal.Version)) return ApplicationServiceResult<GoalResponse>.PreconditionFailed(); if (goal.Status == GoalStatus.CANCELLED) return ApplicationServiceResult<GoalResponse>.Conflict("Mục tiêu đã bị hủy.");
-        goal.Status = GoalStatus.CANCELLED; db.GoalHistories.Add(new GoalHistory { GoalId = goal.Id, AmountAdded = 0, ActionType = GoalHistoryActionType.CANCEL }); await db.SaveChangesAsync(ct);
-        return ApplicationServiceResult<GoalResponse>.Ok(goal.ToResponse(await CurrentBalanceAsync(id, ct)), goal.Version);
+        var response = goal.ToResponse(await CurrentBalanceAsync(id, ct));
+        // Cancelling a goal removes the goal and its history (cascade delete). Savings
+        // are internal to goals and never create a transaction to refund.
+        db.Goals.Remove(goal);
+        await db.SaveChangesAsync(ct);
+        return ApplicationServiceResult<GoalResponse>.Ok(response, goal.Version);
     }
 
     public async Task<ApplicationServiceResult<IReadOnlyList<GoalHistoryResponse>>> GetHistoryAsync(Guid id, CancellationToken ct)

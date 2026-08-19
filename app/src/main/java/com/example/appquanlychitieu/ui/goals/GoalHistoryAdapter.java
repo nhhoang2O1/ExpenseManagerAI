@@ -57,10 +57,12 @@ public class GoalHistoryAdapter extends ArrayAdapter<GoalHistory> {
                 tvAction.setText(R.string.goal_history_withdraw);
                 tvAmount.setText(context.getString(R.string.negative_amount,
                         CurrencyFormatter.format(Math.abs(history.getAmountAdded()))));
+                tvAmount.setTextColor(context.getColor(R.color.expense_color));
             } else {
                 tvAction.setText(R.string.goal_history_entry);
                 tvAmount.setText(context.getString(R.string.positive_amount,
                         CurrencyFormatter.format(history.getAmountAdded())));
+                tvAmount.setTextColor(context.getColor(R.color.income_color));
             }
         }
 
