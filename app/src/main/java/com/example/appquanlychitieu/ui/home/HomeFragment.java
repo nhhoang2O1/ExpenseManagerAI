@@ -151,11 +151,6 @@ public class HomeFragment extends Fragment {
     }
 
     private void openTransaction(Transaction transaction) {
-        if (transaction.isGoalCompletion()) {
-            Snackbar.make(requireView(), R.string.goal_transaction_read_only,
-                    Snackbar.LENGTH_LONG).show();
-            return;
-        }
         editTransaction(transaction);
     }
 
@@ -176,11 +171,6 @@ public class HomeFragment extends Fragment {
     }
 
     private void confirmDelete(Transaction transaction) {
-        if (transaction.isGoalCompletion()) {
-            Snackbar.make(requireView(), R.string.goal_transaction_read_only,
-                    Snackbar.LENGTH_LONG).show();
-            return;
-        }
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(R.string.confirm_delete)

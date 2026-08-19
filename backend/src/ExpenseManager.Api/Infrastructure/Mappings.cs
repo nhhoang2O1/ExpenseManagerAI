@@ -26,7 +26,6 @@ public static class Mappings
             transaction.ReceiptId,
             transaction.CreatedAt,
             transaction.UpdatedAt,
-            transaction.GoalId,
             transaction.Version,
             budgetAlert);
 
@@ -53,7 +52,6 @@ public static class Mappings
             goal.UpdatedAt,
             goal.Status,
             goal.CompletedAt,
-            goal.CompletionTransaction?.Id,
             goal.Version);
 
     public static GoalHistoryResponse ToResponse(this GoalHistory history) =>

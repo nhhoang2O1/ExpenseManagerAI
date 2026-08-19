@@ -198,7 +198,6 @@ public class RemoteGoalRepository {
         goal.setVersion(dto.version);
         goal.setStatus(dto.status);
         goal.setCompletedAt(dto.completedAt);
-        goal.setCompletionTransactionId(dto.completionTransactionId);
         return goal;
     }
 

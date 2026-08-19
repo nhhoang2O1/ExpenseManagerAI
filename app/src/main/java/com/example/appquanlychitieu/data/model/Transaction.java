@@ -16,7 +16,6 @@ public class Transaction {
     private String remoteCategoryColor;
     private String remoteCategoryIcon;
     private String remoteReceiptId;
-    private String remoteGoalId;
     private long version = 1L;
 
     public Transaction() {}
@@ -70,11 +69,6 @@ public class Transaction {
     public void setRemoteCategoryIcon(String remoteCategoryIcon) { this.remoteCategoryIcon = remoteCategoryIcon; }
     public String getRemoteReceiptId() { return remoteReceiptId; }
     public void setRemoteReceiptId(String remoteReceiptId) { this.remoteReceiptId = remoteReceiptId; }
-    public String getRemoteGoalId() { return remoteGoalId; }
-    public void setRemoteGoalId(String remoteGoalId) { this.remoteGoalId = remoteGoalId; }
-    public boolean isGoalCompletion() {
-        return remoteGoalId != null && !remoteGoalId.trim().isEmpty();
-    }
     public long getVersion() { return version; }
     public void setVersion(long version) { this.version = version; }
 }

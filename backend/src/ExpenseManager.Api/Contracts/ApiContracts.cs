@@ -60,7 +60,6 @@ public sealed record TransactionResponse(
     Guid? ReceiptId,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    Guid? GoalId = null,
     long Version = 1,
     BudgetAlertResponse? BudgetAlert = null);
 
@@ -175,7 +174,6 @@ public sealed record GoalResponse(
     DateTime UpdatedAt,
     GoalStatus Status = GoalStatus.ACTIVE,
     DateTime? CompletedAt = null,
-    Guid? CompletionTransactionId = null,
     long Version = 1);
 
 public sealed record GoalHistoryResponse(

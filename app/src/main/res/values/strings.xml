@@ -149,7 +149,6 @@
     <string name="reserved_for_goals">Đã dành cho mục tiêu</string>
     <string name="goal_history_completed">Đã tạo giao dịch hoàn thành mục tiêu</string>
     <string name="goal_history_cancelled">Đã hủy và hoàn lại số dư khả dụng</string>
-    <string name="goal_transaction_read_only">Giao dịch này được tạo khi hoàn thành mục tiêu và không thể chỉnh sửa hoặc xóa</string>
     <string name="goal_history_title">Lịch sử nạp: %1$s</string>
     <string name="no_goal_history">Chưa có lần nạp tiền nào</string>
     <string name="budget_limit">Hạn mức: %1$s</string>

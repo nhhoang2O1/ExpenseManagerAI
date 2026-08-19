@@ -712,10 +712,6 @@ namespace ExpenseManager.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("GoalId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("goal_id");
-
                     b.Property<string>("Note")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
@@ -759,10 +755,6 @@ namespace ExpenseManager.Api.Data.Migrations
                     b.HasIndex("ReceiptId")
                         .IsUnique()
                         .HasDatabaseName("ix_transactions_receipt_id");
-
-                    b.HasIndex("GoalId", "UserId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_transactions_goal_id_user_id");
 
                     b.HasIndex("ReceiptId", "UserId")
                         .IsUnique()
@@ -1005,13 +997,6 @@ namespace ExpenseManager.Api.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_transactions_users_user_id");
 
-                    b.HasOne("ExpenseManager.Api.Domain.Goal", "Goal")
-                        .WithOne("CompletionTransaction")
-                        .HasForeignKey("ExpenseManager.Api.Domain.Transaction", "GoalId", "UserId")
-                        .HasPrincipalKey("ExpenseManager.Api.Domain.Goal", "Id", "UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_transactions_goals_goal_id_user_id");
-
                     b.HasOne("ExpenseManager.Api.Domain.Receipt", "Receipt")
                         .WithOne("Transaction")
                         .HasForeignKey("ExpenseManager.Api.Domain.Transaction", "ReceiptId", "UserId")
@@ -1029,8 +1014,6 @@ namespace ExpenseManager.Api.Data.Migrations
 
                     b.Navigation("Category");
 
-                    b.Navigation("Goal");
-
                     b.Navigation("Receipt");
 
                     b.Navigation("User");
@@ -1045,8 +1028,6 @@ namespace ExpenseManager.Api.Data.Migrations
 
             modelBuilder.Entity("ExpenseManager.Api.Domain.Goal", b =>
                 {
-                    b.Navigation("CompletionTransaction");
-
                     b.Navigation("History");
                 });
 

@@ -30,7 +30,6 @@ public final class RemoteTransactionMapper {
         local.setRemoteCategoryColor(remote.resolvedCategoryColor());
         local.setRemoteCategoryIcon(remote.resolvedCategoryIcon());
         local.setRemoteReceiptId(remote.receiptId);
-        local.setRemoteGoalId(remote.goalId);
         local.setVersion(remote.version);
         return local;
     }

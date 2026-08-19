@@ -25,7 +25,7 @@ public sealed class GoalsApplicationService(AppDbContext db, IUserContext userCo
     public async Task<ApplicationServiceResult<IReadOnlyList<GoalResponse>>> GetAllAsync(
         CancellationToken cancellationToken)
     {
-        var items = await db.Goals.AsNoTracking().Include(x => x.CompletionTransaction)
+        var items = await db.Goals.AsNoTracking()
             .Where(x => x.UserId == userContext.UserId)
             .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);

@@ -148,9 +148,6 @@ public sealed class TransactionsApplicationService(AppDbContext db, IUserContext
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (transaction is null)
             return ApplicationServiceResult<TransactionResponse>.NotFound();
-        if (transaction.GoalId.HasValue)
-            return ApplicationServiceResult<TransactionResponse>.Conflict(
-                "Giao dịch hoàn thành mục tiêu không thể chỉnh sửa.");
         if (!OptimisticConcurrency.IfMatchSatisfied(ifMatch, transaction.Version))
             return ApplicationServiceResult<TransactionResponse>.PreconditionFailed();
         var category = await OwnedCategory(request.CategoryId, cancellationToken);
@@ -194,9 +191,6 @@ public sealed class TransactionsApplicationService(AppDbContext db, IUserContext
             x => x.Id == id && x.UserId == userContext.UserId, cancellationToken);
         if (transaction is null)
             return ApplicationServiceResult<object?>.NotFound();
-        if (transaction.GoalId.HasValue)
-            return ApplicationServiceResult<object?>.Conflict(
-                "Giao dịch hoàn thành mục tiêu không thể xóa.");
         if (!OptimisticConcurrency.IfMatchSatisfied(ifMatch, transaction.Version))
             return ApplicationServiceResult<object?>.PreconditionFailed();
 

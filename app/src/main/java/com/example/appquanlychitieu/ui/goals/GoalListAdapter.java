@@ -140,8 +140,6 @@ public class GoalListAdapter extends ListAdapter<Goal, GoalListAdapter.ViewHolde
         return Objects.equals(first.getName(), second.getName())
                 && first.getTargetAmount() == second.getTargetAmount()
                 && first.getCurrentAmount() == second.getCurrentAmount()
-                && Objects.equals(first.getStatus(), second.getStatus())
-                && Objects.equals(first.getCompletionTransactionId(),
-                        second.getCompletionTransactionId());
+                && Objects.equals(first.getStatus(), second.getStatus());
     }
 }

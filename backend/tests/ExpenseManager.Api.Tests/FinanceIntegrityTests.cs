@@ -298,7 +298,7 @@ public sealed class FinanceIntegrityTests
 
         var result = Assert.IsType<GoalResponse>(Assert.IsType<OkObjectResult>(response.Result).Value);
         Assert.Equal(GoalStatus.CANCELLED, result.Status);
-        Assert.Empty(await db.Transactions.Where(x => x.GoalId == goal.Id).ToListAsync());
+        Assert.Empty(await db.Transactions.ToListAsync());
         Assert.Single(await db.GoalHistories.Where(x => x.ActionType == GoalHistoryActionType.CANCEL)
             .ToListAsync());
     }

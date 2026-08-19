@@ -111,7 +111,6 @@ public sealed class Goal
     public long Version { get; set; } = 1;
     public User User { get; set; } = null!;
     public ICollection<GoalHistory> History { get; set; } = [];
-    public Transaction? CompletionTransaction { get; set; }
 }
 
 public sealed class GoalHistory
@@ -147,7 +146,6 @@ public sealed class Transaction
     public Guid UserId { get; set; }
     public Guid CategoryId { get; set; }
     public Guid? ReceiptId { get; set; }
-    public Guid? GoalId { get; set; }
     public long Amount { get; set; }
     public TransactionType Type { get; set; }
     public DateOnly TransactionDate { get; set; }
@@ -159,7 +157,6 @@ public sealed class Transaction
     public User User { get; set; } = null!;
     public Category Category { get; set; } = null!;
     public Receipt? Receipt { get; set; }
-    public Goal? Goal { get; set; }
 }
 
 public sealed class Receipt

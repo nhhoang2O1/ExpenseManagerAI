@@ -52,44 +52,6 @@ public sealed class DatabaseIntegrityPostgreSqlTests(PostgreSqlIntegrationFixtur
     }
 
     [PostgreSqlFact]
-    public async Task Database_rejects_a_transaction_linked_to_another_users_goal()
-    {
-        await using var db = await fixture.ResetAndCreateDbAsync();
-        var owner = NewUser("goal-owner@example.com");
-        var otherUser = NewUser("other-goal-owner@example.com");
-        var ownerCategory = new Category
-        {
-            UserId = owner.Id,
-            User = owner,
-            Name = "Goal expense",
-            Type = TransactionType.EXPENSE
-        };
-        var foreignGoal = new Goal
-        {
-            UserId = otherUser.Id,
-            User = otherUser,
-            Name = "Foreign goal",
-            TargetAmount = 100_000,
-            CurrentAmount = 100_000,
-            Status = GoalStatus.READY_TO_COMPLETE
-        };
-        db.AddRange(owner, otherUser, ownerCategory, foreignGoal);
-        await db.SaveChangesAsync();
-
-        db.Transactions.Add(new Transaction
-        {
-            UserId = owner.Id,
-            CategoryId = ownerCategory.Id,
-            GoalId = foreignGoal.Id,
-            Amount = 100_000,
-            Type = TransactionType.EXPENSE,
-            TransactionDate = new DateOnly(2026, 8, 11)
-        });
-
-        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
-    }
-
-    [PostgreSqlFact]
     public async Task Database_rejects_non_positive_financial_amounts()
     {
         await using var db = await fixture.ResetAndCreateDbAsync();

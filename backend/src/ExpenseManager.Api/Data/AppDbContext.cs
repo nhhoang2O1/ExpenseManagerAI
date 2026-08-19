@@ -70,10 +70,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Note).HasMaxLength(1000);
             entity.Property(x => x.StoreName).HasMaxLength(200);
             entity.Property(x => x.Version).HasColumnType("bigint").IsConcurrencyToken();
-            entity.HasOne(x => x.Goal).WithOne(x => x.CompletionTransaction)
-                .HasForeignKey<Transaction>(x => new { x.GoalId, x.UserId })
-                .HasPrincipalKey<Goal>(x => new { x.Id, x.UserId })
-                .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.User).WithMany(x => x.Transactions)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Category).WithMany(x => x.Transactions)
